@@ -68,6 +68,12 @@ jobs:
         run: |
           cp _headers site/_headers
           printf 'User-agent: *\nDisallow: /\n' > site/robots.txt
-          npx --yes wrangler@4.20.0 pages project create news --production-branch main 2>/dev/null || true
-          npx --yes wrangler@4.20.0 pages deploy site --project-name news --branch main --commit-dirty=true
+          set +e
+          npx --yes wrangler@4.20.0 pages project create news --production-branch main > cf.log 2>&1
+          npx --yes wrangler@4.20.0 pages deploy site --project-name news --branch main --commit-dirty=true >> cf.log 2>&1
+          rc=$?
+          msg=$(sed -E 's/\x1b\[[0-9;]*m//g' cf.log | grep -vE '^\s*$' | tail -30)
+          msg="${msg//'%'/'%25'}"; msg="${msg//$'\n'/'%0A'}"
+          echo "::warning title=wrangler (exit $rc)::$msg"
+          exit $rc
 
