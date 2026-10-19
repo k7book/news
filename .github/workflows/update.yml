@@ -64,7 +64,7 @@ jobs:
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.NEWS }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.NEWS1 }}
         run: |
           cp _headers site/_headers
           printf 'User-agent: *\nDisallow: /\n' > site/robots.txt
