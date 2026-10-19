@@ -344,6 +344,99 @@ def fetch_graphic_search():
     return out, (None if out else err or "0건")
 
 
+# ---- 구글뉴스 링크 → 원문 주소, 원문 대표 사진(og:image) ----
+# 2026-10-19 결정: 구글뉴스는 robots.txt(/rss/ 포함 차단)에도 불구하고 RSS와 원문 주소 확인에 사용한다.
+# 원문 언론사 페이지는 각 사이트 robots.txt를 지킨다.
+GN_RX = re.compile(r"news\.google\.com/(?:rss/)?articles/([A-Za-z0-9_-]+)")
+GN_CACHE = os.path.join(HERE, "history", "gn_cache.json")
+
+
+def gn_decode(url):
+    """구글뉴스 기사 링크를 원문 주소로 푼다. 실패하면 None"""
+    m = GN_RX.search(url or "")
+    if not m:
+        return None
+    gid = m.group(1)
+    page = http_get(f"https://news.google.com/rss/articles/{gid}").decode("utf-8", "ignore")
+    sg = re.search(r'data-n-a-sg="([^"]+)"', page)
+    ts = re.search(r'data-n-a-ts="([^"]+)"', page)
+    if not (sg and ts):
+        return None
+    payload = ('["garturlreq",[["X","X",["X","X"],null,null,1,1,"US:en",null,1,null,null,null,null,null,0,1],'
+               f'"X","X",1,[1,1,1],1,1,null,0,0,null,0],"{gid}",{ts.group(1)},"{sg.group(1)}"]')
+    body = urllib.parse.urlencode({"f.req": json.dumps([[["Fbv4je", payload, None, "generic"]]])}).encode()
+    req = urllib.request.Request("https://news.google.com/_/DotsSplashUi/data/batchexecute", data=body,
+                                 headers={"User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        txt = r.read().decode("utf-8", "ignore")
+    part = json.loads(txt.split("\n\n", 1)[1])
+    res = json.loads(part[0][2])
+    return res[1] if len(res) > 1 and str(res[1]).startswith("http") else None
+
+
+_OG_RX = [re.compile(p, re.I) for p in (
+    r'<meta[^>]+property=["\']og:image(?::url)?["\'][^>]*content=["\']([^"\']+)',
+    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*property=["\']og:image(?::url)?["\']',
+    r'<meta[^>]+name=["\']twitter:image["\'][^>]*content=["\']([^"\']+)',
+    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]*name=["\']twitter:image["\']')]
+
+
+def og_image(url):
+    """원문 페이지의 대표 사진 주소 (robots.txt가 막으면 None)"""
+    if not robots_allows(url):
+        return None
+    page = http_get(url)[:400000].decode("utf-8", "ignore")
+    for rx in _OG_RX:
+        m = rx.search(page)
+        if m:
+            img = html.unescape(m.group(1)).strip()
+            if img.startswith("//"):
+                img = "https:" + img
+            return urllib.parse.urljoin(url, img) if img else None
+    return None
+
+
+def enrich_graphics(rows, workers=6):
+    """사진 없는 구글뉴스 그래픽 기사: 원문 주소로 바꾸고 원문 대표 사진을 붙인다. 결과는 캐시."""
+    try:
+        cache = json.load(open(GN_CACHE, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    todo = [g for g in rows if not g.get("img") and GN_RX.search(g.get("url") or "")]
+
+    def work(g):
+        gid = GN_RX.search(g["url"]).group(1)
+        if gid in cache:
+            return gid, cache[gid]
+        out = {"url": None, "img": None}
+        try:
+            out["url"] = gn_decode(g["url"])
+            if out["url"]:
+                out["img"] = og_image(out["url"])
+        except Exception as e:
+            out["err"] = f"{type(e).__name__}"
+        return gid, out
+
+    with ThreadPoolExecutor(workers) as ex:
+        results = list(ex.map(work, todo))
+    n_img = 0
+    for g, (gid, r) in zip(todo, results):
+        if "err" not in r:
+            cache[gid] = r
+        if r.get("url"):
+            g["url"] = r["url"]
+        if r.get("img"):
+            g["img"] = r["img"]
+            n_img += 1
+    try:
+        os.makedirs(os.path.dirname(GN_CACHE), exist_ok=True)
+        keep = dict(list(cache.items())[-3000:])
+        json.dump(keep, open(GN_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return len(todo), n_img
+
+
 def graphic_section(yna, searched, items, limit=30, extra=()):
     """다른 언론사 그래픽: 검색 결과 + 수집 기사 중 [그래픽]류 제목. 연합 그래픽 목록과 겹치는 제목은 뺀다."""
     def norm(t):
@@ -1011,6 +1104,7 @@ def render_sources(feeds, status, now):
         ("연합뉴스", "그래픽 목록", "목록 페이지", "yna.co.kr/graphic/index", "연합뉴스 그래픽"),
         ("뉴시스", "그래픽뉴스 목록", "목록 페이지", "newsis.com/photo/gralist", "뉴시스 그래픽"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
+        ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
     ]
     erows = "".join(f'<tr><th>{esc(a)}</th><td>{esc(b)}</td><td>{esc(c)}</td><td class="mono">{esc(d)}</td><td>{stline(e)}</td></tr>'
                     for a, b, c, d, e in extra)
@@ -1050,7 +1144,7 @@ td.na,span.na{color:var(--dim)}td.sum{color:var(--muted);font-variant-numeric:ta
 
 <h2>원칙</h2>
 <ul class="rules"><li>기사 본문과 이미지 파일은 저장하지 않습니다. 사진은 신문사 서버의 썸네일 주소를 그대로 띄웁니다.</li>
-<li>모든 제목은 원문 기사로 연결됩니다.</li><li>robots.txt가 막은 페이지는 읽지 않습니다.</li><li>1시간마다 다시 모읍니다.</li></ul>
+<li>모든 제목은 원문 기사로 연결됩니다.</li><li>robots.txt가 막은 페이지는 읽지 않습니다. 단, <b>구글뉴스는 예외</b>로 RSS 구독과 원문 주소 확인에 씁니다(2026-10-19 결정). 원문 언론사 페이지는 각 사이트의 robots.txt를 지킵니다.</li><li>1시간마다 다시 모읍니다.</li></ul>
 </div>
 <footer><span>제목과 링크만 모읍니다. 기사 원문은 각 언론사에 있습니다.</span><a href="index.html">지금 뜨는 뉴스 →</a></footer>
 </div></body></html>"""
@@ -1176,6 +1270,9 @@ def main():
                     "photos": photos(cs, sub)}
     trends = trend_related(attach_news(trends, items), items)
     graphic = {"yna": yna_g, "others": graphic_section(yna_g, g_search, items, extra=nis_g)}
+    if not args.demo:
+        n_todo, n_img = enrich_graphics(graphic["others"])
+        pstatus.append({"name": "그래픽 원문 사진", "ok": True, "count": n_img, "error": "" if n_img else f"{n_todo}건 중 0"})
 
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
