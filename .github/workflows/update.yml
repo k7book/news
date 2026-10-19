@@ -69,7 +69,18 @@ jobs:
           cp _headers site/_headers
           printf 'User-agent: *\nDisallow: /\n' > site/robots.txt
           set +e
-          npx --yes wrangler@4.20.0 pages project create news --production-branch main > cf.log 2>&1
+          # 공백·줄바꿈 제거 후 토큰 확인 (값은 출력하지 않음)
+          CLOUDFLARE_API_TOKEN=$(printf %s "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]'); export CLOUDFLARE_API_TOKEN
+          CLOUDFLARE_ACCOUNT_ID=$(printf %s "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]'); export CLOUDFLARE_ACCOUNT_ID
+          chk() { curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$1" | python3 -c "import json,sys
+          d=json.load(sys.stdin); r=d.get('result') or {}
+          print('ok' if d.get('success') else 'fail', r.get('status',''), [(e.get('code'), e.get('message')) for e in d.get('errors', [])])"; }
+          {
+            echo "token length ${#CLOUDFLARE_API_TOKEN}, prefix ${CLOUDFLARE_API_TOKEN:0:5}, account id length ${#CLOUDFLARE_ACCOUNT_ID}"
+            echo "user token verify: $(chk https://api.cloudflare.com/client/v4/user/tokens/verify)"
+            echo "account token verify: $(chk https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify)"
+          } > cf.log 2>&1
+          npx --yes wrangler@4.20.0 pages project create news --production-branch main >> cf.log 2>&1
           npx --yes wrangler@4.20.0 pages deploy site --project-name news --branch main --commit-dirty=true >> cf.log 2>&1
           rc=$?
           msg=$(sed -E 's/\x1b\[[0-9;]*m//g' cf.log | grep -vE '^\s*$' | tail -30)
