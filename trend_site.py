@@ -315,6 +315,9 @@ def fetch_newsis_graphic(limit=24):
     return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
 
 
+KOREAN_LATIN_OUTLETS = {"KBS", "MBC", "SBS", "JTBC", "YTN", "MBN", "EBS", "OBS", "TV조선", "CBS", "BBS", "KNN", "TBC", "UBC", "G1"}
+
+
 def fetch_graphic_search():
     """구글뉴스 검색 RSS: 제목에 '그래픽'이 들어간 최근 2일 기사 (여러 언론사)"""
     out, err = [], None
@@ -331,6 +334,8 @@ def fetch_graphic_search():
             if outlet and t.endswith(" - " + outlet):
                 t = t[: -len(outlet) - 3]
             t = html.unescape(t).strip()
+            if outlet and not re.search(r"[가-힣]", outlet) and outlet.upper().split()[0] not in KOREAN_LATIN_OUTLETS:
+                continue  # Vietnam.vn 같은 해외 재게시 사이트 제외
             if not (GRAPHIC_RX.search(t) or re.search(r"그래픽\s*뉴스|인포그래픽|\[그래픽", t)):
                 continue  # '그래픽카드' 같은 기사 제외
             d = item_date(it)
