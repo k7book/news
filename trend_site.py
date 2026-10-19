@@ -577,7 +577,8 @@ def trend_related(trends, items, top=5):
 RISE_STOP = set("""속보 단독 종합 포토 영상 오늘 내일 어제 이번 지난 올해 내년 관련 위해 대한 통해 이후 이전 첫날 마감 오후 오전 개장
 전망 발표 기록 공개 확인 진행 예정 개최 참석 강조 지적 논란 의혹 사과 입장 결과 추진 계획 가능성 우려 대응 기자 뉴스 사진 만에 다시
 상승 하락 급등 급락 증가 감소 최대 최고 최저 역대 사상 국내 미국 한국 정부 시장 업계 관계자
-차전 후보 경신 지속 돌파 재돌파 출시 선정 개막 종료 시작 가운데 이유 모습 대해 경우 사실""".split())
+차전 후보 경신 지속 돌파 재돌파 출시 선정 개막 종료 시작 가운데 이유 모습 대해 경우 사실
+대통령 매우 쭉쭉 가격 억원 조원 만원 글로벌 감독 영화 신곡 아내 남편 강조 재정 공급 가격 국감 국정감사 ai it 사업 기업 회사 투자 지원 확대 강화 경제 정책 정치 사회 문제 상황 수준 이상 이하 가장 계속 결국 모두 전국 지역 서울""".split())
 
 
 def rising_words(sub, now, recent_h=3, top=10):
@@ -632,7 +633,8 @@ def channel_trends(c, sub, trends, now, top=10):
     for t in trends:
         kw = t["keyword"].lower()
         in_titles = len(kw) >= 2 and kw in blob
-        stock_hit = c == "주식" and (STOCK_RX.search(t["keyword"]) or any(STOCK_RX.search(n.get("title", "")) for n in t["news"]))
+        stock_hit = c == "주식" and (bool(STOCK_RX.search(t["keyword"]))
+                                     or sum(1 for n in t["news"] if STOCK_RX.search(n.get("title", ""))) >= 2)
         if in_titles or stock_hit:
             matched.append(dict(t))
     names = {t["keyword"].lower() for t in matched}
