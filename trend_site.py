@@ -1103,7 +1103,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     if only:
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
     else:
-        tabs += '<a class="srclink" href="stock.html">주식만 보기</a><a class="srclink" href="sources.html">출처</a>'
+        tabs += '<a class="srclink" href="sources.html">출처</a>'
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
     tick_keys = list(pages) + (["그래픽"] if gpanel else [])
