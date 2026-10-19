@@ -574,6 +574,73 @@ def trend_related(trends, items, top=5):
     return trends
 
 
+RISE_STOP = set("""속보 단독 종합 포토 영상 오늘 내일 어제 이번 지난 올해 내년 관련 위해 대한 통해 이후 이전 첫날 마감 오후 오전 개장
+전망 발표 기록 공개 확인 진행 예정 개최 참석 강조 지적 논란 의혹 사과 입장 결과 추진 계획 가능성 우려 대응 기자 뉴스 사진 만에 다시
+상승 하락 급등 급락 증가 감소 최대 최고 최저 역대 사상 국내 미국 한국 정부 시장 업계 관계자
+차전 후보 경신 지속 돌파 재돌파 출시 선정 개막 종료 시작 가운데 이유 모습 대해 경우 사실""".split())
+
+
+def rising_words(sub, now, recent_h=3, top=10):
+    """최근 recent_h시간에 갑자기 많이 쓰인 낱말 (앞선 시간대 평균과 비교). 언론사 2곳 이상 필요."""
+    cut = now - timedelta(hours=recent_h)
+    recent = [a for a in sub if a["date"] >= cut]
+    base = [a for a in sub if a["date"] < cut]
+    if not recent:
+        return []
+    base_h = max(1.0, (cut - min((a["date"] for a in base), default=cut)).total_seconds() / 3600)
+    r_art, r_out = defaultdict(list), defaultdict(set)
+    for a in recent:
+        for w in a.get("_w") or words(a["title"]):
+            r_art[w].append(a)
+            r_out[w].add(a["outlet"])
+    b_cnt = Counter(w for a in base for w in (a.get("_w") or words(a["title"])))
+    cands = []
+    for w, arts in r_art.items():
+        if len(r_out[w]) < 2 or w.isdigit() or w in RISE_STOP or len(w) < 2:
+            continue
+        expected = b_cnt.get(w, 0) / base_h * recent_h
+        ratio = (len(arts) + 1) / (expected + 1)
+        if ratio < 1.8:
+            continue
+        cands.append((len(r_out[w]) * ratio, w, arts))
+    cands.sort(key=lambda x: -x[0])
+    out, used = [], set()
+    for _, w, arts in cands:
+        if any(w in u or u in w for u in used):
+            continue
+        used.add(w)
+        news, seen = [], set()
+        for a in sorted(arts, key=lambda a: a["date"], reverse=True):
+            if a["outlet"] in seen:
+                continue
+            seen.add(a["outlet"])
+            news.append({"title": a["title"], "url": a["url"], "outlet": a["outlet"]})
+            if len(news) >= 3:
+                break
+        out.append({"keyword": w, "traffic": f"3시간 {len(arts)}건·{len(r_out[w])}곳", "news": news, "kind": "rise"})
+        if len(out) >= top:
+            break
+    return out
+
+
+def channel_trends(c, sub, trends, now, top=10):
+    """탭별 급상승: 전체는 구글 트렌드, 분야 탭은 그 분야 기사에 나오는 구글 검색어 + 분야 기사 속 급상승 낱말"""
+    if c == "전체":
+        return trends
+    blob = "\n".join(a["title"].lower() for a in sub)
+    matched = []
+    for t in trends:
+        kw = t["keyword"].lower()
+        in_titles = len(kw) >= 2 and kw in blob
+        stock_hit = c == "주식" and (STOCK_RX.search(t["keyword"]) or any(STOCK_RX.search(n.get("title", "")) for n in t["news"]))
+        if in_titles or stock_hit:
+            matched.append(dict(t))
+    names = {t["keyword"].lower() for t in matched}
+    rise = [r for r in rising_words(sub, now, top=top) if not any(r["keyword"] in n or n in r["keyword"] for n in names)]
+    out = (matched + rise)[:top]
+    return trend_related(out, sub)
+
+
 def hourly(items, now, hours=24):
     """최근 N시간을 1시간 단위로 센 새 기사 수 [(시각ISO, 건수), ...]"""
     base = now.replace(minute=0, second=0, microsecond=0)
@@ -713,7 +780,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
 .tag{flex:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;padding:3px 9px 3px 10px;border-radius:2px}
-.ticker .items{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ticker .sep{color:var(--dim);margin:0 8px}
+.ticker .items{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ticker .items.pg.on{display:block}.ticker .sep{color:var(--dim);margin:0 8px}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:0 44px;padding-top:28px}
 .side{border-left:1px solid var(--rule);padding-left:22px}
 @media(max-width:900px){.cols{grid-template-columns:1fr}.side{border-left:0;padding-left:0;margin-top:36px}}
@@ -758,10 +825,10 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .cnt{color:var(--red);font-weight:800}
 .shead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.6px solid var(--ink);padding-bottom:7px;margin:0 0 4px}
 .shead h2{font-size:16px;font-weight:800;margin:0}.shead .en{font-size:10.5px;letter-spacing:.24em;color:var(--muted)}
-.side section+section{margin-top:34px}
+.side section+section{margin-top:34px}.side section.pg+section.pg{margin-top:0}.side section.pg.on~section:not(.pg){margin-top:34px}
 .tr{display:grid;grid-template-columns:24px minmax(0,1fr);gap:0 8px;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}
 .tr .no{font-weight:800;color:var(--teal);font-size:13px;padding-top:1px}
-.tr .kw{font-weight:800;font-size:15px}.tr .tf{font-size:11px;color:var(--red);font-weight:700;margin-left:6px;letter-spacing:.04em}
+.tr .kw{font-weight:800;font-size:15px}.tr .tf.rise{color:var(--teal)}.tr .tf{font-size:11px;color:var(--red);font-weight:700;margin-left:6px;letter-spacing:.04em}
 .tr ul{margin:4px 0 0;padding:0;list-style:none}.tr li{font-size:12.5px;line-height:1.55;color:var(--ink-soft);padding:2px 0}
 .tr li .o,.pop .o{color:var(--dim);font-size:11px;margin-left:5px}
 .pop ol,.pop ul{margin:0;padding:0;list-style:none;counter-reset:p}.pop ul li{display:block}.pop ul li::before{content:none}
@@ -896,7 +963,7 @@ def render_trends(trends, now=None):
     out = []
     for i, t in enumerate(trends, 1):
         news = "".join(f"<li>{link(n['url'], n['title'])}<span class='o'>{esc(n['outlet'])}</span></li>" for n in t["news"][:2] if n.get("url"))
-        tf = f'<span class="tf">{esc(t["traffic"])}</span>' if t.get("traffic") else ""
+        tf = (f'<span class="tf{" rise" if t.get("kind") == "rise" else ""}">{esc(t["traffic"])}</span>') if t.get("traffic") else ""
         rel = ('<div class="rel">' + "".join(f"<span>{esc(w)}</span>" for w in t.get("related", [])) + "</div>") if t.get("related") else ""
         out.append(f'<div class="tr"><div class="no">{i}</div><div><div class="kw">{esc(t["keyword"])}{tf}{started(t, now) if now else ""}</div><ul>{news}</ul>{rel}</div></div>')
     return "".join(out)
@@ -1035,17 +1102,28 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
     else:
         tabs += '<a class="srclink" href="stock.html">주식만 보기</a><a class="srclink" href="sources.html">출처</a>'
-    ticker_kw = [t["keyword"] for t in trends[:6]]
-    ticker = ('<div class="ticker"><span class="tag">급상승</span><span class="items">'
-              + '<span class="sep">/</span>'.join(esc(k) for k in ticker_kw) + "</span></div>") if ticker_kw else ""
+    def tr_of(c):
+        return pages[c].get("trends") if pages[c].get("trends") is not None else trends
+    tick_keys = list(pages) + (["그래픽"] if gpanel else [])
+    def tk(c):
+        src = tr_of(c if c in pages else next(iter(pages)))
+        return (f'<span class="items pg" data-c="{esc(c)}">' + '<span class="sep">/</span>'.join(esc(t["keyword"]) for t in src[:6]) + "</span>")
+    ticker = '<div class="ticker"><span class="tag">급상승</span>' + "".join(tk(c) for c in tick_keys) + "</div>"
     body = []
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
         body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
                     f'<section class="shelf"><div class="shead"><h2>언론사 3곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
                     f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
-    side = (f'<section><div class="shead"><h2>급상승 검색어</h2><span class="en">GOOGLE TRENDS</span></div>{render_trends(trends, now)}</section>'
-            + render_portals(portals))
+    def side_tr(c):
+        src = tr_of(c if c in pages else next(iter(pages)))
+        first = c == "전체" or c not in pages
+        h = "급상승 검색어" if first else f"급상승 · {c}"
+        en = "GOOGLE TRENDS" if first else "검색어 + 기사 속 낱말"
+        note = "" if first else '<p class="note">구글 급상승 검색어 중 이 분야 기사에 나온 것, 그리고 최근 3시간 이 분야 기사에서 갑자기 많이 쓰인 낱말입니다.</p>'
+        return (f'<section class="pg" data-c="{esc(c)}"><div class="shead"><h2>{esc(h)}</h2><span class="en">{en}</span></div>'
+                f'{render_trends(src, now)}{note}</section>')
+    side = "".join(side_tr(c) for c in tick_keys) + render_portals(portals)
     allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
@@ -1293,7 +1371,7 @@ def main():
     raw = len(items)
     items = clean(items, args.hours, now)
     # 분야별 묶기: 전체 탭은 모든 기사, 분야 탭은 해당 분야 피드의 기사만
-    pages = {}
+    pages, subs = {}, {}
     for c in CATEGORIES:
         if c == "전체":
             sub = items
@@ -1306,7 +1384,10 @@ def main():
         cs = cluster(sub)
         pages[c] = {"clusters": cs, "keywords": keywords(sub), "hourly": hourly(sub, now), "latest": latest(sub),
                     "photos": photos(cs, sub)}
+        subs[c] = sub
     trends = trend_related(attach_news(trends, items), items)
+    for c in pages:
+        pages[c]["trends"] = channel_trends(c, subs[c], trends, now)
     graphic = {"yna": yna_g, "others": graphic_section(yna_g, g_search, items, extra=nis_g)}
     if not args.demo:
         n_todo, n_img = enrich_graphics(graphic["others"])
@@ -1321,7 +1402,7 @@ def main():
         f.write(render_sources(load_feeds(), allstatus, now))
     if "주식" in pages:
         with open(os.path.join(args.out, "stock.html"), "w", encoding="utf-8") as f:
-            f.write(render_page(pages, stock_trends(trends), {}, allstatus, now, len(items), args.hours, 0, None,
+            f.write(render_page(pages, pages["주식"].get("trends") or stock_trends(trends), {}, allstatus, now, len(items), args.hours, 0, None,
                                 only="주식", brand="주식 뉴스", title="주식 뉴스 · 지금 뜨는 뉴스",
                                 motto=f"증권 기사와 증시 낱말이 들어간 기사 · 여러 언론사가 함께 다룬 순서 · 최근 {args.hours}시간"))
     copy_static(args.out)
