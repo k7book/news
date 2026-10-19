@@ -21,7 +21,19 @@ from email.utils import parsedate_to_datetime
 KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 TIMEOUT = 15
-CATEGORIES = ["전체", "정치", "경제", "사회", "스포츠", "연예"]
+CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예"]
+# 주식 탭: 증권 RSS + 제목에 증시 낱말이 있는 기사
+STOCK_RX = re.compile(r"코스피|코스닥|증시|주가|주식|상장|공모주|IPO|ETF|ETN|목표가|순매수|순매도|시가총액|시총|배당|자사주|증권|공매도|"
+                      r"나스닥|다우지수|S&P|밸류업|영업이익|실적 발표|어닝|반도체주|2차전지주|상한가|하한가|신고가|신저가|외국인 매도|외국인 매수|"
+                      r"개미|동학개미|서학개미|레버리지|인버스|리포트|투자의견|PER|PBR|환율", re.I)
+
+
+def is_stock(a):
+    return "주식" in a.get("cats", {a.get("category")}) or bool(STOCK_RX.search(a["title"]))
+
+
+def stock_trends(trends):
+    return [t for t in trends if STOCK_RX.search(t["keyword"]) or any(STOCK_RX.search(n.get("title", "")) for n in t["news"])]
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 STOP = set("""
@@ -957,7 +969,7 @@ def render_graphic(g):
             f'<p class="note">{more}</p></section></div>')
 
 
-def render_brief(trends, pages, now):
+def render_brief(trends, pages, now, key="전체"):
     cards = []
     if trends:
         t = trends[0]
@@ -967,7 +979,7 @@ def render_brief(trends, pages, now):
         u = t["news"][0]["url"] if t["news"] else "#"
         cards.append(f'<div class="card"><div class="lab"><b>01</b>지금 급상승</div><div class="t">{link(u, t["keyword"])}</div>'
                      f'<div class="m">Google 검색량 {esc(t.get("traffic") or "-")}{st}</div></div>')
-    p = pages.get("전체", {})
+    p = pages.get(key, {})
     if p.get("latest"):
         a = p["latest"][0]
         last = (p.get("hourly") or [[0, 0]])[-1][1]
@@ -977,7 +989,7 @@ def render_brief(trends, pages, now):
         c = p["clusters"][0]
         cards.append(f'<div class="card"><div class="lab"><b>03</b>가장 많이 다룬 사건</div><div class="t">{link(c["links"][0]["url"], c["title"])}</div>'
                      f'<div class="m">{span_txt(c)}</div></div>')
-    return f'<div class="brief pg" data-c="전체">{"".join(cards)}</div>' if cards else ""
+    return f'<div class="brief pg" data-c="{esc(key)}">{"".join(cards)}</div>' if cards else ""
 
 
 def render_keywords(ks):
@@ -1008,32 +1020,40 @@ def render_portals(portals):
     return "".join(out)
 
 
-def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None):
+def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None,
+                brand="지금 뜨는 뉴스", motto=None, title=None):
     ok = sum(1 for s in status if s["ok"])
+    if only:  # 단독 페이지 (예: 주식 → stock.html)
+        pages = {only: pages[only]}
+        graphic, portals = None, {}
+        nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
     gpanel = render_graphic(graphic)
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}">{esc(c)}</button>' for c in CATEGORIES if c in pages)
     if gpanel:
         tabs += '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>'
-    tabs += '<a class="srclink" href="sources.html">출처</a>'
+    if only:
+        tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
+    else:
+        tabs += '<a class="srclink" href="stock.html">주식만 보기</a><a class="srclink" href="sources.html">출처</a>'
     ticker_kw = [t["keyword"] for t in trends[:6]]
     ticker = ('<div class="ticker"><span class="tag">급상승</span><span class="items">'
               + '<span class="sep">/</span>'.join(esc(k) for k in ticker_kw) + "</span></div>") if ticker_kw else ""
     body = []
     for c, p in pages.items():
-        label = "오늘의 사건" if c == "전체" else c
+        label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
         body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
                     f'<section class="shelf"><div class="shead"><h2>언론사 3곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
                     f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
     side = (f'<section><div class="shead"><h2>급상승 검색어</h2><span class="en">GOOGLE TRENDS</span></div>{render_trends(trends, now)}</section>'
             + render_portals(portals))
-    allc = pages.get("전체", {}).get("clusters", [])
+    allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
     st = "".join(f'<li class="{"" if s["ok"] else "bad"}">{esc(s["name"])}: {"%d건" % s["count"] if s["ok"] else esc(s["error"])}</li>' for s in status)
     date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
     return f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>지금 뜨는 뉴스</title>
+<meta name="robots" content="noindex,nofollow"><title>{esc(title or brand)}</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1042,10 +1062,10 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
 <style>{CSS}</style></head>
 <body data-built="{esc(now.isoformat())}"><div class="w">
 <div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button></span></div>
-<header class="titlerow"><h1 class="brand">지금 뜨는 뉴스</h1><p class="motto">여러 언론사가 함께 다룬 순서 · 최근 {hours}시간</p></header>
+<header class="titlerow"><h1 class="brand">{esc(brand)}</h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
 <nav class="nav" role="tablist">{tabs}</nav>
 {ticker}
-{render_brief(trends, pages, now)}
+{render_brief(trends, pages, now, only or "전체")}
 <div class="cols"><main>{"".join(body)}{gpanel}</main><aside class="side">{side}</aside></div>
 {stats}
 <details class="status"><summary>수집 상태 · {ok}/{len(status)} 성공</summary><ul>{st}</ul></details>
@@ -1060,7 +1080,8 @@ HOMEPAGES = {"연합뉴스": "https://www.yna.co.kr", "한겨레": "https://www.
              "노컷뉴스": "https://www.nocutnews.co.kr", "오마이뉴스": "https://www.ohmynews.com", "국민일보": "https://www.kmib.co.kr",
              "세계일보": "https://www.segye.com", "구글뉴스": "https://news.google.com/home?hl=ko&gl=KR&ceid=KR:ko",
              "뉴시스": "https://www.newsis.com", "줌": "https://news.zum.com",
-             "KBS": "https://news.kbs.co.kr", "MBC": "https://imnews.imbc.com"}
+             "KBS": "https://news.kbs.co.kr", "MBC": "https://imnews.imbc.com",
+             "파이낸셜뉴스": "https://www.fnnews.com", "이데일리": "https://www.edaily.co.kr"}
 EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
             ("네이버 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
             ("MBC 뉴스 사이트", "robots.txt가 모든 수집기를 차단 — 구글뉴스 검색으로 MBC 기사만 가져옴", "2026-10-19"),
@@ -1096,7 +1117,7 @@ def render_sources(feeds, status, now):
         home = HOMEPAGES.get(outlet)
         name = link(home, outlet) if home else esc(outlet)
         if any(x.get("via") for x in by[outlet]):
-            name += f'<span class="o" style="font-weight:400;margin-left:6px;color:var(--dim);font-size:11px">{esc(by[outlet][0]["via"])}</span>'
+            name += f'<span class="o" style="font-weight:400;margin-left:6px;color:var(--dim);font-size:11px">{esc(next(x["via"] for x in by[outlet] if x.get("via")))}</span>'
         rows.append(f'<tr><th>{name}</th>{"".join(cells)}<td class="sum">{n_ok}/{len(by[outlet])}</td></tr>')
     head = "".join(f"<th>{esc(c)}</th>" for c in CATEGORIES)
 
@@ -1221,6 +1242,11 @@ def main():
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
             f.write(render_sources(load_feeds(), d["feeds"], built))
+        if "주식" in pages:
+            with open(os.path.join(args.out, "stock.html"), "w", encoding="utf-8") as f:
+                f.write(render_page(pages, stock_trends(d["trends"]), {}, d["feeds"], built, d["articles"], d.get("hours", 36), 0, None,
+                                    only="주식", brand="주식 뉴스", title="주식 뉴스 · 지금 뜨는 뉴스",
+                                    motto=f'증권 기사와 증시 낱말이 들어간 기사 · 여러 언론사가 함께 다룬 순서 · 최근 {d.get("hours", 36)}시간'))
         copy_static(args.out)
         print("화면만 다시 생성:", os.path.join(args.out, "index.html"))
         if args.open:
@@ -1269,7 +1295,12 @@ def main():
     # 분야별 묶기: 전체 탭은 모든 기사, 분야 탭은 해당 분야 피드의 기사만
     pages = {}
     for c in CATEGORIES:
-        sub = items if c == "전체" else [a for a in items if c in a.get("cats", {a["category"]})]
+        if c == "전체":
+            sub = items
+        elif c == "주식":
+            sub = [a for a in items if is_stock(a)]
+        else:
+            sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
             continue
         cs = cluster(sub)
@@ -1288,6 +1319,11 @@ def main():
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
         f.write(render_sources(load_feeds(), allstatus, now))
+    if "주식" in pages:
+        with open(os.path.join(args.out, "stock.html"), "w", encoding="utf-8") as f:
+            f.write(render_page(pages, stock_trends(trends), {}, allstatus, now, len(items), args.hours, 0, None,
+                                only="주식", brand="주식 뉴스", title="주식 뉴스 · 지금 뜨는 뉴스",
+                                motto=f"증권 기사와 증시 낱말이 들어간 기사 · 여러 언론사가 함께 다룬 순서 · 최근 {args.hours}시간"))
     copy_static(args.out)
     data = {"built": now.isoformat(), "hours": args.hours, "articles": len(items), "raw": raw, "outlets": len({a["outlet"] for a in items}),
             "trends": trends,
