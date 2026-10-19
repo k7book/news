@@ -632,7 +632,7 @@ def channel_trends(c, sub, trends, now, top=10):
     matched = []
     for t in trends:
         kw = t["keyword"].lower()
-        in_titles = len(kw) >= 2 and kw in blob
+        in_titles = len(kw) >= 2 and blob.count(kw) >= 2  # 그 분야 기사 2건 이상에 나와야 함
         stock_hit = c == "주식" and (bool(STOCK_RX.search(t["keyword"]))
                                      or sum(1 for n in t["news"] if STOCK_RX.search(n.get("title", ""))) >= 2)
         if in_titles or stock_hit:
