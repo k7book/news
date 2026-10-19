@@ -806,7 +806,7 @@ function show(c){tabs.forEach(b=>{const on=b.dataset.c===c;b.classList.toggle('o
 pgs.forEach(p=>p.classList.toggle('on',p.dataset.c===c));try{localStorage.setItem('trend_tab',c)}catch(e){}}
 tabs.forEach(b=>b.onclick=()=>show(b.dataset.c));
 let c='전체';try{c=localStorage.getItem('trend_tab')||'전체'}catch(e){}
-if(![...tabs].some(b=>b.dataset.c===c))c='전체';show(c);
+if(![...tabs].some(b=>b.dataset.c===c))c=tabs[0]?tabs[0].dataset.c:'전체';show(c);
 // 새로고침: data.json의 갱신 시각이 바뀌었으면 다시 불러오기, 아니면 '최신' 표시. 열려 있는 동안 5분마다 확인.
 const built=document.body.dataset.built, rf=document.getElementById('rf'), age=document.getElementById('age');
 function showAge(){const m=Math.max(0,Math.round((Date.now()-Date.parse(built))/60000));
