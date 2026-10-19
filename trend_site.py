@@ -363,19 +363,112 @@ def fetch_khan_interactive(pages=2):
     return out, (None if out else err or "목록을 찾지 못함(페이지 구조 변경?)")
 
 
+HANKOOK_INTERACTIVE = "https://www.hankookilbo.com/interactive"  # robots.txt: /search·/api 등만 차단 (2026-10-20 확인)
+CHOSUN_INTERACTIVE = "https://www.chosun.com/interactive/"       # robots.txt: /search·/test 등만 차단 (2026-10-20 확인)
+# 중앙일보 /digitalspecial 은 robots.txt가 막아서, 한겨레·동아는 목록 페이지가 없어서 넣지 않는다.
+INTER_TAG = re.compile(r"\s*\[\s*인터랙티브\s*\]\s*")
+
+
+def _jstr(v):
+    try:
+        return json.loads('"' + v + '"')
+    except Exception:
+        return v
+
+
+def fetch_hankook_interactive(limit=24):
+    """한국일보 인터랙티브: 페이지에 들어 있는 JSON에서 제목·배포 시각·이미지·주소"""
+    try:
+        if not robots_allows(HANKOOK_INTERACTIVE):
+            return [], "robots.txt 차단"
+        body = http_get(HANKOOK_INTERACTIVE).decode("utf-8", "ignore")
+    except Exception as e:
+        return [], f"{type(e).__name__}: {str(e)[:60]}"
+    out, seen = [], set()
+    for part in body.split('"title":"')[1:]:
+        m = re.match(r'((?:[^"\\]|\\.)*)"', part)
+        if not m:
+            continue
+        chunk = part[:4000].split('"title":"')[0]
+
+        def g(k):
+            x = re.search('"' + k + r'":(?:null|"((?:[^"\\]|\\.)*)")', chunk)
+            return _jstr(x.group(1)) if x and x.group(1) is not None else None
+        url, dt = g("articleLink"), g("deployDt")
+        if not url or not dt or not url.startswith("http") or url in seen:
+            continue
+        seen.add(url)
+        title = INTER_TAG.sub(" ", _strip_tags(_jstr(m.group(1)).replace("<BR>", " ").replace("<br>", " "))).strip()
+        d = parse_date(dt[:16])
+        out.append({"title": re.sub(r"\s+", " ", title), "url": url, "img": g("webImageFilePath") or g("articleImageFilePath"),
+                    "outlet": "한국일보", "date": d.isoformat() if d else None})
+        if len(out) >= limit:
+            break
+    return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
+
+
+def fetch_chosun_interactive(limit=12):
+    """조선일보 인터랙티브 목록(최신순). 날짜가 없어 주소의 연·월(/2025/, /202210/)로 표시"""
+    try:
+        if not robots_allows(CHOSUN_INTERACTIVE):
+            return [], "robots.txt 차단"
+        body = http_get(CHOSUN_INTERACTIVE).decode("utf-8", "ignore")
+    except Exception as e:
+        return [], f"{type(e).__name__}: {str(e)[:60]}"
+    out, seen, last = [], set(), None
+    for card in body.split("story-card-wrapper")[1:]:
+        m = re.search(r'<a class="story-card__headline[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', card, re.S)
+        if not m:
+            continue
+        url = html.unescape(m.group(1))
+        if not url.startswith("http") or url in seen:
+            continue
+        seen.add(url)
+        im = re.search(r'<img src="([^"]+)"', card)
+        ym = re.search(r"/(20\d\d)(\d\d)?/", url)
+        if ym:
+            d = parse_date(f"{ym.group(1)}-{ym.group(2) or '01'}-01")
+            label = ym.group(1) + (f".{ym.group(2)}" if ym.group(2) else "")
+        else:
+            d, label = last, ""  # 날짜 없는 칸은 바로 앞(더 최신) 항목 순서를 따른다
+        last = d or last
+        title = re.sub(r"\s+", " ", _strip_tags(m.group(2).replace("<br>", " ").replace("<br/>", " "))).strip()
+        out.append({"title": INTER_TAG.sub(" ", title).strip(), "url": url, "img": html.unescape(im.group(1)) if im else None,
+                    "outlet": "조선일보", "date": d.isoformat() if d else None, "dl": label})
+        if len(out) >= limit:
+            break
+    return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
+
+
+INTER_HOME = {"경향신문": KHAN_INTERACTIVE, "한국일보": HANKOOK_INTERACTIVE, "조선일보": CHOSUN_INTERACTIVE}
+
+
 def render_interactive(rows):
+    """인터랙티브 탭: 위에 언론사 버튼, 아래에 바둑판(최신순)"""
     if not rows:
         return ""
+    rows = sorted(rows, key=lambda x: x.get("date") or "", reverse=True)
+
+    def when(x):
+        if "dl" in x:
+            return x["dl"]
+        return datetime.fromisoformat(x["date"]).strftime("%Y.%m.%d") if x.get("date") else ""
+    cnt = Counter(x["outlet"] for x in rows)
+    outlets = sorted(cnt, key=lambda o: (-cnt[o], o))
+    chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
+             + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
     cells = "".join(
-        f'<a href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer"><div class="ph iph">'
+        f'<a data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer"><div class="ph iph">'
         + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
-        + f'</div><div class="pt">{esc(x["title"])}</div><div class="pm"><b>{esc(x["outlet"])}</b> · '
-        f'{datetime.fromisoformat(x["date"]).strftime("%Y.%m.%d") if x.get("date") else ""}</div></a>' for x in rows)
+        + f'</div><div class="pt">{esc(x["title"])}</div><div class="pm"><b>{esc(x["outlet"])}</b>'
+        + (f" · {when(x)}" if when(x) else "") + "</div></a>" for x in rows)
+    more = " · ".join(link(u, f"{o} 인터랙티브 전체 보기 →") for o, u in INTER_HOME.items() if o in cnt)
     return (f'<div class="pg" data-c="인터랙티브" role="tabpanel"><section class="photos" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>인터랙티브</h2><span class="en">INTERACTIVE · {len(rows)}건</span></div>'
-            f'<p class="note" style="margin:10px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
-            f'<div class="pgrid g3 inter">{cells}</div>'
-            f'<p class="note">{link(KHAN_INTERACTIVE, "경향신문 인터랙티브 전체 보기 →")}</p></section></div>')
+            f'<div class="ofilter" id="if" role="group" aria-label="언론사">{chips}</div>'
+            f'<p class="note" style="margin:4px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
+            f'<div class="pgrid g3 inter" id="ig">{cells}</div>'
+            f'<p class="note">{more}</p></section></div>')
 
 
 def fetch_graphic_search():
@@ -943,9 +1036,12 @@ catch(e){if(manual)location.reload()}finally{rf.classList.remove('busy')}}
 rf.addEventListener('click',()=>check(true));
 setInterval(()=>{if(document.visibilityState==='visible')check(false)},300000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check(false)});
-document.querySelectorAll('.ofilter button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
-document.querySelectorAll('.ofilter button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#gf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
+document.querySelectorAll('#gf button').forEach(x=>x.classList.toggle('on',x===b));
 gfilter(o)});
+document.querySelectorAll('#if button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
+document.querySelectorAll('#if button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#ig>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
 function gfilter(o){window._go=o||'';document.querySelectorAll('#gg>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none');
 let n=0;document.querySelectorAll('#gl li').forEach(li=>{const v=li.dataset.img==='0'&&(!o||li.dataset.o===o);li.style.display=v?'':'none';if(v)n++});
 const gl=document.getElementById('gl');if(gl)gl.style.display=n?'':'none';}
@@ -1092,7 +1188,7 @@ def render_graphic(g):
                       if n in cnt)
     return (f'<div class="pg" data-c="그래픽" role="tabpanel"><section class="photos" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>그래픽 뉴스</h2><span class="en">GRAPHICS · 최근 2일 · {len(items)}건</span></div>'
-            f'<div class="ofilter" role="group" aria-label="언론사">{chips}</div>'
+            f'<div class="ofilter" id="gf" role="group" aria-label="언론사">{chips}</div>'
             f'<div class="pgrid g3" id="gg">{"".join(tile(x) for x in items if x.get("img"))}</div>'
             f'<div class="noimg-list" id="gl"><h3>사진 없는 그래픽 기사</h3><ul class="newest gl">{"".join(row(x) for x in items)}</ul></div>'
             f'<p class="note">{more}</p></section></div>')
@@ -1229,7 +1325,9 @@ EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차�
             ("KBS 뉴스 사이트", "공개 RSS 없음, 기사 목록 API(/api)는 robots.txt 차단 — 구글뉴스 검색으로 KBS 기사만 가져옴", "2026-10-19"),
             ("노컷뉴스 분야별 RSS", "주소 404 — 전체 RSS만 사용", "2026-10-19"),
             ("오마이뉴스 연예 RSS", "주소 404", "2026-10-19"),
-            ("매일경제 스포츠 RSS", "빈 응답", "2026-10-19")]
+            ("매일경제 스포츠 RSS", "빈 응답", "2026-10-19"),
+            ("중앙일보 디지털스페셜", "robots.txt가 /digitalspecial 을 차단", "2026-10-20"),
+            ("한겨레·동아일보 인터랙티브", "모아 둔 목록 페이지가 없음(404)", "2026-10-20")]
 
 
 def render_sources(feeds, status, now):
@@ -1273,6 +1371,8 @@ def render_sources(feeds, status, now):
         ("연합뉴스", "그래픽 목록", "목록 페이지", "yna.co.kr/graphic/index", "연합뉴스 그래픽"),
         ("뉴시스", "그래픽뉴스 목록", "목록 페이지", "newsis.com/photo/gralist", "뉴시스 그래픽"),
         ("경향신문", "인터랙티브 목록(1~2쪽)", "목록 페이지", "khan.co.kr/interactive", "경향신문 인터랙티브"),
+        ("한국일보", "인터랙티브 목록(최근 24건)", "목록 페이지 속 데이터", "hankookilbo.com/interactive", "한국일보 인터랙티브"),
+        ("조선일보", "인터랙티브 목록(최근 12건, 날짜는 주소의 연·월)", "목록 페이지", "chosun.com/interactive", "조선일보 인터랙티브"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
     ]
@@ -1400,7 +1500,8 @@ def main():
     if args.demo:
         items, trends, portals, status, pstatus = demo_data(now)
         yna_g, g_search = demo_graphic(now)
-        inter = [dict(g, outlet="경향신문", title=g["title"] + " (인터랙티브 샘플)") for g in yna_g[:4]]
+        inter = [dict(g, outlet=("경향신문", "한국일보", "조선일보")[i % 3], title=g["title"] + " (인터랙티브 샘플)")
+                 for i, g in enumerate(yna_g[:6])]
         nis_g = []
     else:
         fp = os.path.join(HERE, "feeds.json")
@@ -1425,8 +1526,12 @@ def main():
         pstatus.append({"name": "연합뉴스 그래픽", "ok": gerr is None, "count": len(yna_g), "error": gerr or ""})
         nis_g, nerr = fetch_newsis_graphic()
         pstatus.append({"name": "뉴시스 그래픽", "ok": nerr is None, "count": len(nis_g), "error": nerr or ""})
-        inter, ierr = fetch_khan_interactive()
-        pstatus.append({"name": "경향신문 인터랙티브", "ok": ierr is None, "count": len(inter), "error": ierr or ""})
+        inter = []
+        for nm, fn in (("경향신문", fetch_khan_interactive), ("한국일보", fetch_hankook_interactive),
+                       ("조선일보", fetch_chosun_interactive)):
+            rows, ierr = fn()
+            pstatus.append({"name": f"{nm} 인터랙티브", "ok": ierr is None, "count": len(rows), "error": ierr or ""})
+            inter += rows
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
         ok_feeds = sum(1 for s in status if s["ok"])
