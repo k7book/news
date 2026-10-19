@@ -23,9 +23,9 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 TIMEOUT = 15
 CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예"]
 # 주식 탭: 증권 RSS + 제목에 증시 낱말이 있는 기사
-STOCK_RX = re.compile(r"코스피|코스닥|증시|주가|주식|상장|공모주|IPO|ETF|ETN|목표가|순매수|순매도|시가총액|시총|배당|자사주|증권|공매도|"
-                      r"나스닥|다우지수|S&P|밸류업|영업이익|실적 발표|어닝|반도체주|2차전지주|상한가|하한가|신고가|신저가|외국인 매도|외국인 매수|"
-                      r"개미|동학개미|서학개미|레버리지|인버스|리포트|투자의견|PER|PBR|환율", re.I)
+STOCK_RX = re.compile(r"코스피|코스닥|증시|주가|주식|상장|공모주|IPO|ETF|ETN|목표가|순매수|순매도|시가총액|시총|공매도|"
+                      r"자사주|배당주|증권사|리포트|투자의견|레버리지|인버스|나스닥|다우지수|S&P|밸류업|상한가|하한가|신고가|신저가|"
+                      r"반도체주|2차전지주|[가-힣]{1,6}주 (급등|급락|강세|약세)|개미|외국인 (순)?매(수|도)|기관 (순)?매(수|도)", re.I)
 
 
 def is_stock(a):
@@ -1390,6 +1390,8 @@ def main():
             sub = items
         elif c == "주식":
             sub = [a for a in items if is_stock(a)]
+        elif c == "경제":  # 주식 기사는 주식 탭으로만 (두 탭이 겹치지 않게)
+            sub = [a for a in items if "경제" in a.get("cats", {a["category"]}) and not is_stock(a)]
         else:
             sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
