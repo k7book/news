@@ -585,6 +585,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .w{max-width:1180px;margin:0 auto;padding:0 22px 64px}
 .dateline{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 0 9px;border-bottom:1px solid var(--ink);
  font-size:11.5px;letter-spacing:.12em;color:var(--muted)}
+.dl-r{display:flex;gap:8px;align-items:center;flex:none}.rf.busy{opacity:.5;pointer-events:none}.rf.new{border-color:var(--red);color:var(--red)}
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{font:900 clamp(38px,7vw,60px)/1.15 var(--brand);letter-spacing:.12em;margin:0;padding-left:.12em}
@@ -683,6 +684,19 @@ pgs.forEach(p=>p.classList.toggle('on',p.dataset.c===c));try{localStorage.setIte
 tabs.forEach(b=>b.onclick=()=>show(b.dataset.c));
 let c='전체';try{c=localStorage.getItem('trend_tab')||'전체'}catch(e){}
 if(![...tabs].some(b=>b.dataset.c===c))c='전체';show(c);
+// 새로고침: data.json의 갱신 시각이 바뀌었으면 다시 불러오기, 아니면 '최신' 표시. 열려 있는 동안 5분마다 확인.
+const built=document.body.dataset.built, rf=document.getElementById('rf'), age=document.getElementById('age');
+function showAge(){const m=Math.max(0,Math.round((Date.now()-Date.parse(built))/60000));
+age.textContent=m<1?'방금':m<60?m+'분 전':Math.floor(m/60)+'시간 '+(m%60)+'분 전';}
+showAge();setInterval(showAge,60000);
+async function check(manual){try{rf.classList.add('busy');
+const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});const d=await r.json();
+if(d.built&&d.built!==built){location.replace(location.pathname+'?t='+Date.now()+location.hash);return}
+if(manual){rf.textContent='✓ 최신입니다';setTimeout(()=>rf.textContent='↻ 새로고침',2000)}}
+catch(e){if(manual)location.reload()}finally{rf.classList.remove('busy')}}
+rf.addEventListener('click',()=>check(true));
+setInterval(()=>{if(document.visibilityState==='visible')check(false)},300000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check(false)});
 document.getElementById('st')?.addEventListener('click',()=>{const d=document.querySelector('details.status');d.open=true;d.scrollIntoView({behavior:'smooth'})});
 """
 
@@ -888,16 +902,18 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
     st = "".join(f'<li class="{"" if s["ok"] else "bad"}">{esc(s["name"])}: {"%d건" % s["count"] if s["ok"] else esc(s["error"])}</li>' for s in status)
-    date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 갱신'
+    date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
     return f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>지금 뜨는 뉴스</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@900&display=swap">
 <style>{CSS}</style></head>
-<body><div class="w">
-<div class="dateline"><span>{date}</span><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button></div>
+<body data-built="{esc(now.isoformat())}"><div class="w">
+<div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button></span></div>
 <header class="titlerow"><h1 class="brand">지금 뜨는 뉴스</h1><p class="motto">여러 언론사가 함께 다룬 순서 · 최근 {hours}시간</p></header>
 <nav class="nav" role="tablist">{tabs}</nav>
 {ticker}
@@ -985,6 +1001,8 @@ td.na,span.na{color:var(--dim)}td.sum{color:var(--muted);font-variant-numeric:ta
     return f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>뉴스 출처 · 지금 뜨는 뉴스</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@900&display=swap">
 <style>{css}</style></head><body><div class="w">
@@ -1020,6 +1038,14 @@ def telegram(msg):
         urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/sendMessage", data=data, timeout=10)
     except Exception as e:
         print("telegram 실패:", e, file=sys.stderr)
+
+
+def copy_static(out):
+    """static/ (파비콘 등)을 출력 폴더로 복사"""
+    import shutil
+    src = os.path.join(HERE, "static")
+    if os.path.isdir(src):
+        shutil.copytree(src, out, dirs_exist_ok=True)
 
 
 def load_feeds():
@@ -1066,6 +1092,7 @@ def main():
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
             f.write(render_sources(load_feeds(), d["feeds"], built))
+        copy_static(args.out)
         print("화면만 다시 생성:", os.path.join(args.out, "index.html"))
         if args.open:
             import webbrowser
@@ -1129,6 +1156,7 @@ def main():
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
         f.write(render_sources(load_feeds(), allstatus, now))
+    copy_static(args.out)
     data = {"built": now.isoformat(), "hours": args.hours, "articles": len(items), "raw": raw, "outlets": len({a["outlet"] for a in items}),
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
