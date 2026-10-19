@@ -824,10 +824,11 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .story .no{font:900 20px/1.3 var(--brand);color:var(--dim)}.story:nth-of-type(-n+3) .no{color:var(--red)}
 .story h3{font-size:17px;line-height:1.45;font-weight:800;margin:0 0 4px}
 .story .outlets{margin-top:9px}.story .outlets a{font-size:11.5px;padding:2px 9px}
-.story.has-th{grid-template-columns:34px minmax(0,1fr) 150px;gap:0 16px}
+.story.has-th{grid-template-columns:34px 150px minmax(0,1fr);gap:0 16px}
+.story.has-th>.no{grid-column:1;grid-row:1}.story.has-th>.th{grid-column:2;grid-row:1}.story.has-th>div:not(.no){grid-column:3;grid-row:1}
 .story .th{display:block;aspect-ratio:4/3;background:var(--paper-2);border:1px solid var(--rule);overflow:hidden;align-self:start}
 .story .th img{width:100%;height:100%;object-fit:contain;display:block}.story .th:hover{border-color:var(--ink)}
-@media(max-width:560px){.story.has-th{grid-template-columns:28px minmax(0,1fr) 92px;gap:0 10px}.story h3{font-size:16px}}
+@media(max-width:560px){.story.has-th{grid-template-columns:28px 92px minmax(0,1fr);gap:0 10px}.story h3{font-size:16px}}
 .cnt{color:var(--red);font-weight:800}
 .shead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.6px solid var(--ink);padding-bottom:7px;margin:0 0 4px}
 .shead h2{font-size:16px;font-weight:800;margin:0}.shead .en{font-size:10.5px;letter-spacing:.24em;color:var(--muted)}
