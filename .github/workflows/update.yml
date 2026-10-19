@@ -1,0 +1,58 @@
+name: update
+
+# 매시간 7분에 수집 → site/ 생성 → deploy 브랜치로 강제 푸시 → Cloudflare Pages가 deploy 브랜치를 배포
+on:
+  schedule:
+    - cron: "7 * * * *"      # UTC 기준 매시 7분 (KST도 매시 7분)
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 이전 이력(history/) 가져오기
+        run: |
+          git fetch --depth=1 origin deploy || true
+          if git rev-parse -q --verify origin/deploy >/dev/null; then
+            git checkout origin/deploy -- history || true
+            git reset -q
+          fi
+          mkdir -p history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 수집·생성
+        env:
+          TZ: Asia/Seoul
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python trend_site.py
+
+      - name: deploy 브랜치로 올리기
+        run: |
+          rm -rf /tmp/out && mkdir -p /tmp/out
+          cp -r site history /tmp/out/
+          cp _headers /tmp/out/site/_headers
+          printf 'User-agent: *\nDisallow: /\n' > /tmp/out/site/robots.txt
+          cd /tmp/out
+          git init -q -b deploy
+          git add -A
+          git -c user.name="news-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "build $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" deploy

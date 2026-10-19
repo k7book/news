@@ -1,0 +1,367 @@
+[
+ {
+  "outlet": "연합뉴스",
+  "category": "전체",
+  "url": "https://www.yna.co.kr/rss/news.xml"
+ },
+ {
+  "outlet": "연합뉴스",
+  "category": "정치",
+  "url": "https://www.yna.co.kr/rss/politics.xml"
+ },
+ {
+  "outlet": "연합뉴스",
+  "category": "경제",
+  "url": "https://www.yna.co.kr/rss/economy.xml"
+ },
+ {
+  "outlet": "연합뉴스",
+  "category": "사회",
+  "url": "https://www.yna.co.kr/rss/society.xml"
+ },
+ {
+  "outlet": "연합뉴스",
+  "category": "스포츠",
+  "url": "https://www.yna.co.kr/rss/sports.xml"
+ },
+ {
+  "outlet": "연합뉴스",
+  "category": "연예",
+  "url": "https://www.yna.co.kr/rss/entertainment.xml"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "전체",
+  "url": "https://www.hani.co.kr/rss/"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "정치",
+  "url": "https://www.hani.co.kr/rss/politics/"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "경제",
+  "url": "https://www.hani.co.kr/rss/economy/"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "사회",
+  "url": "https://www.hani.co.kr/rss/society/"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "스포츠",
+  "url": "https://www.hani.co.kr/rss/sports/"
+ },
+ {
+  "outlet": "한겨레",
+  "category": "연예",
+  "url": "https://www.hani.co.kr/rss/culture/"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "전체",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/?outputType=xml"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "정치",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/politics/?outputType=xml"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "경제",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/economy/?outputType=xml"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "사회",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/national/?outputType=xml"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "스포츠",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/sports/?outputType=xml"
+ },
+ {
+  "outlet": "조선일보",
+  "category": "연예",
+  "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/entertainments/?outputType=xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "전체",
+  "url": "https://rss.donga.com/total.xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "정치",
+  "url": "https://rss.donga.com/politics.xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "경제",
+  "url": "https://rss.donga.com/economy.xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "사회",
+  "url": "https://rss.donga.com/national.xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "스포츠",
+  "url": "https://rss.donga.com/sports.xml"
+ },
+ {
+  "outlet": "동아일보",
+  "category": "연예",
+  "url": "https://rss.donga.com/culture.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "전체",
+  "url": "https://www.khan.co.kr/rss/rssdata/total_news.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "정치",
+  "url": "https://www.khan.co.kr/rss/rssdata/politic_news.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "경제",
+  "url": "https://www.khan.co.kr/rss/rssdata/economy_news.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "사회",
+  "url": "https://www.khan.co.kr/rss/rssdata/society_news.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "스포츠",
+  "url": "https://www.khan.co.kr/rss/rssdata/kh_sports.xml"
+ },
+ {
+  "outlet": "경향신문",
+  "category": "연예",
+  "url": "https://www.khan.co.kr/rss/rssdata/kh_entertainment.xml"
+ },
+ {
+  "outlet": "매일경제",
+  "category": "전체",
+  "url": "https://www.mk.co.kr/rss/30000001/"
+ },
+ {
+  "outlet": "매일경제",
+  "category": "정치",
+  "url": "https://www.mk.co.kr/rss/30200030/"
+ },
+ {
+  "outlet": "매일경제",
+  "category": "경제",
+  "url": "https://www.mk.co.kr/rss/30100041/"
+ },
+ {
+  "outlet": "매일경제",
+  "category": "사회",
+  "url": "https://www.mk.co.kr/rss/50400012/"
+ },
+ {
+  "outlet": "매일경제",
+  "category": "연예",
+  "url": "https://www.mk.co.kr/rss/30000023/"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "전체",
+  "url": "https://www.hankyung.com/feed/all-news"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "정치",
+  "url": "https://www.hankyung.com/feed/politics"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "경제",
+  "url": "https://www.hankyung.com/feed/economy"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "사회",
+  "url": "https://www.hankyung.com/feed/society"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "스포츠",
+  "url": "https://www.hankyung.com/feed/sports"
+ },
+ {
+  "outlet": "한국경제",
+  "category": "연예",
+  "url": "https://www.hankyung.com/feed/entertainment"
+ },
+ {
+  "outlet": "SBS",
+  "category": "정치",
+  "url": "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=01&plink=RSSREADER"
+ },
+ {
+  "outlet": "SBS",
+  "category": "경제",
+  "url": "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=02&plink=RSSREADER"
+ },
+ {
+  "outlet": "SBS",
+  "category": "사회",
+  "url": "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=03&plink=RSSREADER"
+ },
+ {
+  "outlet": "SBS",
+  "category": "스포츠",
+  "url": "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=09&plink=RSSREADER"
+ },
+ {
+  "outlet": "SBS",
+  "category": "연예",
+  "url": "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=14&plink=RSSREADER"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "전체",
+  "url": "https://fs.jtbc.co.kr/RSS/newsflash.xml"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "정치",
+  "url": "https://fs.jtbc.co.kr/RSS/politics.xml"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "경제",
+  "url": "https://fs.jtbc.co.kr/RSS/economy.xml"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "사회",
+  "url": "https://fs.jtbc.co.kr/RSS/society.xml"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "스포츠",
+  "url": "https://fs.jtbc.co.kr/RSS/sports.xml"
+ },
+ {
+  "outlet": "JTBC",
+  "category": "연예",
+  "url": "https://fs.jtbc.co.kr/RSS/entertainment.xml"
+ },
+ {
+  "outlet": "노컷뉴스",
+  "category": "전체",
+  "url": "https://rss.nocutnews.co.kr/nocutnews.xml"
+ },
+ {
+  "outlet": "오마이뉴스",
+  "category": "전체",
+  "url": "https://rss.ohmynews.com/rss/ohmynews.xml"
+ },
+ {
+  "outlet": "오마이뉴스",
+  "category": "정치",
+  "url": "https://rss.ohmynews.com/rss/politics.xml"
+ },
+ {
+  "outlet": "오마이뉴스",
+  "category": "경제",
+  "url": "https://rss.ohmynews.com/rss/economy.xml"
+ },
+ {
+  "outlet": "오마이뉴스",
+  "category": "사회",
+  "url": "https://rss.ohmynews.com/rss/society.xml"
+ },
+ {
+  "outlet": "오마이뉴스",
+  "category": "스포츠",
+  "url": "https://rss.ohmynews.com/rss/sports.xml"
+ },
+ {
+  "outlet": "국민일보",
+  "category": "정치",
+  "url": "https://www.kmib.co.kr/rss/data/kmibPolRss.xml"
+ },
+ {
+  "outlet": "국민일보",
+  "category": "경제",
+  "url": "https://www.kmib.co.kr/rss/data/kmibEcoRss.xml"
+ },
+ {
+  "outlet": "국민일보",
+  "category": "사회",
+  "url": "https://www.kmib.co.kr/rss/data/kmibSocRss.xml"
+ },
+ {
+  "outlet": "국민일보",
+  "category": "스포츠",
+  "url": "https://www.kmib.co.kr/rss/data/kmibSpoRss.xml"
+ },
+ {
+  "outlet": "국민일보",
+  "category": "연예",
+  "url": "https://www.kmib.co.kr/rss/data/kmibEntRss.xml"
+ },
+ {
+  "outlet": "세계일보",
+  "category": "정치",
+  "url": "https://www.segye.com/Articles/RSSList/segye_politic.xml"
+ },
+ {
+  "outlet": "세계일보",
+  "category": "경제",
+  "url": "https://www.segye.com/Articles/RSSList/segye_economy.xml"
+ },
+ {
+  "outlet": "세계일보",
+  "category": "사회",
+  "url": "https://www.segye.com/Articles/RSSList/segye_society.xml"
+ },
+ {
+  "outlet": "세계일보",
+  "category": "스포츠",
+  "url": "https://www.segye.com/Articles/RSSList/segye_sports.xml"
+ },
+ {
+  "outlet": "세계일보",
+  "category": "연예",
+  "url": "https://www.segye.com/Articles/RSSList/segye_entertainment.xml"
+ },
+ {
+  "outlet": "구글뉴스",
+  "category": "전체",
+  "url": "https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko"
+ },
+ {
+  "outlet": "구글뉴스",
+  "category": "경제",
+  "url": "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ko&gl=KR&ceid=KR:ko"
+ },
+ {
+  "outlet": "구글뉴스",
+  "category": "사회",
+  "url": "https://news.google.com/rss/headlines/section/topic/NATION?hl=ko&gl=KR&ceid=KR:ko"
+ },
+ {
+  "outlet": "구글뉴스",
+  "category": "스포츠",
+  "url": "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ko&gl=KR&ceid=KR:ko"
+ },
+ {
+  "outlet": "구글뉴스",
+  "category": "연예",
+  "url": "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=ko&gl=KR&ceid=KR:ko"
+ }
+]
