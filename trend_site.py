@@ -631,6 +631,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .ofilter button i{font-style:normal;font-size:11px;color:var(--dim);margin-left:5px}
 .ofilter button.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}.ofilter button.on i{color:var(--paper);opacity:.7}
 .pgrid .pm b{font-weight:700;color:var(--ink-soft)}
+.noimg-list{margin-top:26px}.noimg-list h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin:0;padding-bottom:6px;border-bottom:1px solid var(--rule)}
 .pgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:700px){.pgrid.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid .gph{aspect-ratio:1/1;background:#fff}
 .pgrid .noimg{display:flex;flex-direction:column;justify-content:space-between;padding:12px;background:var(--paper-2)}
@@ -709,7 +710,13 @@ setInterval(()=>{if(document.visibilityState==='visible')check(false)},300000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check(false)});
 document.querySelectorAll('.ofilter button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('.ofilter button').forEach(x=>x.classList.toggle('on',x===b));
-document.querySelectorAll('#gg>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
+gfilter(o)});
+function gfilter(o){window._go=o||'';document.querySelectorAll('#gg>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none');
+let n=0;document.querySelectorAll('#gl li').forEach(li=>{const v=li.dataset.img==='0'&&(!o||li.dataset.o===o);li.style.display=v?'':'none';if(v)n++});
+const gl=document.getElementById('gl');if(gl)gl.style.display=n?'':'none';}
+function gfail(img){const a=img.closest('a');const li=[...document.querySelectorAll('#gl li')].find(l=>l.querySelector('a').href===a.href);
+if(li)li.dataset.img='0';a.remove();gfilter(window._go);}
+gfilter('');
 document.getElementById('st')?.addEventListener('click',()=>{const d=document.querySelector('details.status');d.open=true;d.scrollIntoView({behavior:'smooth'})});
 """
 
@@ -827,21 +834,26 @@ def render_graphic(g):
              + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
 
     def tile(x):
-        if x.get("img"):
-            ph = (f'<div class="ph gph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" '
-                  f'onerror="this.parentNode.classList.add(\'noimg\');this.parentNode.innerHTML=\'<b>GRAPHIC</b><span>{esc(x["outlet"])}</span>\'"></div>')
-        else:
-            ph = f'<div class="ph gph noimg"><b>GRAPHIC</b><span>{esc(x["outlet"])}</span></div>'
+        # 사진이 깨지면 칸을 지우고 같은 기사를 아래 목록에 보이게 한다
+        ph = (f'<div class="ph gph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+              f'onerror="gfail(this)"></div>')
         t = GRAPHIC_RX.sub("", x["title"]).strip() or x["title"]
         return (f'<a data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
                 f'<div class="pt">{esc(t)}</div><div class="pm"><b>{esc(x["outlet"])}</b> · {when(x)}</div></a>')
+
+    def row(x):
+        t = GRAPHIC_RX.sub("", x["title"]).strip() or x["title"]
+        hide = ' style="display:none"' if x.get("img") else ""
+        return (f'<li data-o="{esc(x["outlet"])}" data-img="{1 if x.get("img") else 0}"{hide}><time>{when(x)}</time>'
+                f'<span>{link(x["url"], t)}<span class="o">{esc(x["outlet"])}</span></span></li>')
 
     more = " · ".join(link(u, f"{n} 그래픽 전체 보기 →") for n, u in (("연합뉴스", YNA_GRAPHIC), ("뉴시스", NEWSIS_GRAPHIC))
                       if n in cnt)
     return (f'<div class="pg" data-c="그래픽" role="tabpanel"><section class="photos" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>그래픽 뉴스</h2><span class="en">GRAPHICS · 최근 2일 · {len(items)}건</span></div>'
             f'<div class="ofilter" role="group" aria-label="언론사">{chips}</div>'
-            f'<div class="pgrid g3" id="gg">{"".join(tile(x) for x in items)}</div>'
+            f'<div class="pgrid g3" id="gg">{"".join(tile(x) for x in items if x.get("img"))}</div>'
+            f'<div class="noimg-list" id="gl"><h3>사진 없는 그래픽 기사</h3><ul class="newest gl">{"".join(row(x) for x in items)}</ul></div>'
             f'<p class="note">{more}</p></section></div>')
 
 
