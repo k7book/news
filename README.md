@@ -47,8 +47,9 @@ irumhahn.com 스타일(종이색 배경, Noto Serif KR 제호, Pretendard 본문
 | 단계 | 내용 |
 |---|---|
 | GitHub Actions | `.github/workflows/update.yml` — 매시 7분(KST)에 `trend_site.py` 실행 |
-| deploy 브랜치 | 실행 결과 `site/`와 `history/`만 담아 매번 새로 덮어씀(이력이 쌓이지 않음) |
-| Cloudflare Pages | `deploy` 브랜치, 빌드 명령 없음, 출력 폴더 `site` |
+| deploy 브랜치 | 실행 결과 `site/`와 `history/`를 보관(다음 실행이 history를 이어받음). 매번 덮어써서 커밋이 쌓이지 않음 |
+| Cloudflare Pages | 프로젝트 `news`. wrangler로 `site/`를 직접 업로드(Git 연결 아님 — 무료 빌드 월 500회 제한 회피) |
+| 필요한 Secrets | `CLOUDFLARE_API_TOKEN`(권한: Account › Cloudflare Pages › Edit), `CLOUDFLARE_ACCOUNT_ID` |
 | 도메인 | news.rajin.live |
 | 검색 노출 | `robots.txt` 전체 차단 + `X-Robots-Tag: noindex` |
 
