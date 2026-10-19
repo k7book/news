@@ -363,5 +363,17 @@
   "outlet": "구글뉴스",
   "category": "연예",
   "url": "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=ko&gl=KR&ceid=KR:ko"
+ },
+ {
+  "outlet": "KBS",
+  "category": "전체",
+  "url": "https://news.google.com/rss/search?q=site:news.kbs.co.kr+when:1d&hl=ko&gl=KR&ceid=KR:ko",
+  "via": "구글뉴스 검색"
+ },
+ {
+  "outlet": "MBC",
+  "category": "전체",
+  "url": "https://news.google.com/rss/search?q=site:imnews.imbc.com+when:1d&hl=ko&gl=KR&ceid=KR:ko",
+  "via": "구글뉴스 검색"
  }
 ]

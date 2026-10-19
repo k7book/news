@@ -915,9 +915,12 @@ HOMEPAGES = {"연합뉴스": "https://www.yna.co.kr", "한겨레": "https://www.
              "한국경제": "https://www.hankyung.com", "SBS": "https://news.sbs.co.kr", "JTBC": "https://news.jtbc.co.kr",
              "노컷뉴스": "https://www.nocutnews.co.kr", "오마이뉴스": "https://www.ohmynews.com", "국민일보": "https://www.kmib.co.kr",
              "세계일보": "https://www.segye.com", "구글뉴스": "https://news.google.com/home?hl=ko&gl=KR&ceid=KR:ko",
-             "뉴시스": "https://www.newsis.com", "줌": "https://news.zum.com"}
+             "뉴시스": "https://www.newsis.com", "줌": "https://news.zum.com",
+             "KBS": "https://news.kbs.co.kr", "MBC": "https://imnews.imbc.com"}
 EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
             ("네이버 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
+            ("MBC 뉴스 사이트", "robots.txt가 모든 수집기를 차단 — 구글뉴스 검색으로 MBC 기사만 가져옴", "2026-10-19"),
+            ("KBS 뉴스 사이트", "공개 RSS 없음, 기사 목록 API(/api)는 robots.txt 차단 — 구글뉴스 검색으로 KBS 기사만 가져옴", "2026-10-19"),
             ("노컷뉴스 분야별 RSS", "주소 404 — 전체 RSS만 사용", "2026-10-19"),
             ("오마이뉴스 연예 RSS", "주소 404", "2026-10-19"),
             ("매일경제 스포츠 RSS", "빈 응답", "2026-10-19")]
@@ -948,6 +951,8 @@ def render_sources(feeds, status, now):
                 cells.append(f'<td class="bad" title="{esc(x["error"])}">{link(f["url"], "실패")}</td>')
         home = HOMEPAGES.get(outlet)
         name = link(home, outlet) if home else esc(outlet)
+        if any(x.get("via") for x in by[outlet]):
+            name += f'<span class="o" style="font-weight:400;margin-left:6px;color:var(--dim);font-size:11px">{esc(by[outlet][0]["via"])}</span>'
         rows.append(f'<tr><th>{name}</th>{"".join(cells)}<td class="sum">{n_ok}/{len(by[outlet])}</td></tr>')
     head = "".join(f"<th>{esc(c)}</th>" for c in CATEGORIES)
 

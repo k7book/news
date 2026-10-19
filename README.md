@@ -57,3 +57,7 @@ irumhahn.com 스타일(종이색 배경, Noto Serif KR 제호, Pretendard 본문
 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`를 넣으면 됩니다.
 
 수동 실행: GitHub 리포지토리 → Actions → update → Run workflow
+
+## KBS·MBC
+
+MBC는 robots.txt가 전체 차단, KBS는 공개 RSS가 없어 두 방송사는 구글뉴스 검색 RSS(`site:` 검색, 최근 1일)로 기사 제목·링크만 가져옵니다. 분야 구분 없이 '전체'에만 들어가고 사진은 없습니다.
