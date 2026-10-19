@@ -362,7 +362,7 @@ def graphic_section(yna, searched, items, limit=30, extra=()):
 # ---------------- 정제 ----------------
 def clean(items, hours, now):
     """정제. 같은 (언론사, 제목)이 여러 분야 피드에 있으면 한 건으로 합치고 분야는 cats에 모두 남긴다."""
-    lo, hi = now - timedelta(hours=hours), now + timedelta(hours=2)
+    lo, hi = now - timedelta(hours=hours), now + timedelta(minutes=10)  # 예약 송고(미래 시각) 기사 제외
     kept, out = {}, []
     for a in items:
         if not a["date"] or not (lo <= a["date"] <= hi):
