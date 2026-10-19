@@ -621,6 +621,11 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .pgrid img{width:100%;height:100%;object-fit:contain;display:block}.pgrid a:hover .ph{border-color:var(--ink)}
 .pgrid .pt{font-size:13.5px;font-weight:700;line-height:1.45;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pgrid .pm{font-size:11px;color:var(--muted);margin-top:2px}
+.ofilter{display:flex;flex-wrap:wrap;gap:7px;padding:14px 0 6px}
+.ofilter button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:4px 12px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer}
+.ofilter button i{font-style:normal;font-size:11px;color:var(--dim);margin-left:5px}
+.ofilter button.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}.ofilter button.on i{color:var(--paper);opacity:.7}
+.pgrid .pm b{font-weight:700;color:var(--ink-soft)}
 .pgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:700px){.pgrid.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid .gph{aspect-ratio:1/1;background:#fff}
 .pgrid .noimg{display:flex;flex-direction:column;justify-content:space-between;padding:12px;background:var(--paper-2)}
@@ -697,6 +702,9 @@ catch(e){if(manual)location.reload()}finally{rf.classList.remove('busy')}}
 rf.addEventListener('click',()=>check(true));
 setInterval(()=>{if(document.visibilityState==='visible')check(false)},300000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check(false)});
+document.querySelectorAll('.ofilter button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
+document.querySelectorAll('.ofilter button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#gg>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
 document.getElementById('st')?.addEventListener('click',()=>{const d=document.querySelector('details.status');d.open=true;d.scrollIntoView({behavior:'smooth'})});
 """
 
@@ -799,14 +807,20 @@ def render_timeline(p, now, label):
 
 
 def render_graphic(g):
+    """그래픽 탭: 위에 언론사 선택 버튼, 아래에 그래픽 바둑판(최신순). 버튼으로 언론사별로 거른다."""
     if not g or not (g.get("yna") or g.get("others")):
         return ""
+    items = list(g.get("yna", [])) + list(g.get("others", []))
+    items.sort(key=lambda x: x.get("date") or "", reverse=True)
+
     def when(x):
         return datetime.fromisoformat(x["date"]).strftime("%m.%d %H:%M") if x.get("date") else ""
-    yna = "".join(
-        f'<a href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer"><div class="ph gph">'
-        + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
-        + f'</div><div class="pt">{esc(x["title"])}</div><div class="pm">{when(x)}</div></a>' for x in g.get("yna", []))
+
+    cnt = Counter(x["outlet"] for x in items)
+    outlets = sorted(cnt, key=lambda o: (-cnt[o], o))
+    chips = (f'<button class="on" data-o="">전체<i>{len(items)}</i></button>'
+             + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
+
     def tile(x):
         if x.get("img"):
             ph = (f'<div class="ph gph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" '
@@ -814,19 +828,16 @@ def render_graphic(g):
         else:
             ph = f'<div class="ph gph noimg"><b>GRAPHIC</b><span>{esc(x["outlet"])}</span></div>'
         t = GRAPHIC_RX.sub("", x["title"]).strip() or x["title"]
-        return (f'<a href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
-                f'<div class="pt">{esc(t)}</div><div class="pm">{esc(x["outlet"])} · {when(x)}</div></a>')
-    others = "".join(tile(x) for x in g.get("others", []))
-    out = ""
-    if yna:
-        out += (f'<section class="photos" style="margin-top:0"><div class="shead" style="padding-top:12px"><h2>연합뉴스 그래픽</h2>'
-                f'<span class="en">YONHAP GRAPHICS · {len(g["yna"])}건</span></div><div class="pgrid g3">{yna}</div>'
-                f'<p class="note">{link(YNA_GRAPHIC, "연합뉴스 그래픽 전체 보기 →")}</p></section>')
-    if others:
-        out += (f'<section class="photos" style="margin-top:36px"><div class="shead" style="padding-top:12px"><h2>다른 언론사 그래픽 뉴스</h2>'
-                f'<span class="en">NEWSIS · 그 외 · 최근 2일</span></div><div class="pgrid g3">{others}</div>'
-                f'<p class="note">{link(NEWSIS_GRAPHIC, "뉴시스 그래픽뉴스 전체 보기 →")}</p></section>')
-    return f'<div class="pg" data-c="그래픽" role="tabpanel">{out}</div>'
+        return (f'<a data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
+                f'<div class="pt">{esc(t)}</div><div class="pm"><b>{esc(x["outlet"])}</b> · {when(x)}</div></a>')
+
+    more = " · ".join(link(u, f"{n} 그래픽 전체 보기 →") for n, u in (("연합뉴스", YNA_GRAPHIC), ("뉴시스", NEWSIS_GRAPHIC))
+                      if n in cnt)
+    return (f'<div class="pg" data-c="그래픽" role="tabpanel"><section class="photos" style="margin-top:0">'
+            f'<div class="shead" style="padding-top:12px"><h2>그래픽 뉴스</h2><span class="en">GRAPHICS · 최근 2일 · {len(items)}건</span></div>'
+            f'<div class="ofilter" role="group" aria-label="언론사">{chips}</div>'
+            f'<div class="pgrid g3" id="gg">{"".join(tile(x) for x in items)}</div>'
+            f'<p class="note">{more}</p></section></div>')
 
 
 def render_brief(trends, pages, now):
