@@ -330,6 +330,54 @@ def fetch_newsis_graphic(limit=24):
 KOREAN_LATIN_OUTLETS = {"KBS", "MBC", "SBS", "JTBC", "YTN", "MBN", "EBS", "OBS", "TV조선", "CBS", "BBS", "KNN", "TBC", "UBC", "G1"}
 
 
+KHAN_INTERACTIVE = "https://www.khan.co.kr/interactive"  # robots.txt: * 는 /login 등 일부만 차단 (2026-10-20 확인)
+
+
+def fetch_khan_interactive(pages=2):
+    """경향신문 인터랙티브 목록: 제목·썸네일·기사 주소, 날짜는 기사 번호(YYYYMMDD…)에서"""
+    out, seen, err = [], set(), None
+    for n in range(1, pages + 1):
+        url = KHAN_INTERACTIVE + ("" if n == 1 else f"?page={n}")
+        try:
+            if not robots_allows(url):
+                return out, "robots.txt 차단"
+            body = http_get(url).decode("utf-8", "ignore")
+        except Exception as e:
+            err = f"{type(e).__name__}: {str(e)[:60]}"
+            break
+        i = body.find('id="recentList"')
+        chunk = body[i:] if i >= 0 else body
+        for li in re.findall(r"<li\b[^>]*>(.*?)</li>", chunk, re.S):
+            m = re.search(r'<a[^>]+href="(https?://www\.khan\.co\.kr/article/(\d{8})\d+)[^"]*"[^>]*>(.*?)</a>', li, re.S)
+            if not m or m.group(1) in seen:
+                continue
+            im = re.search(r'<img[^>]+src="([^"]+)"', li)
+            img = im.group(1) if im else None
+            if img and img.startswith("//"):
+                img = "https:" + img
+            ymd = m.group(2)
+            d = parse_date(f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}")
+            title = re.sub(r"^\s*\[인터랙티브\]\s*", "", _strip_tags(m.group(3)))
+            seen.add(m.group(1))
+            out.append({"title": title, "url": m.group(1), "img": img, "outlet": "경향신문", "date": d.isoformat() if d else None})
+    return out, (None if out else err or "목록을 찾지 못함(페이지 구조 변경?)")
+
+
+def render_interactive(rows):
+    if not rows:
+        return ""
+    cells = "".join(
+        f'<a href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer"><div class="ph iph">'
+        + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
+        + f'</div><div class="pt">{esc(x["title"])}</div><div class="pm"><b>{esc(x["outlet"])}</b> · '
+        f'{datetime.fromisoformat(x["date"]).strftime("%Y.%m.%d") if x.get("date") else ""}</div></a>' for x in rows)
+    return (f'<div class="pg" data-c="인터랙티브" role="tabpanel"><section class="photos" style="margin-top:0">'
+            f'<div class="shead" style="padding-top:12px"><h2>인터랙티브</h2><span class="en">INTERACTIVE · {len(rows)}건</span></div>'
+            f'<p class="note" style="margin:10px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
+            f'<div class="pgrid g3 inter">{cells}</div>'
+            f'<p class="note">{link(KHAN_INTERACTIVE, "경향신문 인터랙티브 전체 보기 →")}</p></section></div>')
+
+
 def fetch_graphic_search():
     """구글뉴스 검색 RSS: 제목에 '그래픽'이 들어간 최근 2일 기사 (여러 언론사)"""
     out, err = [], None
@@ -813,7 +861,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .ofilter button.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}.ofilter button.on i{color:var(--paper);opacity:.7}
 .pgrid .pm b{font-weight:700;color:var(--ink-soft)}
 .noimg-list{margin-top:26px}.noimg-list h3{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin:0;padding-bottom:6px;border-bottom:1px solid var(--rule)}
-.pgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:700px){.pgrid.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pgrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pgrid .iph{aspect-ratio:16/10;background:var(--paper-2)}.pgrid.inter .pt{font-size:14.5px}@media(max-width:700px){.pgrid.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid .gph{aspect-ratio:1/1;background:#fff}
 .pgrid .noimg{display:flex;flex-direction:column;justify-content:space-between;padding:12px;background:var(--paper-2)}
 .pgrid .noimg b{font-size:10.5px;letter-spacing:.2em;color:var(--red)}.pgrid .noimg span{font:900 15px/1.3 var(--brand);color:var(--ink-soft)}
@@ -1100,24 +1149,25 @@ def render_portals(portals):
     return "".join(out)
 
 
-def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None,
+def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
                 brand="지금 뜨는 뉴스", motto=None, title=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
-        graphic, portals = None, {}
+        graphic, portals, interactive = None, {}, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    gpanel = render_graphic(graphic)
+    gpanel = render_graphic(graphic) + render_interactive(interactive or [])
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}">{esc(c)}</button>' for c in CATEGORIES if c in pages)
     if gpanel:
-        tabs += '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>'
+        tabs += '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>' if graphic else ""
+        tabs += '<button role="tab" data-c="인터랙티브">인터랙티브</button>' if interactive else ""
     if only:
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
     else:
         tabs += '<a class="srclink" href="sources.html">출처</a>'
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
-    tick_keys = list(pages) + (["그래픽"] if gpanel else [])
+    tick_keys = list(pages) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
     def tk(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         return (f'<span class="items pg" data-c="{esc(c)}">' + '<span class="sep">/</span>'.join(esc(t["keyword"]) for t in src[:6]) + "</span>")
@@ -1222,6 +1272,7 @@ def render_sources(feeds, status, now):
         ("줌", "언론사별 많이 본 뉴스 · 이슈 키워드", "메인 페이지", "news.zum.com", "언론사별 많이 본 뉴스"),
         ("연합뉴스", "그래픽 목록", "목록 페이지", "yna.co.kr/graphic/index", "연합뉴스 그래픽"),
         ("뉴시스", "그래픽뉴스 목록", "목록 페이지", "newsis.com/photo/gralist", "뉴시스 그래픽"),
+        ("경향신문", "인터랙티브 목록(1~2쪽)", "목록 페이지", "khan.co.kr/interactive", "경향신문 인터랙티브"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
     ]
@@ -1328,7 +1379,8 @@ def main():
                                            first=datetime.fromisoformat(x.get("first") or x["latest"])) for x in p["clusters"]],
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
-        page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"))
+        page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
+                           interactive=d.get("interactive"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -1348,6 +1400,7 @@ def main():
     if args.demo:
         items, trends, portals, status, pstatus = demo_data(now)
         yna_g, g_search = demo_graphic(now)
+        inter = [dict(g, outlet="경향신문", title=g["title"] + " (인터랙티브 샘플)") for g in yna_g[:4]]
         nis_g = []
     else:
         fp = os.path.join(HERE, "feeds.json")
@@ -1372,6 +1425,8 @@ def main():
         pstatus.append({"name": "연합뉴스 그래픽", "ok": gerr is None, "count": len(yna_g), "error": gerr or ""})
         nis_g, nerr = fetch_newsis_graphic()
         pstatus.append({"name": "뉴시스 그래픽", "ok": nerr is None, "count": len(nis_g), "error": nerr or ""})
+        inter, ierr = fetch_khan_interactive()
+        pstatus.append({"name": "경향신문 인터랙티브", "ok": ierr is None, "count": len(inter), "error": ierr or ""})
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
         ok_feeds = sum(1 for s in status if s["ok"])
@@ -1410,7 +1465,8 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
-    page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic)
+    page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
+                       interactive=inter)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -1425,7 +1481,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     if not args.demo:
