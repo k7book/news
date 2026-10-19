@@ -437,6 +437,9 @@ def enrich_graphics(rows, workers=6):
     return len(todo), n_img
 
 
+GRAPHIC_EXCLUDE = {"시선뉴스"}  # 그래픽 탭에서 뺄 매체 (2026-10-19 요청)
+
+
 def graphic_section(yna, searched, items, limit=30, extra=()):
     """다른 언론사 그래픽: 검색 결과 + 수집 기사 중 [그래픽]류 제목. 연합 그래픽 목록과 겹치는 제목은 뺀다."""
     def norm(t):
@@ -447,6 +450,8 @@ def graphic_section(yna, searched, items, limit=30, extra=()):
     out = []
     # 사진 있는 것 먼저, 그 안에서 최신순
     for g in sorted(pool, key=lambda g: (bool(g.get("img")), g.get("date") or ""), reverse=True):
+        if g.get("outlet") in GRAPHIC_EXCLUDE:
+            continue
         k = norm(g["title"])
         if not k or k in seen or not re.match(r"https?://", g.get("url") or ""):
             continue
