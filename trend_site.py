@@ -705,8 +705,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{font:900 clamp(38px,7vw,60px)/1.15 var(--brand);letter-spacing:.12em;margin:0;padding-left:.12em}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
-.nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:13px 0 11px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
-.nav button{all:unset;cursor:pointer;font-size:14.5px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
+.nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
+.nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
@@ -749,7 +749,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .pgrid .noimg{display:flex;flex-direction:column;justify-content:space-between;padding:12px;background:var(--paper-2)}
 .pgrid .noimg b{font-size:10.5px;letter-spacing:.2em;color:var(--red)}.pgrid .noimg span{font:900 15px/1.3 var(--brand);color:var(--ink-soft)}
 .newest.gl li{grid-template-columns:82px minmax(0,1fr)}
-.nav .srclink{font-size:13px;color:var(--muted);padding:3px 0 5px;white-space:nowrap}.nav .srclink:hover{color:var(--ink)}
+.nav .srclink{font-size:14px;color:var(--muted);padding:3px 0 5px;white-space:nowrap}.nav .srclink:hover{color:var(--ink)}
 .nav .gtab{position:relative;padding-left:14px}.nav .gtab::before{content:"";position:absolute;left:0;top:7px;width:1px;height:13px;background:var(--rule)}
 .story{display:grid;grid-template-columns:34px minmax(0,1fr);gap:0 10px;padding:18px 0;border-top:1px solid var(--rule)}
 .story .no{font:900 20px/1.3 var(--brand);color:var(--dim)}.story:nth-of-type(-n+3) .no{color:var(--red)}
