@@ -21,7 +21,13 @@ from email.utils import parsedate_to_datetime
 KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 TIMEOUT = 15
-CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예"]
+CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예", "도서관", "파주"]
+# 관심 분야 탭: 구글뉴스 검색으로 모은 기사 + 수집한 모든 기사 중 제목에 해당 낱말이 있는 것.
+# 다룬 곳이 적어서 한 언론사만 쓴 기사도 보여 준다. 이 탭에서만 쓰는 기사는 전체·주식 탭에 넣지 않는다.
+NICHE = {
+    "도서관": re.compile(r"도서관|독서|북스타트|그림책|도서전|책 ?읽|사서(?:들|가|는|의|를|와|로|교사)"),
+    "파주": re.compile(r"파주|운정|교하|금촌|헤이리|임진각|출판도시|파평|문산읍"),
+}
 # 주식 탭: 증권 RSS + 제목에 증시 낱말이 있는 기사
 STOCK_RX = re.compile(r"코스피|코스닥|증시|주가|주식|상장|공모주|IPO|ETF|ETN|목표가|순매수|순매도|시가총액|시총|공매도|"
                       r"자사주|배당주|증권사|리포트|투자의견|레버리지|인버스|나스닥|다우지수|S&P|밸류업|상한가|하한가|신고가|신저가|"
@@ -145,8 +151,10 @@ def fetch_feed(feed):
         return feed, [], f"{type(e).__name__}: {str(e)[:70]}"
     items = []
     for it in root.iter("item"):
+        src = it.find("source")
         items.append({"title": text(it, "title"), "url": text(it, "link") or (it.find("guid").text if it.find("guid") is not None else ""),
-                      "date": item_date(it), "img": item_image(it)})
+                      "date": item_date(it), "img": item_image(it),
+                      "_src": (src.text or "").strip() if src is not None else ""})
     if not items:
         for it in root.iter(ATOM + "entry"):
             link = it.find(ATOM + "link")
@@ -154,7 +162,9 @@ def fetch_feed(feed):
                           "url": link.get("href", "") if link is not None else "",
                           "date": item_date(it), "img": item_image(it)})
     for a in items:
-        a["outlet"], a["category"] = feed["outlet"], feed["category"]
+        src = a.pop("_src", "")
+        a["outlet"] = src if feed.get("by_source") and src else feed["outlet"]  # 구글뉴스 검색: 실제 언론사 이름으로
+        a["category"] = feed["category"]
     return feed, items, None
 
 
@@ -654,7 +664,7 @@ def words(title):
 
 
 # ---------------- 사건 묶기 ----------------
-def cluster(items, top=30):
+def cluster(items, top=30, min_outlets=2):
     items = sorted(items, key=lambda a: a["date"])
     for a in items:
         a["_w"] = words(a["title"])
@@ -680,7 +690,7 @@ def cluster(items, top=30):
         for a in c["members"]:
             by_outlet.setdefault(a["outlet"], a)  # 언론사당 1건(가장 먼저)
         ms = list(by_outlet.values())
-        if len(ms) < 2:
+        if len(ms) < min_outlets:
             continue
         rep = max(ms, key=lambda a: sum(len(a["_w"] & b["_w"]) for b in ms))
         out.append({"title": rep["title"], "count": len(ms), "outlets": sorted(by_outlet),
@@ -1089,7 +1099,8 @@ def outlets_html(c):
 
 def render_clusters(cs, now, label, photos_html=""):
     if not cs:
-        return '<p class="empty">두 곳 이상이 함께 다룬 사건이 아직 없습니다.</p>'
+        return (f'<p class="empty">최근 {label} 관련 기사가 아직 없습니다.</p>' if label in NICHE
+                else '<p class="empty">두 곳 이상이 함께 다룬 사건이 아직 없습니다.</p>')
     c = cs[0]
     ph = (f'<a class="ph" href="{esc(c["links"][0]["url"])}" target="_blank" rel="noopener noreferrer">'
           f'<img src="{esc(c["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.lead\').classList.remove(\'has-img\');this.parentNode.remove()"></a>') if c.get("img") else ""
@@ -1254,7 +1265,9 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         graphic, portals, interactive = None, {}, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
     gpanel = render_graphic(graphic) + render_interactive(interactive or [])
-    tabs = "".join(f'<button role="tab" data-c="{esc(c)}">{esc(c)}</button>' for c in CATEGORIES if c in pages)
+    first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
+    tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
+                   for c in CATEGORIES if c in pages)
     if gpanel:
         tabs += '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>' if graphic else ""
         tabs += '<button role="tab" data-c="인터랙티브">인터랙티브</button>' if interactive else ""
@@ -1273,7 +1286,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
         body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
-                    f'<section class="shelf"><div class="shead"><h2>언론사 3곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
+                    f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
                     f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
     def side_tr(c):
         src = tr_of(c if c in pages else next(iter(pages)))
@@ -1338,7 +1351,7 @@ def render_sources(feeds, status, now):
     for f in feeds:
         by[f["outlet"]].append(f)
     rows = []
-    for outlet in sorted(by, key=lambda o: (o == "구글뉴스", not re.match(r"[가-힣]", o), o)):
+    for outlet in sorted(by, key=lambda o: (o.startswith("구글뉴스"), not re.match(r"[가-힣]", o), o)):
         cells = []
         n_ok = 0
         for c in CATEGORIES:
@@ -1376,6 +1389,7 @@ def render_sources(feeds, status, now):
         ("조선일보", "인터랙티브 목록(최근 12건, 날짜는 주소의 연·월)", "목록 페이지", "chosun.com/interactive", "조선일보 인터랙티브"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
+        ("각 언론사", "도서관·파주 탭 상위 15건의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "관심 탭 원문 사진"),
     ]
     erows = "".join(f'<tr><th>{esc(a)}</th><td>{esc(b)}</td><td>{esc(c)}</td><td class="mono">{esc(d)}</td><td>{stline(e)}</td></tr>'
                     for a, b, c, d, e in extra)
@@ -1547,20 +1561,33 @@ def main():
     # 분야별 묶기: 전체 탭은 모든 기사, 분야 탭은 해당 분야 피드의 기사만
     pages, subs = {}, {}
     for c in CATEGORIES:
+        niche_only = lambda a: a.get("cats", {a["category"]}) <= set(NICHE)  # 관심 탭 검색으로만 들어온 기사
         if c == "전체":
-            sub = items
+            sub = [a for a in items if not niche_only(a)]
         elif c == "주식":
-            sub = [a for a in items if is_stock(a)]
+            sub = [a for a in items if is_stock(a) and not niche_only(a)]
+        elif c in NICHE:  # 그 탭 검색으로 온 기사 중 제목에 낱말이 있는 것 + 다른 피드 기사 중 제목에 낱말이 있는 것
+            sub = [a for a in items if NICHE[c].search(a["title"])]
         elif c == "경제":  # 주식 기사는 주식 탭으로만 (두 탭이 겹치지 않게)
             sub = [a for a in items if "경제" in a.get("cats", {a["category"]}) and not is_stock(a)]
         else:
             sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
             continue
-        cs = cluster(sub)
-        pages[c] = {"clusters": cs, "keywords": keywords(sub), "hourly": hourly(sub, now), "latest": latest(sub),
+        cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
+        pages[c] = {"clusters": cs, "keywords": keywords(sub, min_outlets=2 if c in NICHE else 3), "hourly": hourly(sub, now), "latest": latest(sub),
                     "photos": photos(cs, sub)}
         subs[c] = sub
+    if not args.demo:  # 관심 탭 상위 15건: 구글뉴스 링크를 원문으로 풀고 원문 대표 사진을 붙인다(그래픽 탭과 같은 방식, 캐시)
+        rows = [{"url": cl["links"][0]["url"], "img": None, "_c": cl} for c in NICHE if c in pages
+                for cl in pages[c]["clusters"][:15] if not cl.get("img") and GN_RX.search(cl["links"][0]["url"])]
+        n_todo, n_img = enrich_graphics(rows)
+        for r in rows:
+            if r["img"]:
+                r["_c"]["img"] = r["img"]
+            if not GN_RX.search(r["url"]):
+                r["_c"]["links"][0]["url"] = r["url"]
+        pstatus.append({"name": "관심 탭 원문 사진", "ok": True, "count": n_img, "error": "" if n_img or not n_todo else f"{n_todo}건 중 0"})
     trends = trend_related(attach_news(trends, items), items)
     for c in pages:
         pages[c]["trends"] = channel_trends(c, subs[c], trends, now)
