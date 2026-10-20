@@ -936,7 +936,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
 .nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
 .nav button{white-space:nowrap}
-@media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}}
+@media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
+.nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -1037,10 +1038,15 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--rule);font-si
 JS = """
 const tabs=document.querySelectorAll('.nav button'),pgs=document.querySelectorAll('.pg');
 function show(c){tabs.forEach(b=>{const on=b.dataset.c===c;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
-pgs.forEach(p=>p.classList.toggle('on',p.dataset.c===c));try{localStorage.setItem('trend_tab',c)}catch(e){}}
+pgs.forEach(p=>p.classList.toggle('on',p.dataset.c===c));try{localStorage.setItem('trend_tab',c)}catch(e){}
+const b=[...tabs].find(x=>x.dataset.c===c),n=b&&b.parentNode;  // 좁은 화면: 고른 탭이 보이게 가운데로
+if(n&&n.scrollWidth>n.clientWidth)n.scrollTo({left:b.offsetLeft-n.offsetLeft-n.clientWidth/2+b.offsetWidth/2});}
+const nav=document.querySelector('.nav');  // 오른쪽에 탭이 더 있으면 끝을 흐리게
+function navFade(){if(nav)nav.classList.toggle('more',nav.scrollLeft+nav.clientWidth<nav.scrollWidth-4)}
+if(nav){nav.addEventListener('scroll',navFade,{passive:true});addEventListener('resize',navFade)}
 tabs.forEach(b=>b.onclick=()=>show(b.dataset.c));
 let c='전체';try{c=localStorage.getItem('trend_tab')||'전체'}catch(e){}
-if(![...tabs].some(b=>b.dataset.c===c))c=tabs[0]?tabs[0].dataset.c:'전체';show(c);
+if(![...tabs].some(b=>b.dataset.c===c))c=tabs[0]?tabs[0].dataset.c:'전체';show(c);navFade();
 // 새로고침: data.json의 갱신 시각이 바뀌었으면 다시 불러오기, 아니면 '최신' 표시. 열려 있는 동안 5분마다 확인.
 const built=document.body.dataset.built, rf=document.getElementById('rf'), age=document.getElementById('age');
 function showAge(){const m=Math.max(0,Math.round((Date.now()-Date.parse(built))/60000));
