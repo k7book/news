@@ -1,0 +1,7 @@
+name = "news-timer"
+main = "index.js"
+compatibility_date = "2025-06-01"
+workers_dev = false   # 공개 주소 없음 (예약 실행만)
+
+[triggers]
+crons = ["3 * * * *"]  # 매시 3분

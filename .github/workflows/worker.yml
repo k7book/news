@@ -1,0 +1,45 @@
+name: worker
+
+# 클라우드플레어 타이머(news-timer Worker)를 올린다.
+# 필요한 Secrets: NEWS(클라우드플레어 토큰, Workers 편집 권한 포함), NEWS1(계정 ID),
+#                 NEWS_GH(GitHub 토큰 — k7book/news 저장소, Actions 읽기·쓰기)
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/worker.yml"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Worker 올리기
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.NEWS }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.NEWS1 }}
+          GH_TOKEN_FOR_WORKER: ${{ secrets.NEWS_GH }}
+        working-directory: worker
+        run: |
+          set +e
+          CLOUDFLARE_API_TOKEN=$(printf %s "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]'); export CLOUDFLARE_API_TOKEN
+          CLOUDFLARE_ACCOUNT_ID=$(printf %s "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]'); export CLOUDFLARE_ACCOUNT_ID
+          GHT=$(printf %s "$GH_TOKEN_FOR_WORKER" | tr -d '[:space:]')
+          note() { m="${1//'%'/'%25'}"; m="${m//$'\n'/'%0A'}"; echo "::warning title=$2::$m"; }
+          if [ -z "$GHT" ]; then
+            note "GitHub Secrets에 NEWS_GH가 없습니다. GitHub 토큰을 만들어 넣은 뒤 이 작업을 다시 실행하세요." "NEWS_GH 없음"
+            exit 0
+          fi
+          # 1) GitHub 토큰이 update.yml을 실행시킬 수 있는지 먼저 확인 (값은 출력하지 않음)
+          code=$(curl -s -o /tmp/gh.json -w '%{http_code}' -H "Authorization: Bearer $GHT" -H "Accept: application/vnd.github+json" \
+                 https://api.github.com/repos/k7book/news/actions/workflows/update.yml)
+          echo "GitHub 토큰 확인: HTTP $code (토큰 길이 ${#GHT}, 앞 4자 ${GHT:0:4})" > w.log
+          # 2) Worker 올리기 + 비밀값 넣기
+          npx --yes wrangler@4.20.0 deploy >> w.log 2>&1; rc=$?
+          if [ $rc -eq 0 ]; then
+            printf %s "$GHT" | npx --yes wrangler@4.20.0 secret put GH_TOKEN >> w.log 2>&1; rc=$?
+          fi
+          note "$(sed -E 's/\x1b\[[0-9;]*m//g' w.log | grep -vE '^\s*$' | tail -30)" "wrangler (exit $rc)"
+          [ "$code" = "200" ] || { note "GitHub 토큰이 k7book/news에 접근하지 못합니다(HTTP $code). 저장소 선택과 Actions 권한을 확인하세요." "GitHub 토큰"; exit 1; }
+          exit $rc
