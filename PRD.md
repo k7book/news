@@ -40,7 +40,7 @@
 | F4 | 수집 상태 | 피드별 성공/실패와 건수 | v0.1 |
 | F5 | 데이터 출력 | `data.json` 동시 생성 | v0.1 |
 | F6 | 화면 | 반응형, 다크모드, **전체+분야 탭** | v0.2 |
-| F7 | 자동 갱신 | GitHub Actions 매시간 → Cloudflare Pages | v0.3~0.4 |
+| F7 | 자동 갱신 | Cloudflare Worker `news-timer`(매시 3분)가 GitHub Actions `update.yml`을 실행 → Cloudflare Pages. 보조로 GitHub 예약(15분마다 시도, 직전 갱신 50분 안이면 건너뜀). 90분 넘게 갱신이 없으면 화면에 "갱신 지연 중" | v0.3~0.4 |
 | F8 | 이력 보관 | `history/YYYY-MM-DD-HH.json`, 7일 | v0.2(로컬) / v0.3 |
 | F9 | 순위 변화 | 검색어 순위 변화, 사건 타임라인 | v0.5 |
 | F10 | 포털 인기뉴스 | 네이트·줌·네이버 많이 본 뉴스 Top10 | v0.2 |
@@ -130,7 +130,7 @@ python check_feeds.py             # 피드 84개·포털 3곳 점검 → feeds_r
 | 포털 페이지 구조 변경 | 정규식만 수정, 해당 포털만 끔 |
 | 구글 트렌드 RSS 변경 | 파서 분리, 실패 시 뉴스만으로 생성 |
 | 저작권 | 제목·링크만 |
-| Actions 스케줄 지연 | 기준 시각 표시, 정각 집착 안 함 |
+| Actions 스케줄 지연 | GitHub 예약은 몇 시간씩 건너뜀(2026-10-20 확인) → 시계는 Cloudflare Worker가 맡음. Secrets: NEWS_GH(GitHub 토큰, Actions 읽기·쓰기, 1년 만료 — 만료 전 새로 만들어 교체), NEWS(클라우드플레어 토큰, Pages·Workers 스크립트 편집) |
 
 ## 9. 로드맵
 
