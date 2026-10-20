@@ -162,7 +162,7 @@ def fetch_feed(feed):
                           "url": link.get("href", "") if link is not None else "",
                           "date": item_date(it), "img": item_image(it)})
     for a in items:
-        src = a.pop("_src", "")
+        src = re.sub(r"^https?://|/+$", "", a.pop("_src", "")).strip()  # 이름 대신 주소가 온 경우 정리
         a["outlet"] = src if feed.get("by_source") and src else feed["outlet"]  # 구글뉴스 검색: 실제 언론사 이름으로
         a["category"] = feed["category"]
     return feed, items, None
@@ -734,7 +734,7 @@ RISE_STOP = set("""속보 단독 종합 포토 영상 오늘 내일 어제 이�
 상승 하락 급등 급락 증가 감소 최대 최고 최저 역대 사상 국내 미국 한국 정부 시장 업계 관계자
 차전 후보 경신 지속 돌파 재돌파 출시 선정 개막 종료 시작 가운데 이유 모습 대해 경우 사실
 대통령 매우 쭉쭉 가격 억원 조원 만원 글로벌 감독 영화 신곡 아내 남편 강조 재정 공급 가격 국감 국정감사 ai it 사업 기업 회사 투자 지원 확대 강화 경제 정책 정치 사회 문제 상황 수준 이상 이하 가장 계속 결국 모두 전국 지역 서울
-마무리 성황 성황리 모집 운영 참여자 참가자 체결 협약 업무협약 개최 행사 프로그램 진행""".split())
+마무리 성황 성황리 모집 운영 참여자 참가자 체결 협약 업무협약 개최 행사 프로그램 진행 성료 함께 함께하""".split())
 
 
 def rising_words(sub, now, recent_h=3, top=10):
