@@ -1,10 +1,12 @@
 name: update
 
-# 매시간 7분에 수집 → site/ 생성 → Cloudflare Pages에 직접 업로드(wrangler) + deploy 브랜치에 이력 보관
+# 15분마다 깨어나서, 마지막 갱신이 50분 넘게 지났을 때만 수집 → site/ 생성 → Cloudflare Pages에 직접 업로드(wrangler) + deploy 브랜치에 이력 보관
 # (Git 연결 방식은 무료 빌드 월 500회 제한이 있어 직접 업로드를 쓴다)
 on:
   schedule:
-    - cron: "7 * * * *"      # UTC 기준 매시 7분 (KST도 매시 7분)
+    # GitHub 예약 실행은 붐비면 몇 시간씩 건너뛴다(10/20 새벽 01:24→06:26→10:02).
+    # 그래서 15분마다 시도하고, 직전 갱신이 50분 안이면 바로 끝낸다 → 실제 갱신은 약 1시간 간격
+    - cron: "4,19,34,49 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -36,11 +38,29 @@ jobs:
           fi
           mkdir -p history
 
+      - name: 직전 갱신 시각 확인 (예약 실행일 때 50분 안이면 건너뜀)
+        if: github.event_name == 'schedule'
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, subprocess
+          from datetime import datetime, timezone
+          try:
+              d = json.loads(subprocess.run(["git", "show", "origin/deploy:site/data.json"], capture_output=True, check=True).stdout)
+              age = (datetime.now(timezone.utc) - datetime.fromisoformat(d["built"])).total_seconds() / 60
+          except Exception:
+              age = 999
+          print("SKIP=1" if age < 50 else "SKIP=0")
+          print(f"LAST_AGE_MIN={age:.0f}")
+          PY
+          tail -2 "$GITHUB_ENV"
+
       - uses: actions/setup-python@v5
+        if: env.SKIP != '1'
         with:
           python-version: "3.12"
 
       - name: 수집·생성
+        if: env.SKIP != '1'
         env:
           TZ: Asia/Seoul
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -48,6 +68,7 @@ jobs:
         run: python trend_site.py
 
       - name: deploy 브랜치로 올리기
+        if: env.SKIP != '1'
         run: |
           rm -rf /tmp/out && mkdir -p /tmp/out
           cp -r site history /tmp/out/
@@ -61,7 +82,7 @@ jobs:
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" deploy
 
       - name: Cloudflare Pages에 올리기
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.SKIP != '1' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.NEWS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.NEWS1 }}

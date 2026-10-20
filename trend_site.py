@@ -1026,7 +1026,8 @@ if(![...tabs].some(b=>b.dataset.c===c))c=tabs[0]?tabs[0].dataset.c:'전체';show
 // 새로고침: data.json의 갱신 시각이 바뀌었으면 다시 불러오기, 아니면 '최신' 표시. 열려 있는 동안 5분마다 확인.
 const built=document.body.dataset.built, rf=document.getElementById('rf'), age=document.getElementById('age');
 function showAge(){const m=Math.max(0,Math.round((Date.now()-Date.parse(built))/60000));
-age.textContent=m<1?'방금':m<60?m+'분 전':Math.floor(m/60)+'시간 '+(m%60)+'분 전';}
+age.textContent=(m<1?'방금':m<60?m+'분 전':Math.floor(m/60)+'시간 '+(m%60)+'분 전')+(m>=90?' · 갱신 지연 중':'');
+age.style.color=m>=90?'var(--red)':'';age.style.fontWeight=m>=90?'700':'';}
 showAge();setInterval(showAge,60000);
 async function check(manual){try{rf.classList.add('busy');
 const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});const d=await r.json();
