@@ -635,8 +635,12 @@ def clean(items, hours, now):
             continue
         if not a["title"] or not re.match(r"https?://", a["url"] or ""):
             continue
-        t = re.sub(r"\s+", " ", html.unescape(a["title"])).strip()
-        t = re.sub(r"\s*[-|–]\s*[가-힣A-Za-z0-9 ]{2,12}$", "", t)  # "제목 - 언론사" 꼬리 제거(구글뉴스)
+        t = re.sub(r"\s+", " ", html.unescape(a["title"]).replace("\ufeff", "")).strip()
+        if a["outlet"] and t.endswith(" - " + a["outlet"]):
+            t = t[: -len(a["outlet"]) - 3].rstrip()
+        t = re.sub(r"\s*[-|–]\s*(?:[가-힣A-Za-z0-9 ]{2,12}|(?:www\.)?[\w-]+(?:\.[\w-]+)+)$", "", t)  # "제목 - 언론사/주소" 꼬리 제거(구글뉴스)
+        if re.match(r"(?:www\.)?[\w-]+(?:\.[\w-]+)+$", a["outlet"] or ""):  # 언론사 이름 대신 주소가 온 경우
+            a = dict(a, outlet=re.sub(r"^www\.", "", a["outlet"]))
         key = (a["outlet"], t)
         img = a.get("img") or ""
         img = img.strip() if re.match(r"(https?://|data:image/)", img.strip()) else None
@@ -729,7 +733,8 @@ RISE_STOP = set("""속보 단독 종합 포토 영상 오늘 내일 어제 이�
 전망 발표 기록 공개 확인 진행 예정 개최 참석 강조 지적 논란 의혹 사과 입장 결과 추진 계획 가능성 우려 대응 기자 뉴스 사진 만에 다시
 상승 하락 급등 급락 증가 감소 최대 최고 최저 역대 사상 국내 미국 한국 정부 시장 업계 관계자
 차전 후보 경신 지속 돌파 재돌파 출시 선정 개막 종료 시작 가운데 이유 모습 대해 경우 사실
-대통령 매우 쭉쭉 가격 억원 조원 만원 글로벌 감독 영화 신곡 아내 남편 강조 재정 공급 가격 국감 국정감사 ai it 사업 기업 회사 투자 지원 확대 강화 경제 정책 정치 사회 문제 상황 수준 이상 이하 가장 계속 결국 모두 전국 지역 서울""".split())
+대통령 매우 쭉쭉 가격 억원 조원 만원 글로벌 감독 영화 신곡 아내 남편 강조 재정 공급 가격 국감 국정감사 ai it 사업 기업 회사 투자 지원 확대 강화 경제 정책 정치 사회 문제 상황 수준 이상 이하 가장 계속 결국 모두 전국 지역 서울
+마무리 성황 성황리 모집 운영 참여자 참가자 체결 협약 업무협약 개최 행사 프로그램 진행""".split())
 
 
 def rising_words(sub, now, recent_h=3, top=10):
@@ -789,7 +794,10 @@ def channel_trends(c, sub, trends, now, top=10):
         if in_titles or stock_hit:
             matched.append(dict(t))
     names = {t["keyword"].lower() for t in matched}
-    rise = [r for r in rising_words(sub, now, top=top) if not any(r["keyword"] in n or n in r["keyword"] for n in names)]
+    rise = [r for r in rising_words(sub, now, top=top + 5) if not any(r["keyword"] in n or n in r["keyword"] for n in names)]
+    if c in NICHE:  # 파주 탭에서 '파주'처럼 탭 주제 낱말 자체는 뺀다
+        matched = [t for t in matched if not NICHE[c].search(t["keyword"])]
+        rise = [r for r in rise if not NICHE[c].search(r["keyword"])]
     out = (matched + rise)[:top]
     return trend_related(out, sub)
 
@@ -1575,7 +1583,10 @@ def main():
         if not sub and c != "전체":
             continue
         cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
-        pages[c] = {"clusters": cs, "keywords": keywords(sub, min_outlets=2 if c in NICHE else 3), "hourly": hourly(sub, now), "latest": latest(sub),
+        kws = keywords(sub, min_outlets=2 if c in NICHE else 3)
+        if c in NICHE:
+            kws = [k for k in kws if not NICHE[c].search(k[0])]
+        pages[c] = {"clusters": cs, "keywords": kws, "hourly": hourly(sub, now), "latest": latest(sub),
                     "photos": photos(cs, sub)}
         subs[c] = sub
     if not args.demo:  # 관심 탭 상위 15건: 구글뉴스 링크를 원문으로 풀고 원문 대표 사진을 붙인다(그래픽 탭과 같은 방식, 캐시)
