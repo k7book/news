@@ -666,14 +666,98 @@ def book_titles(rows, top=60):
     return out[:top]
 
 
-def render_book_titles(rows):
+# 책 정보(표지·저자·출판사): 예스24 도서 검색 결과의 첫 일치 항목. robots.txt가 /Product/Search 허용 (2026-10-24 확인).
+# 같은 책은 다시 찾지 않게 history/book_info.json에 보관한다.
+BOOK_INFO = os.path.join(HERE, "history", "book_info.json")
+YES24_SEARCH = "https://www.yes24.com/Product/Search?"
+
+
+def _bk_key(t):
+    return re.sub(r"\W", "", t).lower()
+
+
+def yes24_lookup(title):
+    """예스24 도서 검색 → {name, author, pub, date, cover, url} 또는 {}"""
+    url = YES24_SEARCH + urllib.parse.urlencode({"domain": "BOOK", "query": title})
+    if not robots_allows(url):
+        return {}
+    body = http_get(url).decode("utf-8", "ignore")
+    i = body.find('id="yesSchList"')
+    if i < 0:
+        return {}
+    want, best = _bk_key(re.sub(r"\(.*?\)", "", title)), None
+    for li in re.findall(r'<li\b[^>]*data-goods-no="(\d+)"[^>]*>(.*?)(?=<li\b[^>]*data-goods-no=|</ul>)', body[i:i + 250000], re.S)[:6]:
+        no, blk = li
+        m = re.search(r'class="gd_name"[^>]*>(.*?)</a>', blk, re.S)
+        if not m:
+            continue
+        name = _strip_tags(m.group(1))
+        got = _bk_key(name)
+        if not want or not (got.startswith(want) or want.startswith(got) and len(got) >= 2):
+            continue
+        au = re.search(r'class="authPub info_auth"[^>]*>(.*?)</span>', blk, re.S)
+        pb = re.search(r'class="authPub info_pub"[^>]*>(.*?)</span>', blk, re.S)
+        dt = re.search(r'class="authPub info_date"[^>]*>(.*?)</span>', blk, re.S)
+        info = {"name": name, "author": re.sub(r"\s*/\s*", " · ", re.sub(r"\s+", " ", _strip_tags(au.group(1)))).strip() if au else "",
+                "pub": _strip_tags(pb.group(1)) if pb else "", "date": _strip_tags(dt.group(1)) if dt else "",
+                "cover": f"https://image.yes24.com/goods/{no}/L", "url": f"https://www.yes24.com/product/goods/{no}"}
+        ym = re.search(r"(\d{4})년\s*(\d{1,2})월", info["date"])
+        info["_ym"] = int(ym.group(1)) * 100 + int(ym.group(2)) if ym else 0
+        if best is None or info["_ym"] > best["_ym"]:  # 같은 제목이 여럿이면 가장 최근 책
+            best = info
+    if best:
+        best.pop("_ym", None)
+    return best or {}
+
+
+def enrich_book_titles(rows, max_new=40, workers=4):
+    """'이번 주 소개된 책'의 책마다 표지·저자·출판사 → {제목키: 정보}"""
+    try:
+        cache = json.load(open(BOOK_INFO, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    titles = [e["title"] for e in book_titles(rows)]
+    new = [t for t in titles if _bk_key(t) not in cache][:max_new]
+
+    def work(t):
+        try:
+            return t, yes24_lookup(t), None
+        except Exception as e:
+            return t, None, type(e).__name__
+    with ThreadPoolExecutor(workers) as ex:
+        for t, info, err in ex.map(work, new):
+            if err is None:
+                cache[_bk_key(t)] = info  # 못 찾은 것도 {}로 기억해 다시 찾지 않는다
+    out = {_bk_key(t): cache[_bk_key(t)] for t in titles if cache.get(_bk_key(t))}
+    try:
+        os.makedirs(os.path.dirname(BOOK_INFO), exist_ok=True)
+        keep = dict(list(cache.items())[-800:])
+        json.dump(keep, open(BOOK_INFO, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return out
+
+
+def render_book_titles(rows, info=None):
     bl = book_titles(rows or [])
     if not bl:
         return ""
-    items = "".join(f"<li><span>{link(e['url'], '『' + e['title'] + '』')}<span class='o'>{esc('·'.join(e['outlets'][:3]))}"
-                    f"{' 외' if len(e['outlets']) > 3 else ''}</span></span></li>" for e in bl)
+    info = info or {}
+
+    def item(e):
+        i = info.get(_bk_key(e["title"])) or {}
+        name = i.get("name") or e["title"]
+        cover = (f'<a class="bkc" href="{esc(i["url"])}" target="_blank" rel="noopener noreferrer" title="예스24 책 정보">'
+                 f'<img src="{esc(i["cover"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
+        meta = " · ".join(x for x in (i.get("author"), i.get("pub"), i.get("date")) if x)
+        src = "·".join(e["outlets"][:3]) + (" 외" if len(e["outlets"]) > 3 else "")
+        return (f'<li class="bk{" has-c" if cover else ""}">{cover}<div><div class="bkt">{link(e["url"], "『" + name + "』")}</div>'
+                + (f'<div class="bkm">{esc(meta)}</div>' if meta else "")
+                + f'<div class="bko">소개: {esc(src)}</div></div></li>')
+    n_info = sum(1 for e in bl if info.get(_bk_key(e["title"])))
     return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>이번 주 소개된 책</h2><span class="en">{len(bl)}권</span></div>'
-            f'<div class="pop"><ol>{items}</ol><p class="note">책 기사 제목·요약에서 뽑은 책 이름입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 누르면 그 책을 다룬 기사로 갑니다.</p></div></section>')
+            f'<ol class="bklist">{"".join(item(e) for e in bl)}</ol>'
+            f'<p class="note">책 기사 제목·요약에서 뽑은 책입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 제목을 누르면 기사로, 표지를 누르면 예스24 책 정보로 갑니다. 표지·저자·출판사는 예스24 검색({n_info}권 확인).</p></section>')
 
 
 def render_books(rows, now):
@@ -1256,6 +1340,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
+.bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:58px;height:84px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1619,7 +1704,7 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
@@ -1658,7 +1743,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         note = "" if first else '<p class="note">구글 급상승 검색어 중 이 분야 기사에 나온 것, 그리고 최근 3시간 이 분야 기사에서 갑자기 많이 쓰인 낱말입니다.</p>'
         return (f'<section class="pg" data-c="{esc(c)}"><div class="shead"><h2>{esc(h)}</h2><span class="en">{en}</span></div>'
                 f'{render_trends(src, now)}{note}</section>')
-    side = "".join(render_book_titles(books) if c == BOOK_TAB else side_tr(c) for c in tick_keys) + render_portals(portals)
+    side = "".join(render_book_titles(books, book_info) if c == BOOK_TAB else side_tr(c) for c in tick_keys) + render_portals(portals)
     allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
@@ -1758,6 +1843,7 @@ def render_sources(feeds, status, now):
         ("경향신문", "책책책: 문화 RSS 중 [책과 삶]·[신간] 등", "RSS", "khan.co.kr …/culture_news.xml", "경향신문·책"),
         ("연합뉴스", "책책책: 문화 RSS 중 [신간]·출간 등", "RSS", "yna.co.kr/rss/culture.xml", "연합뉴스·책"),
         ("독서신문", "책책책: 전체 기사 (책 전문지)", "RSS", "readersnews.com/rss/allArticle.xml", "독서신문·책"),
+        ("예스24", "책책책 '이번 주 소개된 책'의 표지·저자·출판사·출간 연월 (책마다 한 번 검색, 저장)", "도서 검색 페이지", "yes24.com/Product/Search", "책 정보(예스24 검색)"),
         ("구글뉴스", "책책책: 제목에 신간·새책·책꽂이가 든 주요 언론사 기사", "검색 RSS", "news.google.com/rss/search", "구글뉴스 신간 검색(intitle:신간 when:3d)"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
@@ -1867,7 +1953,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -1890,6 +1976,7 @@ def main():
         inter = [dict(g, outlet=("경향신문", "한국일보", "조선일보")[i % 3], title=g["title"] + " (인터랙티브 샘플)")
                  for i, g in enumerate(yna_g[:6])]
         nis_g = []
+        book_info = {}
         books = [{"title": f"[신간] 샘플 책 {i}", "url": f"https://example.com/b{i}", "outlet": ("동아일보", "한겨레", "독서신문")[i % 3],
                   "img": yna_g[i % 6]["img"] if i % 2 else None, "date": (now - timedelta(hours=5 * i)).isoformat()} for i in range(7)]
     else:
@@ -1939,6 +2026,8 @@ def main():
         books, bstatus = fetch_books(now)
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
+        book_info = enrich_book_titles(books)
+        pstatus.append({"name": "책 정보(예스24 검색)", "ok": bool(book_info), "count": len(book_info), "error": "" if book_info else "0권"})
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
@@ -1995,7 +2084,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books)
+                       interactive=inter, books=books, book_info=book_info)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2010,7 +2099,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     if not args.demo:
