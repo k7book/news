@@ -162,7 +162,10 @@ def fetch_feed(feed):
     """feed = {outlet, category, url} → (feed, items, error)"""
     try:
         body = http_get(feed["url"])
-        root = ET.fromstring(body)
+        try:
+            root = ET.fromstring(body)
+        except ET.ParseError:  # XML에 쓸 수 없는 제어 문자가 섞인 피드(연합뉴스 사회 등): 지우고 다시 읽기
+            root = ET.fromstring(re.sub(rb"[\x00-\x08\x0b\x0c\x0e-\x1f]", b"", body))
     except Exception as e:
         return feed, [], f"{type(e).__name__}: {str(e)[:70]}"
     items = []
@@ -1560,13 +1563,15 @@ def main():
             name = f'{feed["outlet"]}·{feed["category"]}'
             status.append({"name": name, "ok": err is None and bool(its), "count": len(its), "error": err or ("0건" if not its else "")})
             items += its
-        # 연합뉴스 RSS는 2026-10 하순부터 해외(GitHub 서버)에서 응답이 없다(국내에선 정상, robots 허용).
-        # 연합뉴스 피드가 모두 실패하면 구글뉴스 검색(site:yna.co.kr)으로 대신 가져온다.
-        yna = [x for x in status if x["name"].startswith("연합뉴스·")]
-        if yna and not any(x["ok"] for x in yna):
-            for x in yna:
-                x["error"] = "해외 서버에서 응답 없음 → 구글뉴스로 대체 (" + x["error"][:40] + ")"
+        # 연합뉴스 RSS는 2026-10 하순부터 해외(GitHub 서버)에서 자주 응답이 없다(국내에선 정상, robots 허용).
+        # 실패한 분야만 구글뉴스 검색(site:yna.co.kr)으로 대신 가져온다.
+        yna_bad = {x["name"].split("·", 1)[1]: x for x in status if x["name"].startswith("연합뉴스·") and not x["ok"]}
+        if yna_bad:
+            for x in yna_bad.values():
+                x["error"] = "실패 → 구글뉴스로 대체 (" + x["error"][:40] + ")"
             for cat, q in YNA_FALLBACK:
+                if cat not in yna_bad:
+                    continue
                 feed = {"outlet": "연합뉴스", "category": cat, "url": gnews_search(q), "via": "구글뉴스 검색(대체)"}
                 _, its, err = fetch_feed(feed)
                 status.append({"name": f"연합뉴스·{cat}(구글뉴스 대체)", "ok": err is None and bool(its), "count": len(its),
