@@ -722,6 +722,21 @@ def yes24_lookup(title):
     return best or {}
 
 
+KYOBO_SEARCH = "https://search.kyobobook.co.kr/search?"  # robots.txt: /api/ 만 차단 (2026-10-24 확인)
+
+
+def kyobo_isbn(title):
+    """교보문고 검색 결과의 data-bid(ISBN-13) 중 제목이 맞는 첫 책"""
+    url = KYOBO_SEARCH + urllib.parse.urlencode({"keyword": title, "gbCode": "TOT", "target": "total"})
+    if not robots_allows(url):
+        return ""
+    body = http_get(url).decode("utf-8", "ignore")
+    for isbn, name in re.findall(r'data-bid="(97[89]\d{10})" data-name="([^"]+)"', body)[:10]:
+        if _bk_match(title, html.unescape(name)):
+            return isbn
+    return ""
+
+
 def enrich_book_titles(rows, max_new=40, workers=4):
     """'이번 주 소개된 책'의 책마다 표지·저자·출판사 → {제목키: 정보}"""
     try:
@@ -740,6 +755,18 @@ def enrich_book_titles(rows, max_new=40, workers=4):
         for t, info, err in ex.map(work, new):
             if err is None:
                 cache[_bk_key(t)] = info  # 못 찾은 것도 {}로 기억해 다시 찾지 않는다
+    # ISBN: 책 정보가 있고 아직 ISBN을 찾아보지 않은 책만 (교보문고 검색)
+    need = [t for t in titles if cache.get(_bk_key(t)) and "isbn" not in cache[_bk_key(t)]][:max_new]
+
+    def isbn_work(t):
+        try:
+            return t, kyobo_isbn(t), None
+        except Exception as e:
+            return t, "", type(e).__name__
+    with ThreadPoolExecutor(workers) as ex:
+        for t, isbn, err in ex.map(isbn_work, need):
+            if err is None:
+                cache[_bk_key(t)]["isbn"] = isbn
     out = {_bk_key(t): cache[_bk_key(t)] for t in titles if cache.get(_bk_key(t)) and _bk_match(t, cache[_bk_key(t)].get("name", ""))}
     try:
         os.makedirs(os.path.dirname(BOOK_INFO), exist_ok=True)
@@ -762,14 +789,15 @@ def render_book_titles(rows, info=None):
         cover = (f'<a class="bkc" href="{esc(i["url"])}" target="_blank" rel="noopener noreferrer" title="예스24 책 정보">'
                  f'<img src="{esc(re.sub(r"/L$", "/M", i["cover"]))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
         meta = " · ".join(x for x in (i.get("author"), i.get("pub"), i.get("date")) if x)
+        isbn = f'<div class="bki">ISBN {esc(i["isbn"])}</div>' if i.get("isbn") else ""
         src = "·".join(e["outlets"][:3]) + (" 외" if len(e["outlets"]) > 3 else "")
         return (f'<li class="bk{" has-c" if cover else ""}">{cover}<div><div class="bkt">{link(e["url"], "『" + name + "』")}</div>'
-                + (f'<div class="bkm">{esc(meta)}</div>' if meta else "")
+                + (f'<div class="bkm">{esc(meta)}</div>' if meta else "") + isbn
                 + f'<div class="bko">소개: {esc(src)}</div></div></li>')
     n_info = sum(1 for e in bl if info.get(_bk_key(e["title"])))
     return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>이번 주 소개된 책</h2><span class="en">{len(bl)}권</span></div>'
             f'<ol class="bklist">{"".join(item(e) for e in bl)}</ol>'
-            f'<p class="note">책 기사 제목·요약에서 뽑은 책입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 제목을 누르면 기사로, 표지를 누르면 예스24 책 정보로 갑니다. 표지·저자·출판사는 예스24 검색({n_info}권 확인).</p></section>')
+            f'<p class="note">책 기사 제목·요약에서 뽑은 책입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 제목을 누르면 기사로, 표지를 누르면 예스24 책 정보로 갑니다. 표지·저자·출판사는 예스24, ISBN은 교보문고 검색({n_info}권 확인).</p></section>')
 
 
 def render_books(rows, now):
@@ -1352,7 +1380,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
-.bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:58px;height:84px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}
+.bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1856,6 +1884,7 @@ def render_sources(feeds, status, now):
         ("연합뉴스", "책책책: 문화 RSS 중 [신간]·출간 등", "RSS", "yna.co.kr/rss/culture.xml", "연합뉴스·책"),
         ("독서신문", "책책책: 전체 기사 (책 전문지)", "RSS", "readersnews.com/rss/allArticle.xml", "독서신문·책"),
         ("예스24", "책책책 '이번 주 소개된 책'의 표지·저자·출판사·출간 연월 (책마다 한 번 검색, 저장)", "도서 검색 페이지", "yes24.com/Product/Search", "책 정보(예스24 검색)"),
+        ("교보문고", "책책책 '이번 주 소개된 책'의 ISBN (책마다 한 번 검색, 저장)", "도서 검색 페이지", "search.kyobobook.co.kr", "책 정보(예스24 검색)"),
         ("구글뉴스", "책책책: 제목에 신간·새책·책꽂이가 든 주요 언론사 기사", "검색 RSS", "news.google.com/rss/search", "구글뉴스 신간 검색(intitle:신간 when:3d)"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
