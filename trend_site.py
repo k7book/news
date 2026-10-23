@@ -1159,11 +1159,19 @@ def cluster(items, top=30, min_outlets=2):
     return out[:top]
 
 
-def merge_groups(groups, jac_min=0.24, inter_min=3):
+def merge_groups(groups, jac_min=0.22, inter_min=3):
     """같은 사건이 두 묶음으로 갈라진 것 합치기 (예: '이 대통령, 최길수 … 임명안 재가' / '李, 최길수 … 임명').
     묶음마다 기사 제목 낱말을 모두 모아 비교한다. 큰 묶음부터, 원래 낱말끼리만 비교해 한 묶음이 계속 불어나지 않게 한다."""
     groups = sorted(groups, key=len, reverse=True)
-    W = [set().union(*[a["_w"] for a in g]) for g in groups]
+
+    def gw(g):  # 화면에 보이는 대로 언론사당 첫 기사 제목만
+        seen, ws = set(), set()
+        for a in sorted(g, key=lambda a: a["date"]):
+            if a["outlet"] not in seen:
+                seen.add(a["outlet"])
+                ws |= a["_w"]
+        return ws
+    W = [gw(g) for g in groups]
     used, out = [False] * len(groups), []
     for i, g in enumerate(groups):
         if used[i]:
