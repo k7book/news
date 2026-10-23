@@ -605,6 +605,77 @@ def fetch_books(now, days=7, limit=150):
     return rows[:limit], status
 
 
+# 기사 제목·요약에서 소개된 책 제목 뽑기: 『제목』, ‘제목’(출판사), ●제목(누구 지음), 저서 ‘제목’, [신간]·[새책] 뒤 제목 등
+_BK = [
+    re.compile(r"『([^』]{2,40})』"),
+    re.compile(r"《([^》]{2,40})》"),
+    re.compile(r"[‘'“\"]([^’'”\"]{2,40})[’'”\"]\s*\(([^)]{1,25})\)"),
+    re.compile(r"●\s*([^(●=]{2,40}?)\s*\([^)]*지음[^)]*\)"),
+    re.compile(r"(?:저서|책|신간|신작|소설|장편|단편집|에세이|그림책|시집|회고록|평전|산문집|번역서)\s*[‘'“\"]([^’'”\"]{2,40})[’'”\"]"),
+]
+_BK_TAG = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|새로 나왔어요)\]")
+_BK_END = re.compile(r"(다|요|나|까|죠|…|\?|!|\.)$")
+_BK_NOT = re.compile(r"(문학상|노벨상|부커상|베스트셀러)$")
+
+
+def book_titles_of(x):
+    t, d = x["title"], x.get("desc") or ""
+    out = []
+    for rx in _BK:
+        for m in rx.finditer(t + " ‖ " + d):
+            if rx.groups == 2 and not re.search(r"[가-힣A-Za-z]{2,}", m.group(2)):  # (64) 같은 나이 괄호는 제외
+                continue
+            out.append(m.group(1))
+    if _BK_TAG.search(t):  # [새책] 평행우주 / 미래 식량을 설계하라 外 [신간]
+        rest = re.sub(r"\s*(?:외|外)\s*$", "", _BK_TAG.sub("", t).strip())
+        if len(rest) <= 20 and "," not in rest and not _BK_END.search(rest):
+            out.append(rest.strip("‘’'\""))
+    if re.search(r"신간|새책", t):  # …'트렌드 리터러시' / …'착한 아이는…'[신간]
+        m = re.search(r"[‘'“\"]([^’'”\"]{2,40})[’'”\"]\s*(?:\[(?:신간|새책)\])?\s*$", t)
+        if m:
+            out.append(m.group(1))
+    m = re.match(r"^\[[^\]]+\]\s*[‘']([^’']{2,40})[’']\s*(?:외|外)", t)  # [북카페] ‘왜 다시 아시아인가’ 외
+    if m:
+        out.append(m.group(1))
+    if t.endswith("[.txt]"):  # 한겨레 서평: 제목 안 첫 ‘…’
+        m = re.search(r"[‘']([^’']{2,40})[’']", t)
+        if m:
+            out.append(m.group(1))
+    res, seen = [], set()
+    for b in out:
+        b = re.sub(r"\s*(?:외|外)\s*$", "", re.sub(r"\s+", " ", b)).strip(" ·,")
+        k = re.sub(r"\W", "", b)
+        if 2 <= len(b) <= 40 and not re.fullmatch(r"[\d\s.,]+", b) and not _BK_NOT.search(b) and k not in seen:
+            seen.add(k)
+            res.append(b)
+    return res
+
+
+def book_titles(rows, top=60):
+    """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로"""
+    agg = {}
+    for x in rows:
+        for b in book_titles_of(x):
+            k = re.sub(r"\W", "", b).lower()
+            e = agg.setdefault(k, {"title": b, "outlets": [], "url": x["url"], "date": x["date"]})
+            if x["outlet"] not in e["outlets"]:
+                e["outlets"].append(x["outlet"])
+            if x["date"] > e["date"]:
+                e["date"] = x["date"]
+    out = sorted(agg.values(), key=lambda e: (len(e["outlets"]), e["date"]), reverse=True)
+    return out[:top]
+
+
+def render_book_titles(rows):
+    bl = book_titles(rows or [])
+    if not bl:
+        return ""
+    items = "".join(f"<li><span>{link(e['url'], '『' + e['title'] + '』')}<span class='o'>{esc('·'.join(e['outlets'][:3]))}"
+                    f"{' 외' if len(e['outlets']) > 3 else ''}</span></span></li>" for e in bl)
+    return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>이번 주 소개된 책</h2><span class="en">{len(bl)}권</span></div>'
+            f'<div class="pop"><ol>{items}</ol><p class="note">책 기사 제목·요약에서 뽑은 책 이름입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 누르면 그 책을 다룬 기사로 갑니다.</p></div></section>')
+
+
 def render_books(rows, now):
     """책책책 탭: 위에 언론사 버튼, 아래에 최신순 목록(사진 있으면 왼쪽 썸네일)"""
     if not rows:
@@ -1587,7 +1658,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         note = "" if first else '<p class="note">구글 급상승 검색어 중 이 분야 기사에 나온 것, 그리고 최근 3시간 이 분야 기사에서 갑자기 많이 쓰인 낱말입니다.</p>'
         return (f'<section class="pg" data-c="{esc(c)}"><div class="shead"><h2>{esc(h)}</h2><span class="en">{en}</span></div>'
                 f'{render_trends(src, now)}{note}</section>')
-    side = "".join(side_tr(c) for c in tick_keys) + render_portals(portals)
+    side = "".join(render_book_titles(books) if c == BOOK_TAB else side_tr(c) for c in tick_keys) + render_portals(portals)
     allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
