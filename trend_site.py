@@ -142,6 +142,22 @@ def item_image(it):
     return None
 
 
+def gnews_search(q):
+    return "https://news.google.com/rss/search?q=" + urllib.parse.quote_plus(q) + "&hl=ko&gl=KR&ceid=KR:ko"
+
+
+# 연합뉴스 대체 검색: 분야별로 연합뉴스 기사 주소 + 분야 낱말 (분야 탭이 비지 않게)
+YNA_FALLBACK = [
+    ("전체", "site:yna.co.kr when:1d"),
+    ("정치", "site:yna.co.kr (대통령 OR 국회 OR 여당 OR 야당 OR 정부 OR 북한) when:1d"),
+    ("경제", "site:yna.co.kr (경제 OR 금리 OR 물가 OR 수출 OR 부동산 OR 기업) when:1d"),
+    ("사회", "site:yna.co.kr (경찰 OR 법원 OR 검찰 OR 사고 OR 교육 OR 날씨) when:1d"),
+    ("스포츠", "site:yna.co.kr (야구 OR 축구 OR 농구 OR 배구 OR 골프 OR 경기) when:1d"),
+    ("연예", "site:yna.co.kr (가수 OR 배우 OR 드라마 OR 영화 OR 아이돌 OR 방송) when:1d"),
+    ("주식", "site:yna.co.kr (코스피 OR 코스닥 OR 증시 OR 주가) when:1d"),
+]
+
+
 def fetch_feed(feed):
     """feed = {outlet, category, url} → (feed, items, error)"""
     try:
@@ -1544,6 +1560,18 @@ def main():
             name = f'{feed["outlet"]}·{feed["category"]}'
             status.append({"name": name, "ok": err is None and bool(its), "count": len(its), "error": err or ("0건" if not its else "")})
             items += its
+        # 연합뉴스 RSS는 2026-10 하순부터 해외(GitHub 서버)에서 응답이 없다(국내에선 정상, robots 허용).
+        # 연합뉴스 피드가 모두 실패하면 구글뉴스 검색(site:yna.co.kr)으로 대신 가져온다.
+        yna = [x for x in status if x["name"].startswith("연합뉴스·")]
+        if yna and not any(x["ok"] for x in yna):
+            for x in yna:
+                x["error"] = "해외 서버에서 응답 없음 → 구글뉴스로 대체 (" + x["error"][:40] + ")"
+            for cat, q in YNA_FALLBACK:
+                feed = {"outlet": "연합뉴스", "category": cat, "url": gnews_search(q), "via": "구글뉴스 검색(대체)"}
+                _, its, err = fetch_feed(feed)
+                status.append({"name": f"연합뉴스·{cat}(구글뉴스 대체)", "ok": err is None and bool(its), "count": len(its),
+                               "error": err or ("0건" if not its else "")})
+                items += its
         trends, terr = fetch_trends()
         status.append({"name": "구글 트렌드", "ok": terr is None, "count": len(trends), "error": terr or ""})
         portals, pstatus = {}, []
