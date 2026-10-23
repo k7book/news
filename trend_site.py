@@ -796,7 +796,7 @@ def enrich_books(rows, workers=6, max_new=60):
         if m.get("desc") and re.sub(r"\W", "", m["desc"])[:30] != re.sub(r"\W", "", r["title"])[:30]:
             r["desc"] = m["desc"]
             n += 1
-        if not r.get("img") and m.get("img"):
+        if m.get("img") and (not r.get("img") or "/imgdb/child/" in r["img"]):  # 한겨레 RSS 사진은 300×180로 잘린 것 → 원문 원본으로
             r["img"] = m["img"]
     try:
         os.makedirs(os.path.dirname(BOOK_META), exist_ok=True)
