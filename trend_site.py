@@ -164,8 +164,10 @@ def fetch_feed(feed):
         body = http_get(feed["url"])
         try:
             root = ET.fromstring(body)
-        except ET.ParseError:  # XML에 쓸 수 없는 제어 문자가 섞인 피드(연합뉴스 사회 등): 지우고 다시 읽기
-            root = ET.fromstring(re.sub(rb"[\x00-\x08\x0b\x0c\x0e-\x1f]", b"", body))
+        except ET.ParseError:  # 깨진 XML(맨 & 문자, 제어 문자 — 연합뉴스 사회 등): 고쳐서 다시 읽기
+            body = re.sub(rb"[\x00-\x08\x0b\x0c\x0e-\x1f]", b"", body)
+            body = re.sub(rb"&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)", b"&amp;", body)
+            root = ET.fromstring(body)
     except Exception as e:
         return feed, [], f"{type(e).__name__}: {str(e)[:70]}"
     items = []
