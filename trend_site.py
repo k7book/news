@@ -173,6 +173,8 @@ def fetch_feed(feed):
     items = []
     for it in root.iter("item"):
         src = it.find("source")
+        if src is not None and src.text and src.get("url"):
+            learn_domain(src.get("url"), src.text.strip())  # 구글뉴스가 알려 준 '주소→언론사 이름' (네이버 기사 출처 표시에 씀)
         items.append({"title": text(it, "title"), "url": text(it, "link") or (it.find("guid").text if it.find("guid") is not None else ""),
                       "date": item_date(it), "img": item_image(it),
                       "_src": (src.text or "").strip() if src is not None else ""})
@@ -187,6 +189,118 @@ def fetch_feed(feed):
         a["outlet"] = src if feed.get("by_source") and src else feed["outlet"]  # 구글뉴스 검색: 실제 언론사 이름으로
         a["category"] = feed["category"]
     return feed, items, None
+
+
+# ---------------- 네이버 뉴스 검색 API (공식, 2026-10-24 추가) ----------------
+# 네이버 뉴스 페이지는 robots.txt가 막아서 긁지 않는다. 대신 개발자센터의 '검색 > 뉴스' API를 쓴다.
+# 키: 환경변수 NAVER_CLIENT_ID / NAVER_CLIENT_SECRET (GitHub Secrets). 없으면 건너뛴다. 하루 25,000회 무료.
+NAVER_API = "https://openapi.naver.com/v1/search/news.json"
+NAVER_NICHE = [("도서관", "도서관"), ("도서관", "작은도서관"), ("파주", "파주"), ("파주", "운정")]
+DOMAIN_CACHE = os.path.join(HERE, "history", "outlet_domains.json")
+DOMAIN_NAMES = {  # 자주 나오는 곳은 미리 적어 둔다. 나머지는 구글뉴스 출처 정보로 배운다.
+    "yna.co.kr": "연합뉴스", "newsis.com": "뉴시스", "news1.kr": "뉴스1", "chosun.com": "조선일보", "donga.com": "동아일보",
+    "joongang.co.kr": "중앙일보", "hani.co.kr": "한겨레", "khan.co.kr": "경향신문", "hankookilbo.com": "한국일보",
+    "mk.co.kr": "매일경제", "hankyung.com": "한국경제", "sedaily.com": "서울경제", "mt.co.kr": "머니투데이", "edaily.co.kr": "이데일리",
+    "fnnews.com": "파이낸셜뉴스", "asiae.co.kr": "아시아경제", "heraldcorp.com": "헤럴드경제", "kmib.co.kr": "국민일보",
+    "segye.com": "세계일보", "seoul.co.kr": "서울신문", "munhwa.com": "문화일보", "nocutnews.co.kr": "노컷뉴스",
+    "ohmynews.com": "오마이뉴스", "sbs.co.kr": "SBS", "kbs.co.kr": "KBS", "imbc.com": "MBC", "jtbc.co.kr": "JTBC",
+    "ytn.co.kr": "YTN", "mbn.co.kr": "MBN", "tvchosun.com": "TV조선", "ichannela.com": "채널A", "kyeonggi.com": "경기일보",
+    "kyeongin.com": "경인일보", "joongboo.com": "중부일보", "newspim.com": "뉴스핌", "inews24.com": "아이뉴스24",
+    "dt.co.kr": "디지털타임스", "etnews.com": "전자신문", "naver.com": "네이버뉴스", "zdnet.co.kr": "지디넷코리아", "biz.chosun.com": "조선비즈",
+}
+
+
+def _host(url):
+    h = urllib.parse.urlsplit(url if "//" in url else "//" + url).hostname or ""
+    return re.sub(r"^(?:www|m|mobile)\.", "", h.lower())
+
+
+def learn_domain(url, name):
+    h = _host(url)
+    if h and name and not re.match(r"^[\w.-]+\.[a-z]{2,}$", name):  # 이름 자리에 주소가 온 경우는 배우지 않는다
+        DOMAIN_NAMES.setdefault(h, name)
+
+
+def outlet_of(url):
+    """기사 주소 → 언론사 이름. 모르면 주소(도메인)를 그대로 쓴다"""
+    h = _host(url)
+    parts = h.split(".")
+    for i in range(len(parts) - 1):  # news.kbs.co.kr → kbs.co.kr 순으로
+        cand = ".".join(parts[i:])
+        if cand in DOMAIN_NAMES:
+            return DOMAIN_NAMES[cand]
+        if len(parts) - i <= 2 or cand in ("co.kr", "or.kr", "go.kr"):
+            break
+    return h or "네이버뉴스"
+
+
+def load_domains():
+    try:
+        for k, v in json.load(open(DOMAIN_CACHE, encoding="utf-8")).items():
+            DOMAIN_NAMES.setdefault(k, v)
+    except Exception:
+        pass
+
+
+def save_domains():
+    try:
+        os.makedirs(os.path.dirname(DOMAIN_CACHE), exist_ok=True)
+        json.dump(dict(sorted(DOMAIN_NAMES.items())), open(DOMAIN_CACHE, "w", encoding="utf-8"), ensure_ascii=False, indent=0)
+    except Exception:
+        pass
+
+
+def naver_keys():
+    i, s = os.environ.get("NAVER_CLIENT_ID", "").strip(), os.environ.get("NAVER_CLIENT_SECRET", "").strip()
+    return (i, s) if i and s else None
+
+
+def naver_search(query, display=100, sort="date"):
+    """네이버 뉴스 검색 → [{title,url,outlet,date,img}] (키 없으면 예외)"""
+    keys = naver_keys()
+    if not keys:
+        raise RuntimeError("네이버 API 키 없음")
+    url = NAVER_API + "?" + urllib.parse.urlencode({"query": query, "display": display, "sort": sort})
+    req = urllib.request.Request(url, headers={"X-Naver-Client-Id": keys[0], "X-Naver-Client-Secret": keys[1], "User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    out = []
+    for it in data.get("items", []):
+        link = it.get("originallink") or it.get("link") or ""
+        title = html.unescape(re.sub(r"</?b>", "", it.get("title", "")))
+        out.append({"title": title, "url": link, "outlet": outlet_of(link), "date": parse_date(it.get("pubDate")), "img": None})
+    return out
+
+
+def naver_niche():
+    """관심 탭(도서관·파주)용 네이버 뉴스 검색 → (items, status)"""
+    items, status = [], []
+    for cat, q in NAVER_NICHE:
+        try:
+            rows = naver_search(q)
+            err = None
+        except Exception as e:
+            rows, err = [], f"{type(e).__name__}: {str(e)[:60]}"
+        for a in rows:
+            a["category"] = cat
+        items += rows
+        status.append({"name": f"네이버뉴스·{cat}({q})", "ok": err is None and bool(rows), "count": len(rows), "error": err or ("0건" if not rows else "")})
+    return items, status
+
+
+def naver_trends(trends, now, n=20):
+    """급상승 검색어마다 네이버 뉴스 최신 기사 → t['naver'](최신 3건), t['naver_1h'](최근 1시간 건수, 20건 중)"""
+    ok = 0
+    for t in trends[:n]:
+        try:
+            rows = naver_search(t["keyword"], display=20)
+        except Exception:
+            continue
+        ok += 1
+        rows = [r for r in rows if r["date"]]
+        t["naver"] = [{"title": r["title"], "url": r["url"], "outlet": r["outlet"], "date": r["date"].isoformat()} for r in rows[:3]]
+        t["naver_1h"] = sum(1 for r in rows if now - r["date"] <= timedelta(hours=1))
+    return ok
 
 
 def fetch_trends():
@@ -743,7 +857,7 @@ def trend_related(trends, items, top=5):
     for t in trends:
         kw = t["keyword"].lower()
         kws = words(t["keyword"]) | {kw}
-        titles = [n["title"] for n in t["news"]] + [a["title"] for a in items if kw in a["title"].lower()][:30]
+        titles = [n["title"] for n in t["news"] + t.get("naver", [])] + [a["title"] for a in items if kw in a["title"].lower()][:30]
         cnt = Counter(w for ti in titles for w in words(ti) if w not in kws and not w.isdigit()
                       and not any(w in k or k in w for k in kws))
         t["related"] = [w for w, _ in cnt.most_common(top)]
@@ -952,7 +1066,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .dl-r{display:flex;gap:8px;align-items:center;flex:none}.rf.busy{opacity:.5;pointer-events:none}.rf.new{border-color:var(--red);color:var(--red)}
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
-.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
+.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.tr .nv{font-size:13px;margin:6px 0 2px;color:var(--ink-body);line-height:1.5}.tr .nv .nvt{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:#03a94f;border-radius:3px;padding:0 5px;margin-right:6px;vertical-align:1px}.tr .nv b{font-size:11.5px;color:var(--red);margin-right:6px}.tr .nv .o{margin-left:6px;color:var(--muted);font-size:11.5px}
+.brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
 .nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
@@ -1176,7 +1291,14 @@ def render_trends(trends, now=None):
         news = "".join(f"<li>{link(n['url'], n['title'])}<span class='o'>{esc(n['outlet'])}</span></li>" for n in t["news"][:2] if n.get("url"))
         tf = (f'<span class="tf{" rise" if t.get("kind") == "rise" else ""}">{esc(t["traffic"])}</span>') if t.get("traffic") else ""
         rel = ('<div class="rel">' + "".join(f"<span>{esc(w)}</span>" for w in t.get("related", [])) + "</div>") if t.get("related") else ""
-        out.append(f'<div class="tr"><div class="no">{i}</div><div><div class="kw">{esc(t["keyword"])}{tf}{started(t, now) if now else ""}</div><ul>{news}</ul>{rel}</div></div>')
+        nv = ""
+        if t.get("naver"):  # 네이버 뉴스 검색의 가장 최근 기사 1건 + 최근 1시간 기사 수
+            x = t["naver"][0]
+            when = ago(datetime.fromisoformat(x["date"]), now) if now and x.get("date") else ""
+            cnt = f'<b>1시간 {t["naver_1h"]}{"+" if t.get("naver_1h", 0) >= 20 else ""}건</b>' if t.get("naver_1h") else ""
+            nv = (f'<div class="nv"><span class="nvt">네이버</span>{cnt}{link(x["url"], x["title"])}'
+                  f'<span class="o">{esc(x["outlet"])}{" · " + when if when else ""}</span></div>')
+        out.append(f'<div class="tr"><div class="no">{i}</div><div><div class="kw">{esc(t["keyword"])}{tf}{started(t, now) if now else ""}</div><ul>{news}</ul>{nv}{rel}</div></div>')
     return "".join(out)
 
 
@@ -1428,6 +1550,11 @@ def render_sources(feeds, status, now):
         ("경향신문", "인터랙티브 목록(1~2쪽)", "목록 페이지", "khan.co.kr/interactive", "경향신문 인터랙티브"),
         ("한국일보", "인터랙티브 목록(최근 24건)", "목록 페이지 속 데이터", "hankookilbo.com/interactive", "한국일보 인터랙티브"),
         ("조선일보", "인터랙티브 목록(최근 12건, 날짜는 주소의 연·월)", "목록 페이지", "chosun.com/interactive", "조선일보 인터랙티브"),
+        ("네이버뉴스", "급상승 검색어별 최신 기사·최근 1시간 기사 수", "공식 검색 API(키 필요)", "openapi.naver.com/v1/search/news", "네이버뉴스·급상승 검색어"),
+        ("네이버뉴스", "도서관 탭: '도서관' 검색 최신 100건", "공식 검색 API(키 필요)", "openapi.naver.com/v1/search/news", "네이버뉴스·도서관(도서관)"),
+        ("네이버뉴스", "도서관 탭: '작은도서관' 검색 최신 100건", "공식 검색 API(키 필요)", "openapi.naver.com/v1/search/news", "네이버뉴스·도서관(작은도서관)"),
+        ("네이버뉴스", "파주 탭: '파주' 검색 최신 100건", "공식 검색 API(키 필요)", "openapi.naver.com/v1/search/news", "네이버뉴스·파주(파주)"),
+        ("네이버뉴스", "파주 탭: '운정' 검색 최신 100건", "공식 검색 API(키 필요)", "openapi.naver.com/v1/search/news", "네이버뉴스·파주(운정)"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
         ("각 언론사", "도서관·파주 탭 상위 15건의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "관심 탭 원문 사진"),
@@ -1565,6 +1692,7 @@ def main():
         if not feeds:
             sys.exit("feeds.json이 없습니다.")
         items, status = [], []
+        load_domains()
         with ThreadPoolExecutor(8) as ex:
             results = list(ex.map(fetch_feed, feeds))
         for feed, its, err in results:
@@ -1585,7 +1713,14 @@ def main():
                 status.append({"name": f"연합뉴스·{cat}(구글뉴스 대체)", "ok": err is None and bool(its), "count": len(its),
                                "error": err or ("0건" if not its else "")})
                 items += its
+        if naver_keys():  # 네이버 뉴스 검색 API: 도서관·파주 탭 보강
+            nv_items, nv_status = naver_niche()
+            items += nv_items
+            status += nv_status
         trends, terr = fetch_trends()
+        if trends and naver_keys():
+            n_ok = naver_trends(trends, now)
+            status.append({"name": "네이버뉴스·급상승 검색어", "ok": n_ok > 0, "count": n_ok, "error": "" if n_ok else "검색 실패"})
         status.append({"name": "구글 트렌드", "ok": terr is None, "count": len(trends), "error": terr or ""})
         portals, pstatus = {}, []
         if not args.no_portal:
@@ -1677,6 +1812,7 @@ def main():
         json.dump(data, f, ensure_ascii=False, indent=1)
     if not args.demo:
         save_history(data, now)
+        save_domains()
     ok = sum(1 for s in allstatus if s["ok"])
     nimg = sum(1 for a in items if a.get("img"))
     print(f"완료 {time.time() - t0:.1f}s · 기사 {raw}→{len(items)}건(사진 {nimg}) · 피드 {ok}/{len(allstatus)} · 사건 {len(pages['전체']['clusters'])} · 검색어 {len(trends)}")
