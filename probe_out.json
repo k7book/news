@@ -1,0 +1,1732 @@
+{
+ "res": [
+  [
+   "probe_page",
+   "연합뉴스",
+   {
+    "url": "https://www.yna.co.kr/culture/all",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.yna.co.kr/culture/all",
+    "title": "문화전체 | 문화 | 연합뉴스",
+    "book_links": [
+     [
+      "북한",
+      "https://www.yna.co.kr/nk/index"
+     ],
+     [
+      "책/문학",
+      "https://www.yna.co.kr/culture/books"
+     ],
+     [
+      "북한전체",
+      "https://www.yna.co.kr/nk/news/all"
+     ],
+     [
+      "북한 알아보기",
+      "https://www.yna.co.kr/nk/overview/index"
+     ],
+     [
+      "미국/북미",
+      "https://www.yna.co.kr/international/north-america"
+     ],
+     [
+      "출판물",
+      "https://www.yna.co.kr/advertisement/publication"
+     ],
+     [
+      "단행본",
+      "https://www.yna.co.kr/publication/book"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "연합뉴스",
+   {
+    "url": "https://www.yna.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.yna.co.kr/",
+    "title": "연합뉴스",
+    "book_links": [
+     [
+      "북한",
+      "https://www.yna.co.kr/nk/index"
+     ],
+     [
+      "북한전체",
+      "https://www.yna.co.kr/nk/news/all"
+     ],
+     [
+      "북한 알아보기",
+      "https://www.yna.co.kr/nk/overview/index"
+     ],
+     [
+      "미국/북미",
+      "https://www.yna.co.kr/international/north-america"
+     ],
+     [
+      "책/문학",
+      "https://www.yna.co.kr/culture/books"
+     ],
+     [
+      "출판물",
+      "https://www.yna.co.kr/advertisement/publication"
+     ],
+     [
+      "단행본",
+      "https://www.yna.co.kr/publication/book"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "한겨레",
+   {
+    "url": "https://www.hani.co.kr/arti/culture/book",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.hani.co.kr/arti/culture/book",
+    "title": "책과 생각 뉴스",
+    "book_links": [
+     [
+      "다우키움그룹, 중앙일보 이어 ‘1위 출판’ 문학동네도 ",
+      "https://www.hani.co.kr/arti/culture/book/1283924.html"
+     ],
+     [
+      "[단독] ‘부커상’ 아룬다티 로이 “내 장기 적출당해”",
+      "https://www.hani.co.kr/arti/culture/book/1283875.html"
+     ],
+     [
+      "‘너의 집사라서 행복했어’ 고양이와 함께한 17년의 구",
+      "https://www.hani.co.kr/arti/culture/book/1283776.html"
+     ],
+     [
+      "정재승 “AI, 공포·낙관 말고 서늘하게” [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283775.html"
+     ],
+     [
+      "무릎 내주는 이웃 있는 ‘나의 마을’ [.txt]사람은",
+      "https://www.hani.co.kr/arti/culture/book/1283774.html"
+     ],
+     [
+      "은행나무 물들면 내 마음은 ‘퍼플피시’를 찾는다 [.t",
+      "https://www.hani.co.kr/arti/culture/book/1283773.html"
+     ],
+     [
+      "함께했던 시간이 쌓여 아이는 홀로 나아간다 [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283771.html"
+     ],
+     [
+      "점점 더 확고해지는 ‘노벨 문학상’ ‘트렌드 전망서’ ",
+      "https://www.hani.co.kr/arti/culture/book/1283769.html"
+     ],
+     [
+      "문명을 지탱하는 ‘지어낸 이야기’ [.txt]“우리는 ",
+      "https://www.hani.co.kr/arti/culture/book/1283768.html"
+     ],
+     [
+      "20대 여성 그림책 작가에게 투영한 노 작가 하루키의 ",
+      "https://www.hani.co.kr/arti/culture/book/1283765.html"
+     ],
+     [
+      "기자들은 굴복하지 않았다, 사주는 굴복했다 [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283764.html"
+     ],
+     [
+      "‘파친코’의 이민진 9년 만의 신작은 ‘학원’ [.tx",
+      "https://www.hani.co.kr/arti/culture/book/1283763.html"
+     ],
+     [
+      "도움받지 않아도, 더디게 걸어도, 괜찮은 순간 [.tx",
+      "https://www.hani.co.kr/arti/culture/book/1283762.html"
+     ],
+     [
+      "말풍선을 터뜨리면 근사한 대화가 시작될지도 몰라 [.t",
+      "https://www.hani.co.kr/arti/culture/book/1283761.html"
+     ],
+     [
+      "‘이중섭을 누가 모르나’라고요?…박제된 천재를 다시 그",
+      "https://www.hani.co.kr/arti/culture/book/1283760.html"
+     ],
+     [
+      "8[단독] 노벨문학상 한강·앤 카슨 ‘AI 도둑질’ 당",
+      "https://www.hani.co.kr/arti/culture/book/1283299.html"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "경향신문",
+   {
+    "url": "https://www.khan.co.kr/culture",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.khan.co.kr/culture",
+    "title": "문화 - 경향신문",
+    "book_links": [
+     [
+      "북한·한반도",
+      "https://www.khan.co.kr/politics/nor-korea/articles"
+     ],
+     [
+      "책",
+      "https://www.khan.co.kr/culture/book/articles"
+     ],
+     [
+      "책과 삶",
+      "https://www.khan.co.kr/series/articles/ac326"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "경향신문",
+   {
+    "url": "https://www.khan.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.khan.co.kr/",
+    "title": "경향신문",
+    "book_links": [
+     [
+      "북한·한반도",
+      "https://www.khan.co.kr/politics/nor-korea/articles"
+     ],
+     [
+      "책",
+      "https://www.khan.co.kr/culture/book/articles"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "조선일보",
+   {
+    "url": "https://www.chosun.com/culture-life/book/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.chosun.com/culture-life/book/",
+    "title": "책 섹션 - 조선일보",
+    "book_links": [
+     [
+      "책",
+      "https://www.chosun.com/culture-life/books"
+     ],
+     [
+      "북한",
+      "https://www.chosun.com/politics/north_korea/"
+     ],
+     [
+      "책",
+      "https://www.chosun.com/culture-life/book/"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "조선일보",
+   {
+    "url": "https://www.chosun.com/culture-life/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.chosun.com/culture-life/",
+    "title": "문화·라이프 뉴스 - 조선일보",
+    "book_links": [
+     [
+      "'먼나라 이웃나라' 출간 40년 이원복, '북유럽 5개",
+      "https://www.chosun.com/culture-life/book/2026/10/23/TGMBYSNZENCA7MKDYIEOQRK3RQ/"
+     ],
+     [
+      "북한",
+      "https://www.chosun.com/politics/north_korea/"
+     ],
+     [
+      "책",
+      "https://www.chosun.com/culture-life/book/"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "동아일보",
+   {
+    "url": "https://www.donga.com/news/Culture",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.donga.com/news/Culture",
+    "title": "문화｜동아일보",
+    "book_links": [
+     [
+      "북한",
+      "https://www.donga.com/news/Politics/NK"
+     ],
+     [
+      "미국/북미",
+      "https://www.donga.com/news/Inter/USA"
+     ],
+     [
+      "문학",
+      "https://www.donga.com/news/Culture/Liter"
+     ],
+     [
+      "책의 향기",
+      "https://www.donga.com/news/Section/Books"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "동아일보",
+   {
+    "url": "https://www.donga.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.donga.com/",
+    "title": "동아일보",
+    "book_links": [
+     [
+      "북한",
+      "https://www.donga.com/news/Politics/NK"
+     ],
+     [
+      "미국/북미",
+      "https://www.donga.com/news/Inter/USA"
+     ],
+     [
+      "문학",
+      "https://www.donga.com/news/Culture/Liter"
+     ],
+     [
+      "책의 향기",
+      "https://www.donga.com/news/Section/Books"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "중앙일보",
+   {
+    "url": "https://www.joongang.co.kr/culture",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.joongang.co.kr/culture",
+    "title": "문화 | 중앙일보",
+    "book_links": [
+     [
+      "더 북한",
+      "https://www.joongang.co.kr/nk"
+     ],
+     [
+      "책",
+      "https://www.joongang.co.kr/culture/book"
+     ],
+     [
+      "북한",
+      "https://www.joongang.co.kr/politics/northkorea"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "중앙일보",
+   {
+    "url": "https://www.joongang.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.joongang.co.kr/",
+    "title": "중앙일보",
+    "book_links": [
+     [
+      "더 북한",
+      "https://www.joongang.co.kr/nk"
+     ],
+     [
+      "중앙북스",
+      "https://jbooks.joins.com/?cloc=joongang-home-jmnet"
+     ],
+     [
+      "북한",
+      "https://www.joongang.co.kr/politics/northkorea"
+     ],
+     [
+      "책",
+      "https://www.joongang.co.kr/culture/book"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "한국일보",
+   {
+    "url": "https://www.hankookilbo.com/News/Culture",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_page",
+   "한국일보",
+   {
+    "url": "https://www.hankookilbo.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.hankookilbo.com/",
+    "title": "세상을 보는 균형ㅣ한국일보",
+    "book_links": [
+     [
+      "이민진 문학의 한 독법",
+      "https://www.hankookilbo.com/news/article/A2026102019060004053?dtypecode=pancode_main"
+     ],
+     [
+      "격주 08:00조태성의 북&amp;이슈",
+      "https://www.hankookilbo.com/newsletter/bookissue"
+     ],
+     [
+      "국방/북한",
+      "https://www.hankookilbo.com/news/politics/nd"
+     ],
+     [
+      "책",
+      "https://www.hankookilbo.com/news/culture/book"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "국민일보",
+   {
+    "url": "https://www.kmib.co.kr/news/index.asp?sid1=cul",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: "
+   }
+  ],
+  [
+   "probe_page",
+   "국민일보",
+   {
+    "url": "https://www.kmib.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.kmib.co.kr/",
+    "title": "국민일보",
+    "book_links": [
+     [
+      "북한·한반도",
+      "https://www.kmib.co.kr/list/599"
+     ],
+     [
+      "출판·문학",
+      "https://www.kmib.co.kr/list/737"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "세계일보",
+   {
+    "url": "https://www.segye.com/newsList/0101060000000",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.segye.com/newsList/0101060000000",
+    "title": "가장 먼저, 그리고 끝까지 - 세계일보 -",
+    "book_links": [
+     [
+      "북한ㆍ통일",
+      "https://www.segye.com/newsList/0101010800000"
+     ],
+     [
+      "문학",
+      "https://www.segye.com/newsList/0101051000000"
+     ],
+     [
+      "inno북스",
+      "https://www.segye.com/photoList/0125000000000"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "세계일보",
+   {
+    "url": "https://www.segye.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.segye.com/",
+    "title": "가장 먼저, 그리고 끝까지 - 세계일보 -",
+    "book_links": [
+     [
+      "북한ㆍ통일",
+      "https://www.segye.com/newsList/0101010800000"
+     ],
+     [
+      "문학",
+      "https://www.segye.com/newsList/0101051000000"
+     ],
+     [
+      "inno북스",
+      "https://www.segye.com/photoList/0125000000000"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "서울신문",
+   {
+    "url": "https://www.seoul.co.kr/news/culture",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_page",
+   "서울신문",
+   {
+    "url": "https://www.seoul.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.seoul.co.kr/",
+    "title": "서울신문",
+    "book_links": [
+     [
+      "북한",
+      "https://www.seoul.co.kr/newsList/politics/north/"
+     ],
+     [
+      "출판·문학",
+      "https://www.seoul.co.kr/newsList/life/publication-literature/"
+     ],
+     [
+      "",
+      "https://docs.google.com/forms/d/e/1FAIpQLScQYnBAxqvse6d-82wEv1ei322wwkpOIVyXci0AacjY7qKTaw/viewform?usp=publish-editor"
+     ],
+     [
+      "AI의 습격-법전 대신 알고...(7)",
+      "https://www.seoul.co.kr/newsList/plan/AI-lawbooks-algorithm"
+     ],
+     [
+      "최신 기사 ? strtotime(.work_date) ",
+      "https://www.seoul.co.kr/news/plan/AI-lawbooks-algorithm/2026/02/06/20260206008006"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "문화일보",
+   {
+    "url": "https://www.munhwa.com/culture",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.munhwa.com/culture",
+    "title": "전체 | 문화 | 문화일보",
+    "book_links": [
+     [
+      "도서·출판·학술",
+      "https://www.munhwa.com/culture/book"
+     ],
+     [
+      "문학",
+      "https://www.munhwa.com/culture/literature"
+     ],
+     [
+      "북한·통일",
+      "https://www.munhwa.com/politics/unification"
+     ],
+     [
+      "북미·중남미",
+      "https://www.munhwa.com/world/america"
+     ],
+     [
+      "시대횡단 등[이 책]",
+      "https://www.munhwa.com/article/11625678"
+     ],
+     [
+      "이 책",
+      "https://www.munhwa.com/series/S010200531"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "문화일보",
+   {
+    "url": "https://www.munhwa.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.munhwa.com/",
+    "title": "문화일보",
+    "book_links": [
+     [
+      "북한·통일",
+      "https://www.munhwa.com/politics/unification"
+     ],
+     [
+      "북미·중남미",
+      "https://www.munhwa.com/world/america"
+     ],
+     [
+      "도서·출판·학술",
+      "https://www.munhwa.com/culture/book"
+     ],
+     [
+      "문학",
+      "https://www.munhwa.com/culture/literature"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "매일경제",
+   {
+    "url": "https://www.mk.co.kr/news/culture/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.mk.co.kr/news/culture/",
+    "title": "문화 홈 - 매일경제",
+    "book_links": [
+     [
+      "책",
+      "https://www.mk.co.kr/news/culture/book"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "매일경제",
+   {
+    "url": "https://www.mk.co.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.mk.co.kr/",
+    "title": "매일경제",
+    "book_links": [
+     [
+      "책",
+      "https://www.mk.co.kr/news/culture/book"
+     ],
+     [
+      "#북한 도발",
+      "https://www.mk.co.kr/news/issue/list/I5001017"
+     ],
+     [
+      "BOOK 신간 도서와 출판 트렌드를 한눈에 !",
+      "https://book.mk.co.kr/"
+     ]
+    ],
+    "shin_titles": [
+     "신간 도서와 출판 트렌드를 한눈에 !"
+    ]
+   }
+  ],
+  [
+   "probe_page",
+   "한국경제",
+   {
+    "url": "https://www.hankyung.com/culture",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.hankyung.com/culture",
+    "title": "문화예술 뉴스 | 한국경제",
+    "book_links": [],
+    "shin_titles": [
+     "약점 털어놨더니 신뢰가 쌓였다…신간 "
+    ]
+   }
+  ],
+  [
+   "probe_page",
+   "한국경제",
+   {
+    "url": "https://www.hankyung.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.hankyung.com/",
+    "title": "한국경제",
+    "book_links": [
+     [
+      "국방·외교·북한",
+      "https://www.hankyung.com/politics/1141"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "서울경제",
+   {
+    "url": "https://www.sedaily.com/NewsList/GC",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.sedaily.com/",
+    "title": "서울경제",
+    "book_links": [
+     [
+      "출판",
+      "https://www.sedaily.com/culture/publishing"
+     ],
+     [
+      "# 북스엔",
+      "https://www.sedaily.com/subscription/series/S010100393"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "서울경제",
+   {
+    "url": "https://www.sedaily.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.sedaily.com/",
+    "title": "서울경제",
+    "book_links": [
+     [
+      "출판",
+      "https://www.sedaily.com/culture/publishing"
+     ],
+     [
+      "# 북스엔",
+      "https://www.sedaily.com/subscription/series/S010100393"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "뉴시스",
+   {
+    "url": "https://www.newsis.com/culture/list/?cid=10700&scid=10701",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.newsis.com/culture/list/?cid=10700&scid=10701",
+    "title": ":: 공감언론 뉴시스통신사 ::",
+    "book_links": [
+     [
+      "책",
+      "https://www.newsis.com/culture/list?cid=10700&scid=10704"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "뉴시스",
+   {
+    "url": "https://www.newsis.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.newsis.com/",
+    "title": ":: 공감언론 뉴시스통신사 ::",
+    "book_links": [
+     [
+      "북한은 지금",
+      "https://www.newsis.com/people/sec/?cid=16000&sscid=10331"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "뉴스1",
+   {
+    "url": "https://www.news1.kr/culture",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_page",
+   "뉴스1",
+   {
+    "url": "https://www.news1.kr/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.news1.kr/",
+    "title": "뉴스1",
+    "book_links": [
+     [
+      "북한",
+      "https://www.news1.kr/nk"
+     ],
+     [
+      "북한소식",
+      "https://www.news1.kr/series/nk"
+     ],
+     [
+      "책",
+      "https://www.news1.kr/life-culture/book"
+     ],
+     [
+      "뉴스1북",
+      "https://book.news1.kr"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "독서신문",
+   {
+    "url": "https://www.readersnews.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://www.readersnews.com/",
+    "title": "독서신문",
+    "book_links": [
+     [
+      "책으로 세상을 비평하다",
+      "https://www.readersnews.com/news/articleList.html?sc_sub_section_code=S2N212&view_type=sm"
+     ],
+     [
+      "책 속에서 세상을 만나다",
+      "https://www.readersnews.com/news/articleList.html?sc_sub_section_code=S2N213&view_type=sm"
+     ],
+     [
+      "책",
+      "https://www.readersnews.com/news/articleList.html?sc_section_code=S1N28&view_type=sm"
+     ],
+     [
+      "신간",
+      "https://www.readersnews.com/news/articleList.html?sc_sub_section_code=S2N214&view_type=sm"
+     ],
+     [
+      "책 속 명문장",
+      "https://www.readersnews.com/news/articleList.html?sc_sub_section_code=S2N215&view_type=sm"
+     ]
+    ],
+    "shin_titles": [
+     "신간",
+     "[신간] 『나는 이 세상에 소풍 온 심리학자입니다』",
+     "[신간] 『한 줄 메모의 힘』",
+     "신간"
+    ]
+   }
+  ],
+  [
+   "probe_page",
+   "채널예스",
+   {
+    "url": "https://ch.yes24.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "https://ch.yes24.com/",
+    "title": "&#xC608;&#xC2A4;24 &#xCC44;&#xB110;&#xC608;&#xC2A4;",
+    "book_links": [
+     [
+      "국내도서",
+      "https://www.yes24.com/Mall/Main/Book/001?CategoryNumber=001"
+     ],
+     [
+      "eBook",
+      "https://www.yes24.com/Mall/Main/eBook/017?CategoryNumber=017"
+     ]
+    ],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "출판저널",
+   {
+    "url": "https://www.publishingjournal.kr/",
+    "robots_ok": true,
+    "error": "URLError: <urlopen error [Errno -2] Name or service not known>"
+   }
+  ],
+  [
+   "probe_page",
+   "출판저널",
+   {
+    "url": "http://www.pubjournal.com/",
+    "robots_ok": true,
+    "status": 200,
+    "final": "http://www.pubjournal.com/",
+    "title": "",
+    "book_links": [],
+    "shin_titles": []
+   }
+  ],
+  [
+   "probe_page",
+   "북데일리",
+   {
+    "url": "https://www.bookdaily.co.kr/",
+    "robots_ok": true,
+    "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostn"
+   }
+  ],
+  [
+   "probe_rss",
+   "연합뉴스",
+   {
+    "url": "https://www.yna.co.kr/rss/culture.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 120,
+    "sample": [
+     [
+      "빅뱅 출신 승리, 특수폭행 혐의 부인…\"소주병 휘두른 적 없어\"",
+      "https://www.yna.co.kr/view/AKR20261023184900005",
+      ""
+     ],
+     [
+      "최휘영, 산하기관장 보은인사 지적에 \"모욕…전문성·역량 판단\"",
+      "https://www.yna.co.kr/view/AKR20261023173000005",
+      ""
+     ],
+     [
+      "허민 국가유산청장 \"'세계유산' 종묘 지위 상실될까 두려워\"",
+      "https://www.yna.co.kr/view/AKR20261023176800005",
+      ""
+     ],
+     [
+      "다우키움그룹, 중앙일보 이어 문학동네 인수 추진…우선협상대상자 선정",
+      "https://www.yna.co.kr/view/AKR20261023174800005",
+      ""
+     ],
+     [
+      "'하나의 밥상이 되다'…남도음식문화큰잔치 나주서 개막",
+      "https://www.yna.co.kr/view/AKR20261023140700054",
+      ""
+     ],
+     [
+      "[공연소식] 피아니스트 이혁, 12월 리사이틀 '전쟁의 초상'",
+      "https://www.yna.co.kr/view/AKR20261023169800005",
+      ""
+     ],
+     [
+      "최휘영 \"패노메논 합작법인 이달 말 설립\"…정부 역할도 검토(종합)",
+      "https://www.yna.co.kr/view/AKR20261023139551005",
+      ""
+     ],
+     [
+      "폐암 수술 받은 교황, 헬기 이동 일정 취소…\"회복은 순조\"",
+      "https://www.yna.co.kr/view/AKR20261023155100109",
+      ""
+     ]
+    ],
+    "book_like": 7
+   }
+  ],
+  [
+   "probe_rss",
+   "한겨레",
+   {
+    "url": "https://www.hani.co.kr/rss/culture/",
+    "robots_ok": true,
+    "status": 200,
+    "items": 30,
+    "sample": [
+     [
+      "다우키움그룹, 중앙일보 이어 ‘1위 출판’ 문학동네도 품나…우선협상대상자로",
+      "https://www.hani.co.kr/arti/culture/book/1283924.html",
+      ""
+     ],
+     [
+      "문체부, 친일파 글씨 ‘셀프 출품’한 유홍준 전 관장에 집중 감사",
+      "https://www.hani.co.kr/arti/culture/culture_general/1283887.html",
+      ""
+     ],
+     [
+      "[단독] ‘부커상’ 아룬다티 로이 “내 장기 적출당해”…앤트로픽 강력 비판",
+      "https://www.hani.co.kr/arti/culture/book/1283875.html",
+      ""
+     ],
+     [
+      "143억뷰 ‘나혼렙’·29억뷰 ‘재혼황후’…메가히트 웹소설, 드라마로 만난다",
+      "https://www.hani.co.kr/arti/culture/culture_general/1283798.html",
+      ""
+     ],
+     [
+      "7년 만에 다시 만난 ‘우리의 만춘’…만춘서점 10주년 음반 나온다",
+      "https://www.hani.co.kr/arti/culture/music/1283790.html",
+      ""
+     ],
+     [
+      "‘너의 집사라서 행복했어’ 고양이와 함께한 17년의 구원 [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283776.html",
+      ""
+     ],
+     [
+      "정재승 “AI, 공포·낙관 말고 서늘하게” [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283775.html",
+      ""
+     ],
+     [
+      "무릎 내주는 이웃 있는 ‘나의 마을’ [.txt]",
+      "https://www.hani.co.kr/arti/culture/book/1283774.html",
+      ""
+     ]
+    ],
+    "book_like": 21
+   }
+  ],
+  [
+   "probe_rss",
+   "경향신문",
+   {
+    "url": "https://www.khan.co.kr/rss/rssdata/culture_news.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "중앙일보 이어 ‘문학동네’까지 품나···다우키움, 우선인수협상대상자로 선정",
+      "https://www.khan.co.kr/article/202610231825001/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "문체부, 유홍준 ‘셀프 출품’ 감사…전시품 관리·검증 전반 들여다본다",
+      "https://www.khan.co.kr/article/202610231438001/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "‘한없이 투명에 가까운 블루’ 일본 작가 무라카미 류 별세",
+      "https://www.khan.co.kr/article/202610231416001/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "[책과 삶]마오쩌둥 아들은 북한 땅에 묻혔다···중국이 북한을 버리지 못하는 이유",
+      "https://www.khan.co.kr/article/202610231400011/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "재고 풀리자 날개 돋친 듯…노벨문학상 앤 카슨 책, 베스트셀러 2위에",
+      "https://www.khan.co.kr/article/202610230922001/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "[책과 삶] 77세 하루키의 첫 여성 주인공···3년 만의 신작 ‘가호’에 독자들 열광",
+      "https://www.khan.co.kr/article/202610230600121/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "문화 일반"
+     ],
+     [
+      "[책에서  만난 얼굴]쓸모가 사라질 때 성공하는 책",
+      "https://www.khan.co.kr/article/202610222103015/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "책"
+     ],
+     [
+      "[책과 삶]히틀러·유대인·흑인…모두가 ‘다른’ 바그너를 들었다",
+      "https://www.khan.co.kr/article/202610222103005/?utm_source=khan_rss&amp;utm_medium=rss&amp",
+      "책"
+     ]
+    ],
+    "book_like": 16
+   }
+  ],
+  [
+   "probe_rss",
+   "경향신문",
+   {
+    "url": "https://www.khan.co.kr/rss/rssdata/kh_book.xml",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "조선일보",
+   {
+    "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/culture-life/book/?outputType=xml",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "조선일보",
+   {
+    "url": "https://www.chosun.com/arc/outboundfeeds/rss/category/culture-life/?outputType=xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 100,
+    "sample": [
+     [
+      "양윤석 SBS 대표이사 사장",
+      "https://www.chosun.com/culture-life/culture_general/2026/10/24/DSER4P63YNAOZPWU3CT72YW7HY/",
+      ""
+     ],
+     [
+      "日 베스트셀러 작가 무라카미 류 별세",
+      "https://www.chosun.com/culture-life/culture_general/2026/10/24/2LS3VUMCD5EDXLY5LI5LZ3IIII/",
+      ""
+     ],
+     [
+      "AI 이전에도 기계는 예술의 도구였다",
+      "https://www.chosun.com/culture-life/book/2026/10/24/V4GAKCGHMRENJCQQMHCC4XHEIU/",
+      ""
+     ],
+     [
+      "“언론은 적”이라던 트럼프… 워싱턴포스트를 ‘조종’하다",
+      "https://www.chosun.com/culture-life/book/2026/10/24/XJMBTANRPBCBFOYSW6I26W4YIM/",
+      ""
+     ],
+     [
+      "[한줄읽기] ‘금의 역사’ 외",
+      "https://www.chosun.com/culture-life/book/2026/10/24/3V5FVDUGSBFCZKRLKMCUGANVC4/",
+      ""
+     ],
+     [
+      "“흑백으로 가를 수 없는 인간사”… K문학 근원엔 박경리 있었다",
+      "https://www.chosun.com/culture-life/book/2026/10/24/CVO4JRCMBZA6ZLZGOZHBPAVS5Q/",
+      ""
+     ],
+     [
+      "[장강명의 벽돌책] 사이비 교주는 어떻게 대중을 홀렸나",
+      "https://www.chosun.com/culture-life/book/2026/10/24/5TICOTWG6NDMNJ4N7TG4UQ4KGA/",
+      ""
+     ],
+     [
+      "약점 먼저 털어놓을 때 면접·데이트 성공률 올라",
+      "https://www.chosun.com/culture-life/book/2026/10/24/NWJ7VX7R5BBPVCR2N73YF566GA/",
+      ""
+     ]
+    ],
+    "book_like": 39
+   }
+  ],
+  [
+   "probe_rss",
+   "동아일보",
+   {
+    "url": "https://rss.donga.com/culture.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "‘한식의 날’ 첫 법정기념일 지정…K푸드 모인 한식페스타 개막",
+      "https://www.donga.com/news/Culture/article/all/20261023/134899118/2",
+      ""
+     ],
+     [
+      "방치된 호국유산의 재해석…강화 더리미미술관, 논산서 기획전 개막",
+      "https://www.donga.com/news/Culture/article/all/20261023/134898471/1",
+      ""
+     ],
+     [
+      "장원영, 후배 인사에 고개 끄덕였는데도 왜?",
+      "https://www.donga.com/news/Culture/article/all/20261023/134897607/1",
+      ""
+     ],
+     [
+      "김혜선 독일인 남편 “부모님 곁에서 살고 싶어”…한국 생활 6년 끝에 꺼낸 속마음",
+      "https://www.donga.com/news/Culture/article/all/20261023/134897418/2",
+      ""
+     ],
+     [
+      "‘한없이 투명에 가까운 블루’ 日작가 무라카미 류 74세로 별세",
+      "https://www.donga.com/news/Culture/article/all/20261023/134897131/1",
+      ""
+     ],
+     [
+      "‘오디세이’에는 올리브나무 침대가 등장하지 않는다 [동아닷컴 금주의 신간]",
+      "https://www.donga.com/news/Culture/article/all/20261023/134895003/2",
+      ""
+     ],
+     [
+      "하루키의 첫 여성 주인공…‘모녀 서사’에 정작 어머니가 없다",
+      "https://www.donga.com/news/Culture/article/all/20261023/134895921/1",
+      ""
+     ],
+     [
+      "김흥국, 드러난 민머리…“극심한 스트레스, 탈모 심해져” 실제 그럴까 [건강팩트체크]",
+      "https://www.donga.com/news/Culture/article/all/20261023/134896760/2",
+      ""
+     ]
+    ],
+    "book_like": 3
+   }
+  ],
+  [
+   "probe_rss",
+   "동아일보",
+   {
+    "url": "https://rss.donga.com/book.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "‘오디세이’에는 올리브나무 침대가 등장하지 않는다 [동아닷컴 금주의 신간]",
+      "https://www.donga.com/news/Culture/article/all/20261023/134895003/2",
+      ""
+     ],
+     [
+      "‘도쿄 데카당스’ 작가 겸 감독, 무라카미 류 74세로 별세",
+      "https://www.donga.com/news/Inter/article/all/20261023/134896051/1",
+      ""
+     ],
+     [
+      "“현실-민생 우선시한 김부식의 외교, 사대주의로 몰면 안돼”",
+      "https://www.donga.com/news/Culture/article/all/20261022/134885921/2",
+      ""
+     ],
+     [
+      "친언니-연인-절친 잃은 세 사람, 살아가는 법을 논하다",
+      "https://www.donga.com/news/Culture/article/all/20261022/134885918/2",
+      ""
+     ],
+     [
+      "이강래 “김부식과 ‘삼국사기’, 서로의 대명사라는 편견에서 벗어나야”",
+      "https://www.donga.com/news/Culture/article/all/20261021/134882685/1",
+      ""
+     ],
+     [
+      "“이 소설, 당신이 썼나요” AI 시대 맞은 문학상, ‘작가 검증’ 나섰다",
+      "https://www.donga.com/news/Culture/article/all/20261018/134863199/2",
+      ""
+     ],
+     [
+      "[책의 향기]‘싼 맛’에서 ‘세계의 맛’ 된 비결… 피자의 ‘이민’",
+      "https://www.donga.com/news/Culture/article/all/20261016/134856594/2",
+      ""
+     ],
+     [
+      "[책의 향기]미국 분열의 뿌리는 400년 묵은 ‘문화 DNA’ 충돌",
+      "https://www.donga.com/news/Culture/article/all/20261016/134856600/2",
+      ""
+     ]
+    ],
+    "book_like": 29
+   }
+  ],
+  [
+   "probe_rss",
+   "중앙일보",
+   {
+    "url": "https://rss.joins.com/joins_culture_list.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 0,
+    "sample": [],
+    "book_like": 0
+   }
+  ],
+  [
+   "probe_rss",
+   "국민일보",
+   {
+    "url": "https://www.kmib.co.kr/rss/data/kmibCulRss.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 0,
+    "sample": [],
+    "book_like": 0
+   }
+  ],
+  [
+   "probe_rss",
+   "세계일보",
+   {
+    "url": "https://www.segye.com/Articles/RSSList/segye_culture.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 20,
+    "sample": [
+     [
+      "태풍 참피 접근… 제주·남부 주말 내내 비 [날씨]",
+      "https://www.segye.com/newsView/20261023514759",
+      ""
+     ],
+     [
+      "과천서 통일대장정·연합걷기대회 열려…5개월간 전국서 5천여 명 동참",
+      "https://www.segye.com/newsView/20261023513972",
+      ""
+     ],
+     [
+      "이젠 필수 된 ‘청첩장 모임’ 기혼자 88.7% ‘경험’ 최대 200만원 들어…미혼들 “청",
+      "https://www.segye.com/newsView/20261023513023",
+      ""
+     ],
+     [
+      "낮기온 21도 단풍 절정인데 남부·제주는 최대 150mm 비...[내일 날씨]",
+      "https://www.segye.com/newsView/20261023511647",
+      ""
+     ],
+     [
+      "요즘 누가 떡 먹냐고?…포장 떡 구매 1년 새 31% 늘었다",
+      "https://www.segye.com/newsView/20261023506938",
+      ""
+     ],
+     [
+      "배우가 쏜 화살이 객석으로…뮤지컬 ‘연의 편지’ 사고에 제작사 사과",
+      "https://www.segye.com/newsView/20261023504476",
+      ""
+     ],
+     [
+      "피라미드보다 오래된 와인 있다? 신석기 토기가 증명한 뜻밖의 ‘와인 요람’ [최현태 기자의",
+      "https://www.segye.com/newsView/20261023507569",
+      ""
+     ],
+     [
+      "밟으면 ‘악취 폭탄’, 식탁 위에선 ‘귀한 대접’…은행 맛있게 즐기려면 [FOOD+]",
+      "https://www.segye.com/newsView/20261021507017",
+      ""
+     ]
+    ],
+    "book_like": 0
+   }
+  ],
+  [
+   "probe_rss",
+   "서울신문",
+   {
+    "url": "https://www.seoul.co.kr/xml/rss/rss_culture.xml",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "문화일보",
+   {
+    "url": "https://www.munhwa.com/rss/culture.xml",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "매일경제",
+   {
+    "url": "https://www.mk.co.kr/rss/30000023/",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "“주상욱 효자 아니라서 좋아”…차예련 깜짝 고백 왜?",
+      "https://www.mk.co.kr/news/culture/12184559",
+      "문화/연예"
+     ],
+     [
+      "'출판 1위' 문학동네 우선협상자에 다우키움",
+      "https://www.mk.co.kr/news/culture/12184494",
+      "문화/연예"
+     ],
+     [
+      "왕태석 한국일보 기자, ‘빛으로 쓴 편지’ 출간",
+      "https://www.mk.co.kr/news/society/12184466",
+      "문화/연예"
+     ],
+     [
+      "옛집엔 그림·성벽 아래 조각 … 예술 품은 '성북의 가을'",
+      "https://www.mk.co.kr/news/culture/12184344",
+      "문화/연예"
+     ],
+     [
+      "★이 된 현대 발레 거장 '판 마넨'… 25년 안무 세계 한눈에",
+      "https://www.mk.co.kr/news/culture/12184345",
+      "문화/연예"
+     ],
+     [
+      "[단독] 다우키움 ‘1등 출판사’ 문학동네도 품나…중앙일보 이어 인수 추진",
+      "https://www.mk.co.kr/news/culture/12184330",
+      "문화/연예"
+     ],
+     [
+      "[표] 베스트셀러",
+      "https://www.mk.co.kr/news/culture/12184315",
+      "문화/연예"
+     ],
+     [
+      "자동피아노에서 AI까지 … 기계는 예술가의 '뮤즈'",
+      "https://www.mk.co.kr/news/culture/12184312",
+      "문화/연예"
+     ]
+    ],
+    "book_like": 6
+   }
+  ],
+  [
+   "probe_rss",
+   "매일경제",
+   {
+    "url": "https://www.mk.co.kr/rss/50300009/",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "LH 사장 “집값 상승은 前정부 공급부족 탓…공급 본격화하면 폭락”",
+      "https://www.mk.co.kr/news/realestate/12184564",
+      "부동산"
+     ],
+     [
+      "83세 거장이 짓고, 30대 창업자가 샀다…218억 아파트의 비밀 [슈퍼리치의 아파트]",
+      "https://www.mk.co.kr/news/realestate/12184498",
+      "부동산"
+     ],
+     [
+      "홍지선 “집값 상승폭 둔화…연말엔 시장 안정화될 것”",
+      "https://www.mk.co.kr/news/realestate/12184186",
+      "부동산"
+     ],
+     [
+      "[단독]“세입자 내쫓아야 대출 나와”…빌라 등 금융규제 차별 실수요자 ‘날벼락’",
+      "https://www.mk.co.kr/news/economy/12184126",
+      "부동산"
+     ],
+     [
+      "1만년 버틸 방사성폐기물 처분시설… 토목의 숙제는 “물길·굴착 손상”",
+      "https://www.mk.co.kr/news/realestate/12184120",
+      "부동산"
+     ],
+     [
+      "“직원 성장이 곧 회사 경쟁력”…한국중부발전, 파리서 HR 혁신 인정받아",
+      "https://www.mk.co.kr/news/realestate/12184084",
+      "부동산"
+     ],
+     [
+      "창립 25주년 맞은 코람코자산신탁...“해외로 영역 넓힐 것”",
+      "https://www.mk.co.kr/news/realestate/12184071",
+      "부동산"
+     ],
+     [
+      "창신9·10 재개발 ‘날벼락’…종로구 “동의서 징구 위법, 재징구”",
+      "https://www.mk.co.kr/news/realestate/12183946",
+      "부동산"
+     ]
+    ],
+    "book_like": 0
+   }
+  ],
+  [
+   "probe_rss",
+   "한국경제",
+   {
+    "url": "https://www.hankyung.com/feed/culture",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "한국경제",
+   {
+    "url": "https://www.hankyung.com/feed/book",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "독서신문",
+   {
+    "url": "https://www.readersnews.com/rss/allArticle.xml",
+    "robots_ok": true,
+    "status": 200,
+    "items": 50,
+    "sample": [
+     [
+      "BTS의 RM과 소통의 예술",
+      "https://www.readersnews.com/news/articleView.html?idxno=200783",
+      ""
+     ],
+     [
+      "마음을 멈추고 관찰하는 시간, 수원 지관서가 ‘가을 북페스티벌’ 개최",
+      "https://www.readersnews.com/news/articleView.html?idxno=200791",
+      ""
+     ],
+     [
+      "[신간] 『나는 이 세상에 소풍 온 심리학자입니다』",
+      "https://www.readersnews.com/news/articleView.html?idxno=200790",
+      ""
+     ],
+     [
+      "[신간] 『한 줄 메모의 힘』",
+      "https://www.readersnews.com/news/articleView.html?idxno=200789",
+      ""
+     ],
+     [
+      "“10월항쟁, 자유와 정의의 역사로 기억해야” 10월문학회 이정연 시인",
+      "https://www.readersnews.com/news/articleView.html?idxno=200767",
+      ""
+     ],
+     [
+      "하루만큼의 여행",
+      "https://www.readersnews.com/news/articleView.html?idxno=200787",
+      ""
+     ],
+     [
+      "[신간] 『새로운 질서의 설계자들』",
+      "https://www.readersnews.com/news/articleView.html?idxno=200786",
+      ""
+     ],
+     [
+      "함저협, 매장 음악 이용 정보 제공하는 ‘매장음악로그연계서비스’ 오픈",
+      "https://www.readersnews.com/news/articleView.html?idxno=200785",
+      ""
+     ]
+    ],
+    "book_like": 23
+   }
+  ],
+  [
+   "probe_rss",
+   "북데일리",
+   {
+    "url": "https://www.bookdaily.co.kr/rss/allArticle.xml",
+    "robots_ok": true,
+    "error": "URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostn"
+   }
+  ],
+  [
+   "probe_rss",
+   "채널예스",
+   {
+    "url": "https://ch.yes24.com/Rss",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 403: Forbidden"
+   }
+  ],
+  [
+   "probe_rss",
+   "채널예스",
+   {
+    "url": "https://ch.yes24.com/rss/article",
+    "robots_ok": true,
+    "error": "HTTPError: HTTP Error 404: Not Found"
+   }
+  ],
+  [
+   "probe_rss",
+   "국립중앙도서관 사서추천",
+   {
+    "url": "https://www.nl.go.kr/NL/contents/N50603000000.do",
+    "robots_ok": true,
+    "status": 200,
+    "items": 0,
+    "sample": [],
+    "book_like": 0
+   }
+  ]
+ ],
+ "google": [
+  {
+   "q": "intitle:신간 when:3d",
+   "n": 100,
+   "sources": [
+    [
+     "한국사회복지저널",
+     21
+    ],
+    [
+     "뉴시스",
+     5
+    ],
+    [
+     "연합뉴스",
+     4
+    ],
+    [
+     "한국경제",
+     3
+    ],
+    [
+     "매일경제",
+     3
+    ],
+    [
+     "독서신문",
+     3
+    ],
+    [
+     "메디포뉴스",
+     2
+    ],
+    [
+     "에너지경제신문",
+     2
+    ],
+    [
+     "뉴스핌",
+     2
+    ],
+    [
+     "지디넷코리아",
+     1
+    ],
+    [
+     "청년의사",
+     1
+    ],
+    [
+     "유교신문",
+     1
+    ],
+    [
+     "뉴스투데이",
+     1
+    ],
+    [
+     "반론보도닷컴",
+     1
+    ],
+    [
+     "더스쿠프",
+     1
+    ],
+    [
+     "축산경제신문",
+     1
+    ],
+    [
+     "더프리뷰",
+     1
+    ],
+    [
+     "메드월드뉴스",
+     1
+    ],
+    [
+     "캐드앤그래픽스",
+     1
+    ],
+    [
+     "지금제주",
+     1
+    ],
+    [
+     "팜뉴스",
+     1
+    ],
+    [
+     "파이낸셜포스트",
+     1
+    ],
+    [
+     "한국원자력신문",
+     1
+    ],
+    [
+     "브런치",
+     1
+    ],
+    [
+     "수원일보",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "intitle:새책 when:7d",
+   "n": 25,
+   "sources": [
+    [
+     "파이낸셜뉴스",
+     11
+    ],
+    [
+     "베리타스알파",
+     3
+    ],
+    [
+     "중앙신문",
+     2
+    ],
+    [
+     "부산파이낸셜뉴스",
+     2
+    ],
+    [
+     "농민신문",
+     1
+    ],
+    [
+     "경향신문",
+     1
+    ],
+    [
+     "미디어생활",
+     1
+    ],
+    [
+     "IT조선",
+     1
+    ],
+    [
+     "대한전문건설신문",
+     1
+    ],
+    [
+     "가톨릭뉴스 지금여기",
+     1
+    ],
+    [
+     "대학저널",
+     1
+    ]
+   ]
+  },
+  {
+   "q": "intitle:책꽂이 when:7d",
+   "n": 4,
+   "sources": [
+    [
+     "소년한국일보",
+     1
+    ],
+    [
+     "서울컬처",
+     1
+    ],
+    [
+     "이데일리",
+     1
+    ],
+    [
+     "서울Pn",
+     1
+    ]
+   ]
+  }
+ ]
+}
