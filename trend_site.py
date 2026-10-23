@@ -736,6 +736,78 @@ def og_image(url):
     return None
 
 
+BOOK_META = os.path.join(HERE, "history", "book_meta.json")
+_DESC_RX = [re.compile(r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']*)["\']', re.I),
+            re.compile(r'<meta[^>]+content=["\']([^"\']*)["\'][^>]+property=["\']og:description["\']', re.I),
+            re.compile(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']*)["\']', re.I)]
+
+
+def og_meta(url):
+    """원문 페이지의 대표 사진·소개글 (robots.txt가 막으면 빈 값)"""
+    if not robots_allows(url):
+        return {}
+    page = http_get(url)[:400000].decode("utf-8", "ignore")
+    out = {}
+    for rx in _OG_RX:
+        m = rx.search(page)
+        if m and m.group(1).strip():
+            img = html.unescape(m.group(1)).strip()
+            out["img"] = urllib.parse.urljoin(url, "https:" + img if img.startswith("//") else img)
+            break
+    for rx in _DESC_RX:
+        m = rx.search(page)
+        if m and len(m.group(1).strip()) >= 20:
+            d = re.sub(r"\s+", " ", html.unescape(html.unescape(m.group(1)))).strip()
+            out["desc"] = d[:220] + ("…" if len(d) > 220 else "")
+            break
+    return out
+
+
+def enrich_books(rows, workers=6, max_new=60):
+    """요약이 없는 책 기사: (구글뉴스면 원문 주소로 풀고) 원문의 소개글·대표 사진을 붙인다. 결과는 history/book_meta.json에 캐시."""
+    try:
+        cache = json.load(open(BOOK_META, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    todo = [r for r in rows if not r.get("desc")]
+    new = [r for r in todo if r["url"] not in cache][:max_new]
+
+    def work(r):
+        out = {}
+        try:
+            url = r["url"]
+            if GN_RX.search(url):
+                url = gn_decode(url) or ""
+                out["url"] = url
+            if url:
+                out.update(og_meta(url))
+        except Exception as e:
+            out["err"] = type(e).__name__
+        return r["url"], out
+    with ThreadPoolExecutor(workers) as ex:
+        for key, out in ex.map(work, new):
+            if "err" not in out:
+                cache[key] = out
+    n = 0
+    for r in todo:
+        m = cache.get(r["url"]) or {}
+        if m.get("url"):
+            r["url"] = m["url"]
+        if m.get("desc") and re.sub(r"\W", "", m["desc"])[:30] != re.sub(r"\W", "", r["title"])[:30]:
+            r["desc"] = m["desc"]
+            n += 1
+        if not r.get("img") and m.get("img"):
+            r["img"] = m["img"]
+    try:
+        os.makedirs(os.path.dirname(BOOK_META), exist_ok=True)
+        keep = {r["url"]: cache[r["url"]] for r in rows if r["url"] in cache}  # 목록에 남은 것만 보관
+        keep.update({k: v for k, v in cache.items() if k not in keep and len(keep) < 600})
+        json.dump(keep, open(BOOK_META, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return len(todo), n
+
+
 def enrich_graphics(rows, workers=6):
     """사진 없는 구글뉴스 그래픽 기사: 원문 주소로 바꾸고 원문 대표 사진을 붙인다. 결과는 캐시."""
     try:
@@ -1795,6 +1867,8 @@ def main():
             inter += rows
         books, bstatus = fetch_books(now)
         pstatus += bstatus
+        n_todo, n_desc = enrich_books(books)
+        pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
         ok_feeds = sum(1 for s in status if s["ok"])
