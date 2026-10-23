@@ -688,6 +688,9 @@ def _bk_match(title, name):
     if got.startswith(want):
         rest = got[len(want):]
         return len(want) >= 8 or bool(re.fullmatch(r"\d+권?|세트|개정판|[a-z0-9]+", rest))
+    sp = lambda x: re.sub(r"\s+", " ", re.sub(r"\(.*?\)", "", x)).strip().lower()
+    if len(want) >= 4 and sp(name).endswith(" " + sp(title)):  # '더 늦기 전에 인생의 효율' ← '인생의 효율' (띄어쓰기 경계에서만)
+        return True
     return False
 
 
@@ -746,11 +749,13 @@ def enrich_book_titles(rows, max_new=40, workers=4):
     except Exception:
         cache = {}
     titles = [e["title"] for e in book_titles(rows)]
-    new = [t for t in titles if _bk_key(t) not in cache][:max_new]
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    new = [t for t in titles if _bk_key(t) not in cache
+           or (not cache[_bk_key(t)].get("name") and cache[_bk_key(t)].get("_t", "") < today)][:max_new]  # 못 찾은 책은 하루 한 번 다시
 
     def work(t):
         try:
-            return t, yes24_lookup(t), None
+            return t, (yes24_lookup(t) or {"_t": today}), None
         except Exception as e:
             return t, None, type(e).__name__
     with ThreadPoolExecutor(workers) as ex:
@@ -780,16 +785,16 @@ def enrich_book_titles(rows, max_new=40, workers=4):
 
 
 def render_book_side(rows, info=None):
-    """책책책 탭 오른쪽: 많이 소개된 책 TOP 10 (누르면 왼쪽 진열대의 상세가 열린다)"""
-    bl = book_titles(rows or [])[:10]
+    """책책책 탭 오른쪽: 많이 소개된 책 TOP 20 (누르면 책 정보 창)"""
+    bl = book_titles(rows or [])[:20]
     if not bl:
         return ""
     info = info or {}
     items = "".join(
         f'<li><span><button type="button" class="blink" data-book="{k}">『{esc((info.get(_bk_key(e["title"])) or {}).get("name") or e["title"])}』</button>'
-        f'<span class="o">{len(e["outlets"])}곳</span></span></li>' for k, e in enumerate(bl))
+        f'<span class="o">{esc("·".join(e["outlets"]))}</span></span></li>' for k, e in enumerate(bl))
     return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>많이 소개된 책</h2><span class="en">TOP {len(bl)}</span></div>'
-            f'<div class="pop"><ol>{items}</ol><p class="note">이번 주 여러 신문이 함께 소개한 책입니다. 누르면 책 정보와 기사를 펼칩니다.</p></div></section>')
+            f'<div class="pop"><ol>{items}</ol><p class="note">이번 주 여러 신문이 함께 소개한 책 순서입니다. 누르면 책 정보 창이 뜹니다.</p></div></section>')
 
 
 BOOK_CATS = ["신간 소개", "서평·책 이야기", "출판계 소식", "어린이·그림책", "기타"]
@@ -810,11 +815,14 @@ def book_cat(x, has_book):
 
 
 PAJU_LIB = "https://lib.paju.go.kr/jalib/plusSearchResultList.do?"
-NL_SEARCH = "https://www.nl.go.kr/NL/contents/search.do?"
+
+
+BOOK_COPY = '<button type="button" class="cpy" data-copy="{v}" aria-label="ISBN 복사" title="ISBN 복사"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="cpd">복사됨</span></button>'
 
 
 def render_books(rows, now, info=None):
-    """책책책 탭: ① 이번 주의 책 진열대(표지 바둑판) ② 누르면 펼쳐지는 책 상세(정보·도서관·그 책을 다룬 기사) ③ 분류 버튼이 있는 책 기사 목록"""
+    """책책책 탭: ① 이번 주의 책 진열대(표지·제목·저자·ISBN·소개한 신문) ② 책을 누르면 책 정보 창(PC 가운데 창, 휴대폰 아래에서 올라오는 창)
+    ③ 분류 버튼이 있는 책 기사 목록"""
     if not rows:
         return ""
     info = info or {}
@@ -828,44 +836,46 @@ def render_books(rows, now, info=None):
         d = datetime.fromisoformat(iso)
         return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
 
-    # ① 진열대
+    def isbn_line(isbn):
+        return f'<div class="bki">ISBN: <span class="isbn">{esc(isbn)}</span>{BOOK_COPY.format(v=esc(isbn))}</div>' if isbn else ""
+
     cards, dets = [], []
     for k, e in enumerate(bl):
         i = info.get(_bk_key(e["title"])) or {}
         name = i.get("name") or e["title"]
+        cover = i.get("cover") or next((rows[n]["img"] for n in e["arts"] if rows[n].get("img")), None)  # 서점에 없으면 기사 사진
         auth = re.split(r" · ", i.get("author") or "")[0]
-        cov = (f'<img src="{esc(i["cover"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{{className:\'bph\',textContent:this.dataset.t}}))" data-t="{esc(name)}">'
-               if i.get("cover") else f'<span class="bph">{esc(name)}</span>')
-        cards.append(f'<button type="button" class="bcard" data-book="{k}" data-n="{len(e["outlets"])}" data-d="{esc(e["date"])}">'
-                     f'<span class="bcov">{cov}</span><span class="bnm">{esc(name)}</span>'
+        img = (f'<img src="{esc(cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<span class=bph>{esc(name)}</span>\'">'
+               if cover else f'<span class="bph">{esc(name)}</span>')
+        src = "·".join(e["outlets"])
+        cards.append(f'<div class="bcard" data-n="{len(e["outlets"])}" data-d="{esc(e["date"])}">'
+                     f'<button type="button" class="bopen" data-book="{k}" aria-label="『{esc(name)}』 책 정보">'
+                     f'<span class="bcov">{img}</span><span class="bnm">{esc(name)}</span>'
                      + (f'<span class="bau">{esc(auth)}{" · " + esc(i["pub"]) if i.get("pub") else ""}</span>' if auth or i.get("pub") else "")
-                     + f'<span class="bcnt{" hot" if len(e["outlets"]) > 1 else ""}">{len(e["outlets"])}곳 소개</span></button>')
-        isbn = i.get("isbn") or ""
+                     + f'</button>{isbn_line(i.get("isbn") or "")}'
+                     f'<div class="bsrc{" hot" if len(e["outlets"]) > 1 else ""}">{esc(src)}</div></div>')
         q = urllib.parse.urlencode({"searchType": "SIMPLE", "searchCategory": "ALL", "searchLibrary": "ALL", "searchKey": "TITLE",
                                     "searchKeyword": re.sub(r"\(.*?\)", "", name).strip()})
-        nlq = urllib.parse.urlencode({"kwd": isbn or name})
         btns = "".join(f'<a class="bbtn" href="{esc(u)}" target="_blank" rel="noopener noreferrer">{esc(t)}</a>' for t, u in (
-            ("파주시 도서관에서 찾기", PAJU_LIB + q), ("국립중앙도서관", NL_SEARCH + nlq)) + ((("예스24", i["url"]),) if i.get("url") else ()))
+            (("파주시 도서관에서 찾기", PAJU_LIB + q),) + ((("예스24", i["url"]),) if i.get("url") else ())))
         arts = "".join(
             f'<li><b>{esc(rows[n]["outlet"])}</b> {link(rows[n]["url"], rows[n]["title"])}<span class="o">{when(rows[n]["date"])}</span>'
             + (f'<p>{esc(rows[n]["desc"])}</p>' if rows[n].get("desc") else "") + "</li>" for n in e["arts"])
-        isbn_html = (f'<div class="bki">ISBN: <span class="isbn">{esc(isbn)}</span><button type="button" class="cpy" data-copy="{esc(isbn)}" aria-label="ISBN 복사" title="ISBN 복사">'
-                     '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-                     '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="cpd">복사됨</span></button></div>') if isbn else ""
-        big = (f'<img src="{esc(i["cover"])}" alt="『{esc(name)}』 표지" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if i.get("cover") else "")
-        dets.append(f'<div class="bdet" id="bd{k}" hidden><div class="bdh">{f"<div class=bdc>{big}</div>" if big else ""}<div class="bdi">'
+        big = f'<img src="{esc(cover)}" alt="『{esc(name)}』 표지" referrerpolicy="no-referrer" onerror="this.remove()">' if cover else ""
+        dets.append(f'<template id="bd{k}"><div class="bdh">{f"<div class=bdc>{big}</div>" if big else ""}<div class="bdi">'
                     f'<h3>『{esc(name)}』</h3>'
                     + (f'<div class="bkm">{esc(i["author"])}</div>' if i.get("author") else "")
                     + (f'<div class="bkm">{esc(" · ".join(x for x in (i.get("pub"), i.get("date")) if x))}</div>' if i.get("pub") or i.get("date") else "")
-                    + isbn_html + f'<div class="bbtns">{btns}</div></div>'
-                    f'<button type="button" class="bclose" aria-label="닫기">✕</button></div>'
-                    f'<h4>이 책을 다룬 기사 {len(e["arts"])}건</h4><ul class="barts">{arts}</ul></div>')
+                    + isbn_line(i.get("isbn") or "")
+                    + f'<div class="bkm" style="margin-top:4px">소개: {esc(src)}</div><div class="bbtns">{btns}</div></div></div>'
+                    f'<h4>이 책을 다룬 기사 {len(e["arts"])}건</h4><ul class="barts">{arts}</ul></template>')
+    modal = ('<dialog id="bmodal" aria-label="책 정보"><button type="button" class="bclose" aria-label="닫기">✕</button><div id="bmbody"></div></dialog>'
+             + "".join(dets))
     shelf = (f'<div class="shead" style="padding-top:12px"><h2>이번 주의 책</h2><span class="en">{len(bl)}권 · 최근 1주</span></div>'
              f'<div class="ofilter" id="bsort" role="group" aria-label="정렬"><button class="on" data-s="n">많이 소개된 순</button><button data-s="d">최신순</button></div>'
-             f'<div class="shelf2" id="shelf">{"".join(cards)}</div><div id="bdets">{"".join(dets)}</div>'
-             f'<p class="note" style="margin-top:10px">신문 책 코너 기사에서 뽑은 책입니다. 표지·저자·출판사는 예스24, ISBN은 교보문고 검색. 책을 누르면 정보와 그 책을 다룬 기사가 펼쳐집니다.</p>') if bl else ""
+             f'<div class="shelf2" id="shelf">{"".join(cards)}</div>{modal}'
+             f'<p class="note" style="margin-top:10px">신문 책 코너 기사에서 뽑은 책입니다. 표지·저자·출판사는 예스24, ISBN은 교보문고 검색(서점에 없는 책은 기사 사진). 책을 누르면 정보와 그 책을 다룬 기사가 뜹니다.</p>') if bl else ""
 
-    # ③ 책 기사 목록
     cats = [book_cat(x, n in linked) for n, x in enumerate(rows)]
     cnt = Counter(cats)
     shown = sum(v for c, v in cnt.items() if c != "기타")
@@ -1478,7 +1488,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
 .bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}.bklist .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bklist .cpy:hover{color:var(--ink);background:var(--paper-2)}.bklist .cpy:focus-visible{outline:2px solid var(--teal);outline-offset:1px}.bklist .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700;letter-spacing:0}.bklist .cpy.done .cpd{display:inline}
-.shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px;padding:4px;margin:-4px}.bcard:hover .bnm{text-decoration:underline}.bcard:focus-visible{outline:2px solid var(--teal)}.bcard.on{background:var(--paper-2);box-shadow:0 0 0 2px var(--red)}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bcnt{font-size:11px;color:var(--muted)}.bcnt.hot{color:var(--red);font-weight:700}.bdet{grid-column:1/-1;margin:4px 0 8px;padding:16px;border:1px solid var(--rule);background:var(--paper-3);border-radius:6px}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:absolute;top:-6px;right:-4px;font-size:16px;color:var(--muted);padding:4px 8px}.bclose:hover{color:var(--ink)}.bdet h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b{font-size:12px;color:var(--ink-soft);margin-right:6px}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}.bdet .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bdet .cpy:hover{color:var(--ink);background:var(--paper-2)}.bdet .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700}.bdet .cpy.done .cpd{display:inline}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.blist .bth{width:72px!important;height:96px!important}@media(max-width:600px){.blist .bth{width:60px!important;height:80px!important}}
+.shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{display:flex;flex-direction:column;gap:3px;min-width:0}.bopen{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px}.bopen:hover .bnm{text-decoration:underline}.bopen:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bsrc{font-size:11px;color:var(--muted);line-height:1.35}.bsrc.hot{color:var(--red);font-weight:700}.bcard .bki{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}.bcard .cpy,#bmodal .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 3px;border-radius:4px;color:var(--muted)}.bcard .cpy:hover,#bmodal .cpy:hover{color:var(--ink);background:var(--paper-2)}.bcard .cpd,#bmodal .cpd{display:none;font-size:10.5px;color:var(--teal);font-weight:700}.bcard .cpy.done .cpd,#bmodal .cpy.done .cpd{display:inline}#bmodal{border:0;padding:22px 22px 18px;width:min(640px,92vw);max-height:86vh;overflow:auto;border-radius:10px;background:var(--paper-3);color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.35)}#bmodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#bmodal{width:100vw;max-width:100vw;margin:auto 0 0;max-height:88vh;border-radius:14px 14px 0 0;padding:18px 16px 22px;animation:bup .22s ease-out}}@keyframes bup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:sticky;float:right;top:0;margin:-10px -8px 0 8px;font-size:18px;color:var(--muted);padding:6px 10px;z-index:2}.bclose:hover{color:var(--ink)}#bmodal h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b{font-size:12px;color:var(--ink-soft);margin-right:6px}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.blist .bth{width:100px!important;height:140px!important}@media(max-width:600px){.blist .bth{width:80px!important;height:112px!important}}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1619,19 +1629,17 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 document.querySelectorAll('#gf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#gf button').forEach(x=>x.classList.toggle('on',x===b));
 gfilter(o)});
-document.querySelectorAll('.cpy').forEach(b=>b.addEventListener('click',async()=>{const v=b.dataset.copy;
+document.addEventListener('click',async e=>{const b=e.target.closest('.cpy');if(!b)return;e.stopPropagation();const v=b.dataset.copy;
 try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}
-b.classList.add('done');setTimeout(()=>b.classList.remove('done'),1500)}));
-function openBook(k){const d=document.getElementById('bd'+k);if(!d)return;const was=!d.hidden;
-document.querySelectorAll('.bdet').forEach(x=>x.hidden=true);document.querySelectorAll('.bcard').forEach(c=>c.classList.toggle('on',!was&&c.dataset.book===String(k)));
-if(!was){const sh=document.getElementById('shelf'),c=sh&&sh.querySelector('.bcard[data-book="'+k+'"]');
-if(c){const cs=[...sh.querySelectorAll('.bcard')],row=cs.filter(x=>x.offsetTop===c.offsetTop),last=row[row.length-1];last.after(d)}
-d.hidden=false;d.querySelectorAll('img').forEach(i=>i.loading='eager');d.scrollIntoView({behavior:'smooth',block:'nearest'})}}
-document.querySelectorAll('[data-book]').forEach(b=>b.addEventListener('click',()=>{if(!b.classList.contains('bcard')){show('책책책')}openBook(b.dataset.book)}));
-document.querySelectorAll('.bclose').forEach(b=>b.addEventListener('click',()=>{b.closest('.bdet').hidden=true;document.querySelectorAll('.bcard.on').forEach(c=>c.classList.remove('on'))}));
+b.classList.add('done');setTimeout(()=>b.classList.remove('done'),1500)});
+const bm=document.getElementById('bmodal');
+function openBook(k){const t=document.getElementById('bd'+k);if(!bm||!t)return;const body=document.getElementById('bmbody');
+body.innerHTML='';body.appendChild(t.content.cloneNode(true));bm.scrollTop=0;
+if(typeof bm.showModal==='function'){if(!bm.open)bm.showModal()}else{bm.setAttribute('open','')}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-book]');if(b){e.preventDefault();openBook(b.dataset.book)}});
+if(bm){bm.querySelector('.bclose').addEventListener('click',()=>bm.close());bm.addEventListener('click',e=>{if(e.target===bm)bm.close()})}
 document.querySelectorAll('#bsort button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#bsort button').forEach(x=>x.classList.toggle('on',x===b));
-const sh=document.getElementById('shelf');document.querySelectorAll('.bdet').forEach(x=>{x.hidden=true;document.getElementById('bdets').appendChild(x)});
-document.querySelectorAll('.bcard.on').forEach(c=>c.classList.remove('on'));const cs=[...sh.querySelectorAll('.bcard')];const by=b.dataset.s;
+const sh=document.getElementById('shelf');const cs=[...sh.querySelectorAll('.bcard')];const by=b.dataset.s;
 cs.sort((p,q)=>by==='d'?q.dataset.d.localeCompare(p.dataset.d):(q.dataset.n-p.dataset.n)||q.dataset.d.localeCompare(p.dataset.d));cs.forEach(c=>sh.appendChild(c))});
 document.querySelectorAll('#bcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#bcat button').forEach(x=>x.classList.toggle('on',x===b));
