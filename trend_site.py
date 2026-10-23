@@ -21,11 +21,10 @@ from email.utils import parsedate_to_datetime
 KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 TIMEOUT = 15
-CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예", "도서관", "파주"]
+CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예", "파주"]
 # 관심 분야 탭: 구글뉴스 검색으로 모은 기사 + 수집한 모든 기사 중 제목에 해당 낱말이 있는 것.
 # 다룬 곳이 적어서 한 언론사만 쓴 기사도 보여 준다. 이 탭에서만 쓰는 기사는 전체·주식 탭에 넣지 않는다.
 NICHE = {
-    "도서관": re.compile(r"도서관|독서|북스타트|그림책|도서전|책 ?읽|사서(?:들|가|는|의|를|와|로|교사)"),
     "파주": re.compile(r"파주|운정|교하|금촌|헤이리|임진각|출판도시|파평|문산읍"),
 }
 # 주식 탭: 증권 RSS + 제목에 증시 낱말이 있는 기사
@@ -526,6 +525,91 @@ def fetch_chosun_interactive(limit=12):
 INTER_HOME = {"경향신문": KHAN_INTERACTIVE, "한국일보": HANKOOK_INTERACTIVE, "조선일보": CHOSUN_INTERACTIVE}
 
 
+# ---------------- 책책책: 신문사 책 코너 (2026-10-24) ----------------
+# 책 전용 RSS가 있는 곳은 그대로, 문화 RSS에 섞인 곳은 책 섹션 주소나 '[신간]' 같은 제목으로 골라낸다.
+# RSS가 없는 곳(중앙·한국·문화·서울·국민·뉴시스·뉴스1 등)은 구글뉴스에서 제목에 '신간·새책'이 든 주요 언론사 기사만.
+BOOK_TAB = "책책책"
+BOOK_TITLE_RX = re.compile(r"\[(?:책과 ?삶|신간|새책|책|책꽂이|책의 향기|북리뷰|이 책|서평|금주의 신간|북스|책마을|.txt)[^\]]*\]|신간|새책|출간|펴냄|북토크|그림책|시집|소설집|에세이|문학상|부커상|노벨문학상")
+BOOK_FEEDS = [  # (언론사, RSS, 거르는 방법: None=전부 / "title"=제목 / 그 밖=주소에 이 문자열)
+    ("동아일보", "https://rss.donga.com/book.xml", None),
+    ("조선일보", "https://www.chosun.com/arc/outboundfeeds/rss/category/culture-life/?outputType=xml", "/culture-life/book/"),
+    ("한겨레", "https://www.hani.co.kr/rss/culture/", "/arti/culture/book/"),
+    ("경향신문", "https://www.khan.co.kr/rss/rssdata/culture_news.xml", "title"),
+    ("연합뉴스", "https://www.yna.co.kr/rss/culture.xml", "title"),
+    ("독서신문", "https://www.readersnews.com/rss/allArticle.xml", None),
+]
+BOOK_SEARCH = ["intitle:신간 when:3d", "intitle:새책 when:7d", "intitle:책꽂이 when:7d"]
+BOOK_SEARCH_OUTLETS = {"중앙일보", "한국일보", "문화일보", "서울신문", "국민일보", "세계일보", "매일경제", "한국경제", "서울경제",
+                       "뉴시스", "뉴스1", "파이낸셜뉴스", "이데일리", "머니투데이", "헤럴드경제", "아시아경제", "연합뉴스", "경향신문",
+                       "조선일보", "동아일보", "한겨레", "독서신문", "KBS", "MBC", "SBS", "JTBC", "YTN", "노컷뉴스", "오마이뉴스"}
+BOOK_HOME = {"동아일보": "https://www.donga.com/news/Section/Books", "조선일보": "https://www.chosun.com/culture-life/book/",
+             "한겨레": "https://www.hani.co.kr/arti/culture/book", "경향신문": "https://www.khan.co.kr/culture/book/articles",
+             "연합뉴스": "https://www.yna.co.kr/culture/books", "독서신문": "https://www.readersnews.com/",
+             "중앙일보": "https://www.joongang.co.kr/culture/book", "한국일보": "https://www.hankookilbo.com/news/culture/book",
+             "문화일보": "https://www.munhwa.com/culture/book", "서울신문": "https://www.seoul.co.kr/newsList/life/publication-literature/",
+             "국민일보": "https://www.kmib.co.kr/list/737", "매일경제": "https://www.mk.co.kr/news/culture/book",
+             "서울경제": "https://www.sedaily.com/culture/publishing", "뉴시스": "https://www.newsis.com/culture/list?cid=10700&scid=10704",
+             "뉴스1": "https://www.news1.kr/life-culture/book"}
+
+
+def fetch_books(now, days=7, limit=150):
+    """신문사 책 코너 → (rows, status)"""
+    feeds = [{"outlet": o, "category": BOOK_TAB, "url": u, "_how": how} for o, u, how in BOOK_FEEDS]
+    feeds += [{"outlet": "구글뉴스", "category": BOOK_TAB, "url": gnews_search(q), "by_source": True, "_how": "search"} for q in BOOK_SEARCH]
+    with ThreadPoolExecutor(6) as ex:
+        results = list(ex.map(fetch_feed, feeds))
+    rows, status, seen = [], [], set()
+    lo, hi = now - timedelta(days=days), now + timedelta(minutes=10)
+    for feed, its, err in results:
+        how, n = feed["_how"], 0
+        for a in its:
+            t = re.sub(r"\s+", " ", html.unescape(a.get("title") or "")).strip()
+            if a.get("outlet") and t.endswith(" - " + a["outlet"]):
+                t = t[: -len(a["outlet"]) - 3].rstrip()
+            if not t or not a.get("date") or not (lo <= a["date"] <= hi) or not re.match(r"https?://", a.get("url") or ""):
+                continue
+            if how == "title" and not BOOK_TITLE_RX.search(t):
+                continue
+            if how == "search" and a["outlet"] not in BOOK_SEARCH_OUTLETS:
+                continue
+            if how not in (None, "title", "search") and how not in a["url"]:
+                continue
+            key = (a["outlet"], re.sub(r"\W", "", t)[:40])
+            if key in seen:
+                continue
+            seen.add(key)
+            n += 1
+            rows.append({"title": t, "url": a["url"], "outlet": a["outlet"], "img": a.get("img"), "date": a["date"].isoformat()})
+        name = f'{feed["outlet"]}·책' if how != "search" else f"구글뉴스 신간 검색({urllib.parse.unquote_plus(feed['url'].split('q=')[1].split('&')[0])})"
+        status.append({"name": name, "ok": err is None and n > 0, "count": n, "error": err or ("0건" if not n else "")})
+    rows.sort(key=lambda x: x["date"], reverse=True)
+    return rows[:limit], status
+
+
+def render_books(rows, now):
+    """책책책 탭: 위에 언론사 버튼, 아래에 최신순 목록(사진 있으면 왼쪽 썸네일)"""
+    if not rows:
+        return ""
+    cnt = Counter(x["outlet"] for x in rows)
+    outlets = sorted(cnt, key=lambda o: (-cnt[o], o))
+    chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
+             + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
+
+    def row(x):
+        d = datetime.fromisoformat(x["date"])
+        th = (f'<a class="bth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
+              f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
+        return (f'<li data-o="{esc(x["outlet"])}">{th}<div><div class="bt">{link(x["url"], x["title"])}</div>'
+                f'<div class="pm"><b>{esc(x["outlet"])}</b> · {d.month}.{d.day} ({WEEK[d.weekday()]}) {d.strftime("%H:%M")} · {ago(d, now)}</div></div></li>')
+    homes = " · ".join(link(u, o) for o, u in BOOK_HOME.items())
+    return (f'<div class="pg" data-c="{BOOK_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
+            f'<div class="shead" style="padding-top:12px"><h2>책책책</h2><span class="en">BOOKS · 최근 1주 · {len(rows)}건</span></div>'
+            f'<div class="ofilter" id="bf" role="group" aria-label="언론사">{chips}</div>'
+            f'<p class="note" style="margin:4px 0 8px">신문사 책 코너의 신간 소개·서평·출판 소식입니다. 누르면 원문 기사로 갑니다.</p>'
+            f'<ul class="blist" id="bl">{"".join(row(x) for x in rows)}</ul>'
+            f'<p class="note">신문사 책 코너 바로 가기: {homes}</p></section></div>')
+
+
 def render_interactive(rows):
     """인터랙티브 탭: 위에 언론사 버튼, 아래에 바둑판(최신순)"""
     if not rows:
@@ -1008,7 +1092,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .dl-r{display:flex;gap:8px;align-items:center;flex:none}.rf.busy{opacity:.5;pointer-events:none}.rf.new{border-color:var(--red);color:var(--red)}
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
-.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
+.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist .bth{flex:none;width:88px;height:66px;background:var(--paper-2);display:block}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:15.5px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .pm{margin-top:4px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
+.brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
 .nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
@@ -1148,6 +1233,9 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 document.querySelectorAll('#gf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#gf button').forEach(x=>x.classList.toggle('on',x===b));
 gfilter(o)});
+document.querySelectorAll('#bf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
+document.querySelectorAll('#bf button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#bl>li').forEach(li=>li.style.display=(!o||li.dataset.o===o)?'':'none')});
 document.querySelectorAll('#if button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#if button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#ig>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
@@ -1368,18 +1456,19 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
-        graphic, portals, interactive = None, {}, None
+        graphic, portals, interactive, books = None, {}, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    gpanel = render_graphic(graphic) + render_interactive(interactive or [])
+    gpanel = render_books(books or [], now) + render_graphic(graphic) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
                    for c in CATEGORIES if c in pages)
     if gpanel:
-        tabs += '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>' if graphic else ""
+        tabs += f'<button role="tab" data-c="{BOOK_TAB}" class="gtab">{BOOK_TAB}</button>' if books else ""
+        tabs += ('<button role="tab" data-c="그래픽">그래픽</button>' if books else '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>') if graphic else ""
         tabs += '<button role="tab" data-c="인터랙티브">인터랙티브</button>' if interactive else ""
     if only:
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
@@ -1387,7 +1476,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         tabs += '<a class="srclink" href="sources.html">출처</a>'
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
-    tick_keys = list(pages) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
+    tick_keys = list(pages) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
     def tk(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         return (f'<span class="items pg" data-c="{esc(c)}">' + '<span class="sep">/</span>'.join(esc(t["keyword"]) for t in src[:6]) + "</span>")
@@ -1500,9 +1589,16 @@ def render_sources(feeds, status, now):
         ("경향신문", "인터랙티브 목록(1~2쪽)", "목록 페이지", "khan.co.kr/interactive", "경향신문 인터랙티브"),
         ("한국일보", "인터랙티브 목록(최근 24건)", "목록 페이지 속 데이터", "hankookilbo.com/interactive", "한국일보 인터랙티브"),
         ("조선일보", "인터랙티브 목록(최근 12건, 날짜는 주소의 연·월)", "목록 페이지", "chosun.com/interactive", "조선일보 인터랙티브"),
+        ("동아일보", "책책책: 책의 향기 (책 전용 RSS)", "RSS", "rss.donga.com/book.xml", "동아일보·책"),
+        ("조선일보", "책책책: 문화·라이프 RSS 중 책 섹션 기사", "RSS", "chosun.com …/culture-life/", "조선일보·책"),
+        ("한겨레", "책책책: 문화 RSS 중 '책과 생각' 기사", "RSS", "hani.co.kr/rss/culture/", "한겨레·책"),
+        ("경향신문", "책책책: 문화 RSS 중 [책과 삶]·[신간] 등", "RSS", "khan.co.kr …/culture_news.xml", "경향신문·책"),
+        ("연합뉴스", "책책책: 문화 RSS 중 [신간]·출간 등", "RSS", "yna.co.kr/rss/culture.xml", "연합뉴스·책"),
+        ("독서신문", "책책책: 전체 기사 (책 전문지)", "RSS", "readersnews.com/rss/allArticle.xml", "독서신문·책"),
+        ("구글뉴스", "책책책: 제목에 신간·새책·책꽂이가 든 주요 언론사 기사", "검색 RSS", "news.google.com/rss/search", "구글뉴스 신간 검색(intitle:신간 when:3d)"),
         ("구글뉴스", "제목에 [그래픽]이 들어간 최근 2일 기사", "검색 RSS", "news.google.com/rss/search", "그래픽 검색(구글뉴스)"),
         ("각 언론사", "사진 없는 그래픽 기사의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "그래픽 원문 사진"),
-        ("각 언론사", "도서관·파주 탭 상위 15건의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "관심 탭 원문 사진"),
+        ("각 언론사", "파주 탭 상위 15건의 원문 대표 사진(og:image)", "구글 링크를 원문 주소로 푼 뒤 원문 페이지", "언론사별 기사 주소", "관심 탭 원문 사진"),
     ]
     erows = "".join(f'<tr><th>{esc(a)}</th><td>{esc(b)}</td><td>{esc(c)}</td><td class="mono">{esc(d)}</td><td>{stline(e)}</td></tr>'
                     for a, b, c, d, e in extra)
@@ -1608,7 +1704,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"))
+                           interactive=d.get("interactive"), books=d.get("books"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -1631,6 +1727,8 @@ def main():
         inter = [dict(g, outlet=("경향신문", "한국일보", "조선일보")[i % 3], title=g["title"] + " (인터랙티브 샘플)")
                  for i, g in enumerate(yna_g[:6])]
         nis_g = []
+        books = [{"title": f"[신간] 샘플 책 {i}", "url": f"https://example.com/b{i}", "outlet": ("동아일보", "한겨레", "독서신문")[i % 3],
+                  "img": yna_g[i % 6]["img"] if i % 2 else None, "date": (now - timedelta(hours=5 * i)).isoformat()} for i in range(7)]
     else:
         fp = os.path.join(HERE, "feeds.json")
         feeds = json.load(open(fp, encoding="utf-8")) if os.path.exists(fp) else []
@@ -1675,6 +1773,8 @@ def main():
             rows, ierr = fn()
             pstatus.append({"name": f"{nm} 인터랙티브", "ok": ierr is None, "count": len(rows), "error": ierr or ""})
             inter += rows
+        books, bstatus = fetch_books(now)
+        pstatus += bstatus
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
         ok_feeds = sum(1 for s in status if s["ok"])
@@ -1730,7 +1830,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter)
+                       interactive=inter, books=books)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -1745,7 +1845,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     if not args.demo:

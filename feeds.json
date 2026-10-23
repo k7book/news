@@ -409,20 +409,6 @@
  },
  {
   "outlet": "구글뉴스",
-  "category": "도서관",
-  "url": "https://news.google.com/rss/search?q=%EB%8F%84%EC%84%9C%EA%B4%80+when%3A1d&hl=ko&gl=KR&ceid=KR:ko",
-  "via": "구글뉴스 검색",
-  "by_source": true
- },
- {
-  "outlet": "구글뉴스(넓게)",
-  "category": "도서관",
-  "url": "https://news.google.com/rss/search?q=%EC%9E%91%EC%9D%80%EB%8F%84%EC%84%9C%EA%B4%80+OR+%EA%B3%B5%EA%B3%B5%EB%8F%84%EC%84%9C%EA%B4%80+OR+%EB%8F%85%EC%84%9C+OR+%EA%B7%B8%EB%A6%BC%EC%B1%85+when%3A2d&hl=ko&gl=KR&ceid=KR:ko",
-  "via": "구글뉴스 검색",
-  "by_source": true
- },
- {
-  "outlet": "구글뉴스",
   "category": "파주",
   "url": "https://news.google.com/rss/search?q=%ED%8C%8C%EC%A3%BC+when%3A1d&hl=ko&gl=KR&ceid=KR:ko",
   "via": "구글뉴스 검색",
