@@ -1155,7 +1155,7 @@ def cluster(items, top=30, min_outlets=2):
     return out[:top]
 
 
-def merge_groups(groups, jac_min=0.3, inter_min=3):
+def merge_groups(groups, jac_min=0.24, inter_min=3):
     """같은 사건이 두 묶음으로 갈라진 것 합치기 (예: '이 대통령, 최길수 … 임명안 재가' / '李, 최길수 … 임명').
     묶음마다 기사 제목 낱말을 모두 모아 비교한다. 큰 묶음부터, 원래 낱말끼리만 비교해 한 묶음이 계속 불어나지 않게 한다."""
     groups = sorted(groups, key=len, reverse=True)
