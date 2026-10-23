@@ -789,7 +789,11 @@ def render_book_titles(rows, info=None):
         cover = (f'<a class="bkc" href="{esc(i["url"])}" target="_blank" rel="noopener noreferrer" title="예스24 책 정보">'
                  f'<img src="{esc(re.sub(r"/L$", "/M", i["cover"]))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
         meta = " · ".join(x for x in (i.get("author"), i.get("pub"), i.get("date")) if x)
-        isbn = f'<div class="bki">ISBN {esc(i["isbn"])}</div>' if i.get("isbn") else ""
+        isbn = (f'<div class="bki">ISBN: <span class="isbn">{esc(i["isbn"])}</span>'
+                f'<button type="button" class="cpy" data-copy="{esc(i["isbn"])}" aria-label="ISBN 복사" title="ISBN 복사">'
+                '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" '
+                'stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/>'
+                '<path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="cpd">복사됨</span></button></div>') if i.get("isbn") else ""
         src = "·".join(e["outlets"][:3]) + (" 외" if len(e["outlets"]) > 3 else "")
         return (f'<li class="bk{" has-c" if cover else ""}">{cover}<div><div class="bkt">{link(e["url"], "『" + name + "』")}</div>'
                 + (f'<div class="bkm">{esc(meta)}</div>' if meta else "") + isbn
@@ -1380,7 +1384,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
-.bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}.bklist .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bklist .cpy:hover{color:var(--ink);background:var(--paper-2)}.bklist .cpy:focus-visible{outline:2px solid var(--teal);outline-offset:1px}.bklist .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700;letter-spacing:0}.bklist .cpy.done .cpd{display:inline}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1521,6 +1525,9 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 document.querySelectorAll('#gf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#gf button').forEach(x=>x.classList.toggle('on',x===b));
 gfilter(o)});
+document.querySelectorAll('.cpy').forEach(b=>b.addEventListener('click',async()=>{const v=b.dataset.copy;
+try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}
+b.classList.add('done');setTimeout(()=>b.classList.remove('done'),1500)}));
 document.querySelectorAll('#bf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#bf button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#bl>li').forEach(li=>li.style.display=(!o||li.dataset.o===o)?'':'none')});
