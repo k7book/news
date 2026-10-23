@@ -676,6 +676,19 @@ def _bk_key(t):
     return re.sub(r"\W", "", t).lower()
 
 
+def _bk_match(title, name):
+    """기사 속 책 이름과 서점 책 이름이 같은 책인가: 같거나, 뒤에 권 번호·세트·영문 부제만 붙은 경우(짧은 이름은 엄격히)"""
+    want, got = _bk_key(re.sub(r"\(.*?\)", "", title)), _bk_key(re.sub(r"\(.*?\)", "", name))
+    if not want or not got:
+        return False
+    if got == want or _bk_key(title) == _bk_key(name):  # 정희(正熙) = 정희正熙
+        return True
+    if got.startswith(want):
+        rest = got[len(want):]
+        return len(want) >= 8 or bool(re.fullmatch(r"\d+권?|세트|개정판|[a-z0-9]+", rest))
+    return False
+
+
 def yes24_lookup(title):
     """예스24 도서 검색 → {name, author, pub, date, cover, url} 또는 {}"""
     url = YES24_SEARCH + urllib.parse.urlencode({"domain": "BOOK", "query": title})
@@ -685,15 +698,14 @@ def yes24_lookup(title):
     i = body.find('id="yesSchList"')
     if i < 0:
         return {}
-    want, best = _bk_key(re.sub(r"\(.*?\)", "", title)), None
+    best = None
     for li in re.findall(r'<li\b[^>]*data-goods-no="(\d+)"[^>]*>(.*?)(?=<li\b[^>]*data-goods-no=|</ul>)', body[i:i + 250000], re.S)[:6]:
         no, blk = li
         m = re.search(r'class="gd_name"[^>]*>(.*?)</a>', blk, re.S)
         if not m:
             continue
         name = _strip_tags(m.group(1))
-        got = _bk_key(name)
-        if not want or not (got.startswith(want) or want.startswith(got) and len(got) >= 2):
+        if not _bk_match(title, name):
             continue
         au = re.search(r'class="authPub info_auth"[^>]*>(.*?)</span>', blk, re.S)
         pb = re.search(r'class="authPub info_pub"[^>]*>(.*?)</span>', blk, re.S)
@@ -728,7 +740,7 @@ def enrich_book_titles(rows, max_new=40, workers=4):
         for t, info, err in ex.map(work, new):
             if err is None:
                 cache[_bk_key(t)] = info  # 못 찾은 것도 {}로 기억해 다시 찾지 않는다
-    out = {_bk_key(t): cache[_bk_key(t)] for t in titles if cache.get(_bk_key(t))}
+    out = {_bk_key(t): cache[_bk_key(t)] for t in titles if cache.get(_bk_key(t)) and _bk_match(t, cache[_bk_key(t)].get("name", ""))}
     try:
         os.makedirs(os.path.dirname(BOOK_INFO), exist_ok=True)
         keep = dict(list(cache.items())[-800:])
