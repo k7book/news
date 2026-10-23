@@ -652,14 +652,16 @@ def book_titles_of(x):
 
 
 def book_titles(rows, top=60):
-    """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로"""
+    """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로. arts = 그 책을 다룬 기사 번호(rows 안)"""
     agg = {}
-    for x in rows:
+    for n, x in enumerate(rows):
         for b in book_titles_of(x):
             k = re.sub(r"\W", "", b).lower()
-            e = agg.setdefault(k, {"title": b, "outlets": [], "url": x["url"], "date": x["date"]})
+            e = agg.setdefault(k, {"title": b, "outlets": [], "url": x["url"], "date": x["date"], "arts": []})
             if x["outlet"] not in e["outlets"]:
                 e["outlets"].append(x["outlet"])
+            if n not in e["arts"]:
+                e["arts"].append(n)
             if x["date"] > e["date"]:
                 e["date"] = x["date"]
     out = sorted(agg.values(), key=lambda e: (len(e["outlets"]), e["date"]), reverse=True)
@@ -777,56 +779,114 @@ def enrich_book_titles(rows, max_new=40, workers=4):
     return out
 
 
-def render_book_titles(rows, info=None):
-    bl = book_titles(rows or [])
+def render_book_side(rows, info=None):
+    """책책책 탭 오른쪽: 많이 소개된 책 TOP 10 (누르면 왼쪽 진열대의 상세가 열린다)"""
+    bl = book_titles(rows or [])[:10]
     if not bl:
         return ""
     info = info or {}
-
-    def item(e):
-        i = info.get(_bk_key(e["title"])) or {}
-        name = i.get("name") or e["title"]
-        cover = (f'<a class="bkc" href="{esc(i["url"])}" target="_blank" rel="noopener noreferrer" title="예스24 책 정보">'
-                 f'<img src="{esc(re.sub(r"/L$", "/M", i["cover"]))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
-        meta = " · ".join(x for x in (i.get("author"), i.get("pub"), i.get("date")) if x)
-        isbn = (f'<div class="bki">ISBN: <span class="isbn">{esc(i["isbn"])}</span>'
-                f'<button type="button" class="cpy" data-copy="{esc(i["isbn"])}" aria-label="ISBN 복사" title="ISBN 복사">'
-                '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" '
-                'stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/>'
-                '<path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="cpd">복사됨</span></button></div>') if i.get("isbn") else ""
-        src = "·".join(e["outlets"][:3]) + (" 외" if len(e["outlets"]) > 3 else "")
-        return (f'<li class="bk{" has-c" if cover else ""}">{cover}<div><div class="bkt">{link(e["url"], "『" + name + "』")}</div>'
-                + (f'<div class="bkm">{esc(meta)}</div>' if meta else "") + isbn
-                + f'<div class="bko">소개: {esc(src)}</div></div></li>')
-    n_info = sum(1 for e in bl if info.get(_bk_key(e["title"])))
-    return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>이번 주 소개된 책</h2><span class="en">{len(bl)}권</span></div>'
-            f'<ol class="bklist">{"".join(item(e) for e in bl)}</ol>'
-            f'<p class="note">책 기사 제목·요약에서 뽑은 책입니다. 여러 신문이 함께 소개한 책이 위에 옵니다. 제목을 누르면 기사로, 표지를 누르면 예스24 책 정보로 갑니다. 표지·저자·출판사는 예스24, ISBN은 교보문고 검색({n_info}권 확인).</p></section>')
+    items = "".join(
+        f'<li><span><button type="button" class="blink" data-book="{k}">『{esc((info.get(_bk_key(e["title"])) or {}).get("name") or e["title"])}』</button>'
+        f'<span class="o">{len(e["outlets"])}곳</span></span></li>' for k, e in enumerate(bl))
+    return (f'<section class="pg" data-c="{BOOK_TAB}"><div class="shead"><h2>많이 소개된 책</h2><span class="en">TOP {len(bl)}</span></div>'
+            f'<div class="pop"><ol>{items}</ol><p class="note">이번 주 여러 신문이 함께 소개한 책입니다. 누르면 책 정보와 기사를 펼칩니다.</p></div></section>')
 
 
-def render_books(rows, now):
-    """책책책 탭: 위에 언론사 버튼, 아래에 최신순 목록(사진 있으면 왼쪽 썸네일)"""
+BOOK_CATS = ["신간 소개", "서평·책 이야기", "출판계 소식", "어린이·그림책", "기타"]
+
+
+def book_cat(x, has_book):
+    """책 기사 분류(제목 표시와 낱말로). 책 코너 기사라서 특별한 표시가 없으면 '서평·책 이야기'."""
+    t = x["title"]
+    if re.search(r"\[\d+화\]|\[편집자 레터\]", t):  # 연재소설, 편집자 칼럼
+        return "기타"
+    if re.search(r"그림책|어린이|동화|청소년|\[그림이 있는", t):
+        return "어린이·그림책"
+    if re.search(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|새로 나왔어요|북카페|한줄읽기)|금주의 신간|새 책|신간|새책", t):
+        return "신간 소개"
+    if not has_book and re.search(r"인수|별세|문학상|노벨|부커|북페스티벌|도서전|서점|베스트셀러|출판사|출판계|협회|오픈|개최|선정|시상|수상", t):
+        return "출판계 소식"
+    return "서평·책 이야기"
+
+
+PAJU_LIB = "https://lib.paju.go.kr/jalib/plusSearchResultList.do?"
+NL_SEARCH = "https://www.nl.go.kr/NL/contents/search.do?"
+
+
+def render_books(rows, now, info=None):
+    """책책책 탭: ① 이번 주의 책 진열대(표지 바둑판) ② 누르면 펼쳐지는 책 상세(정보·도서관·그 책을 다룬 기사) ③ 분류 버튼이 있는 책 기사 목록"""
     if not rows:
         return ""
-    cnt = Counter(x["outlet"] for x in rows)
-    outlets = sorted(cnt, key=lambda o: (-cnt[o], o))
-    chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
-             + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
+    info = info or {}
+    bl = book_titles(rows)
+    linked = {}  # 기사 번호 → 책 번호
+    for k, e in enumerate(bl):
+        for n in e["arts"]:
+            linked.setdefault(n, k)
 
-    def row(x):
-        d = datetime.fromisoformat(x["date"])
+    def when(iso):
+        d = datetime.fromisoformat(iso)
+        return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
+
+    # ① 진열대
+    cards, dets = [], []
+    for k, e in enumerate(bl):
+        i = info.get(_bk_key(e["title"])) or {}
+        name = i.get("name") or e["title"]
+        auth = re.split(r" · ", i.get("author") or "")[0]
+        cov = (f'<img src="{esc(i["cover"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{{className:\'bph\',textContent:this.dataset.t}}))" data-t="{esc(name)}">'
+               if i.get("cover") else f'<span class="bph">{esc(name)}</span>')
+        cards.append(f'<button type="button" class="bcard" data-book="{k}" data-n="{len(e["outlets"])}" data-d="{esc(e["date"])}">'
+                     f'<span class="bcov">{cov}</span><span class="bnm">{esc(name)}</span>'
+                     + (f'<span class="bau">{esc(auth)}{" · " + esc(i["pub"]) if i.get("pub") else ""}</span>' if auth or i.get("pub") else "")
+                     + f'<span class="bcnt{" hot" if len(e["outlets"]) > 1 else ""}">{len(e["outlets"])}곳 소개</span></button>')
+        isbn = i.get("isbn") or ""
+        q = urllib.parse.urlencode({"searchType": "SIMPLE", "searchCategory": "ALL", "searchLibrary": "ALL", "searchKey": "TITLE",
+                                    "searchKeyword": re.sub(r"\(.*?\)", "", name).strip()})
+        nlq = urllib.parse.urlencode({"kwd": isbn or name})
+        btns = "".join(f'<a class="bbtn" href="{esc(u)}" target="_blank" rel="noopener noreferrer">{esc(t)}</a>' for t, u in (
+            ("파주시 도서관에서 찾기", PAJU_LIB + q), ("국립중앙도서관", NL_SEARCH + nlq)) + ((("예스24", i["url"]),) if i.get("url") else ()))
+        arts = "".join(
+            f'<li><b>{esc(rows[n]["outlet"])}</b> {link(rows[n]["url"], rows[n]["title"])}<span class="o">{when(rows[n]["date"])}</span>'
+            + (f'<p>{esc(rows[n]["desc"])}</p>' if rows[n].get("desc") else "") + "</li>" for n in e["arts"])
+        isbn_html = (f'<div class="bki">ISBN: <span class="isbn">{esc(isbn)}</span><button type="button" class="cpy" data-copy="{esc(isbn)}" aria-label="ISBN 복사" title="ISBN 복사">'
+                     '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                     '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span class="cpd">복사됨</span></button></div>') if isbn else ""
+        big = (f'<img src="{esc(i["cover"])}" alt="『{esc(name)}』 표지" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if i.get("cover") else "")
+        dets.append(f'<div class="bdet" id="bd{k}" hidden><div class="bdh">{f"<div class=bdc>{big}</div>" if big else ""}<div class="bdi">'
+                    f'<h3>『{esc(name)}』</h3>'
+                    + (f'<div class="bkm">{esc(i["author"])}</div>' if i.get("author") else "")
+                    + (f'<div class="bkm">{esc(" · ".join(x for x in (i.get("pub"), i.get("date")) if x))}</div>' if i.get("pub") or i.get("date") else "")
+                    + isbn_html + f'<div class="bbtns">{btns}</div></div>'
+                    f'<button type="button" class="bclose" aria-label="닫기">✕</button></div>'
+                    f'<h4>이 책을 다룬 기사 {len(e["arts"])}건</h4><ul class="barts">{arts}</ul></div>')
+    shelf = (f'<div class="shead" style="padding-top:12px"><h2>이번 주의 책</h2><span class="en">{len(bl)}권 · 최근 1주</span></div>'
+             f'<div class="ofilter" id="bsort" role="group" aria-label="정렬"><button class="on" data-s="n">많이 소개된 순</button><button data-s="d">최신순</button></div>'
+             f'<div class="shelf2" id="shelf">{"".join(cards)}</div><div id="bdets">{"".join(dets)}</div>'
+             f'<p class="note" style="margin-top:10px">신문 책 코너 기사에서 뽑은 책입니다. 표지·저자·출판사는 예스24, ISBN은 교보문고 검색. 책을 누르면 정보와 그 책을 다룬 기사가 펼쳐집니다.</p>') if bl else ""
+
+    # ③ 책 기사 목록
+    cats = [book_cat(x, n in linked) for n, x in enumerate(rows)]
+    cnt = Counter(cats)
+    shown = sum(v for c, v in cnt.items() if c != "기타")
+    chips = (f'<button class="on" data-k="">전체<i>{shown}</i></button>'
+             + "".join(f'<button data-k="{esc(c)}">{esc(c)}<i>{cnt[c]}</i></button>' for c in BOOK_CATS if cnt.get(c)))
+
+    def row(n, x):
         th = (f'<a class="bth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
               f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
-        bd = f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else ""
-        return (f'<li data-o="{esc(x["outlet"])}">{th}<div><div class="bt">{link(x["url"], x["title"])}</div>{bd}'
-                f'<div class="pm"><b>{esc(x["outlet"])}</b> · {d.month}.{d.day} ({WEEK[d.weekday()]}) {d.strftime("%H:%M")} · {ago(d, now)}</div></div></li>')
+        bk = (f'<button type="button" class="blink sm" data-book="{linked[n]}">『{esc((info.get(_bk_key(bl[linked[n]]["title"])) or {}).get("name") or bl[linked[n]]["title"])}』 책 정보</button>'
+              if n in linked else "")
+        d = datetime.fromisoformat(x["date"])
+        return (f'<li data-k="{esc(cats[n])}"{" hidden" if cats[n] == "기타" else ""}>{th}<div><div class="bt">{link(x["url"], x["title"])}</div>'
+                + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "")
+                + f'<div class="pm"><b>{esc(x["outlet"])}</b> · {d.month}.{d.day} ({WEEK[d.weekday()]}) · {esc(cats[n])}{" · " + bk if bk else ""}</div></div></li>')
     homes = " · ".join(link(u, o) for o, u in BOOK_HOME.items())
-    return (f'<div class="pg" data-c="{BOOK_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
-            f'<div class="shead" style="padding-top:12px"><h2>책책책</h2><span class="en">BOOKS · 최근 1주 · {len(rows)}건</span></div>'
-            f'<div class="ofilter" id="bf" role="group" aria-label="언론사">{chips}</div>'
-            f'<p class="note" style="margin:4px 0 8px">신문사 책 코너의 신간 소개·서평·출판 소식입니다. 누르면 원문 기사로 갑니다.</p>'
-            f'<ul class="blist" id="bl">{"".join(row(x) for x in rows)}</ul>'
-            f'<p class="note">신문사 책 코너 바로 가기: {homes}</p></section></div>')
+    return (f'<div class="pg" data-c="{BOOK_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">{shelf}</section>'
+            f'<section class="photos books"><div class="shead"><h2>책 기사</h2><span class="en">BOOK NEWS · {len(rows)}건</span></div>'
+            f'<div class="ofilter" id="bcat" role="group" aria-label="분류">{chips}</div>'
+            f'<ul class="blist" id="bl">{"".join(row(n, x) for n, x in enumerate(rows))}</ul>'
+            f'<p class="note">연재소설·편집자 칼럼은 \'기타\'에 접어 두었습니다. 신문사 책 코너 바로 가기: {homes}</p></section></div>')
 
 
 def render_interactive(rows):
@@ -1418,6 +1478,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
 .bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}.bklist .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bklist .cpy:hover{color:var(--ink);background:var(--paper-2)}.bklist .cpy:focus-visible{outline:2px solid var(--teal);outline-offset:1px}.bklist .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700;letter-spacing:0}.bklist .cpy.done .cpd{display:inline}
+.shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px;padding:4px;margin:-4px}.bcard:hover .bnm{text-decoration:underline}.bcard:focus-visible{outline:2px solid var(--teal)}.bcard.on{background:var(--paper-2);box-shadow:0 0 0 2px var(--red)}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bcnt{font-size:11px;color:var(--muted)}.bcnt.hot{color:var(--red);font-weight:700}.bdet{margin:16px 0 4px;padding:16px;border:1px solid var(--rule);background:var(--paper-3);border-radius:6px}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:absolute;top:-6px;right:-4px;font-size:16px;color:var(--muted);padding:4px 8px}.bclose:hover{color:var(--ink)}.bdet h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b{font-size:12px;color:var(--ink-soft);margin-right:6px}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}.bdet .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bdet .cpy:hover{color:var(--ink);background:var(--paper-2)}.bdet .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700}.bdet .cpy.done .cpd{display:inline}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.blist .bth{width:72px!important;height:96px!important}@media(max-width:600px){.blist .bth{width:60px!important;height:80px!important}}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1561,9 +1622,17 @@ gfilter(o)});
 document.querySelectorAll('.cpy').forEach(b=>b.addEventListener('click',async()=>{const v=b.dataset.copy;
 try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}
 b.classList.add('done');setTimeout(()=>b.classList.remove('done'),1500)}));
-document.querySelectorAll('#bf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
-document.querySelectorAll('#bf button').forEach(x=>x.classList.toggle('on',x===b));
-document.querySelectorAll('#bl>li').forEach(li=>li.style.display=(!o||li.dataset.o===o)?'':'none')});
+function openBook(k){const d=document.getElementById('bd'+k);if(!d)return;const was=!d.hidden;
+document.querySelectorAll('.bdet').forEach(x=>x.hidden=true);document.querySelectorAll('.bcard').forEach(c=>c.classList.toggle('on',!was&&c.dataset.book===String(k)));
+if(!was){d.hidden=false;d.querySelectorAll('img').forEach(i=>i.loading='eager');d.scrollIntoView({behavior:'smooth',block:'nearest'})}}
+document.querySelectorAll('[data-book]').forEach(b=>b.addEventListener('click',()=>{if(!b.classList.contains('bcard')){show('책책책')}openBook(b.dataset.book)}));
+document.querySelectorAll('.bclose').forEach(b=>b.addEventListener('click',()=>{b.closest('.bdet').hidden=true;document.querySelectorAll('.bcard.on').forEach(c=>c.classList.remove('on'))}));
+document.querySelectorAll('#bsort button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#bsort button').forEach(x=>x.classList.toggle('on',x===b));
+const sh=document.getElementById('shelf');const cs=[...sh.children];const by=b.dataset.s;
+cs.sort((p,q)=>by==='d'?q.dataset.d.localeCompare(p.dataset.d):(q.dataset.n-p.dataset.n)||q.dataset.d.localeCompare(p.dataset.d));cs.forEach(c=>sh.appendChild(c))});
+document.querySelectorAll('#bcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
+document.querySelectorAll('#bcat button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#bl>li').forEach(li=>li.hidden=k?li.dataset.k!==k:li.dataset.k==='기타')});
 document.querySelectorAll('#if button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
 document.querySelectorAll('#if button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#ig>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
@@ -1790,7 +1859,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         pages = {only: pages[only]}
         graphic, portals, interactive, books = None, {}, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    gpanel = render_books(books or [], now) + render_graphic(graphic) + render_interactive(interactive or [])
+    gpanel = render_books(books or [], now, book_info) + render_graphic(graphic) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
                    for c in CATEGORIES if c in pages)
@@ -1823,7 +1892,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         note = "" if first else '<p class="note">구글 급상승 검색어 중 이 분야 기사에 나온 것, 그리고 최근 3시간 이 분야 기사에서 갑자기 많이 쓰인 낱말입니다.</p>'
         return (f'<section class="pg" data-c="{esc(c)}"><div class="shead"><h2>{esc(h)}</h2><span class="en">{en}</span></div>'
                 f'{render_trends(src, now)}{note}</section>')
-    side = "".join(render_book_titles(books, book_info) if c == BOOK_TAB else side_tr(c) for c in tick_keys) + render_portals(portals)
+    side = "".join(render_book_side(books, book_info) if c == BOOK_TAB else side_tr(c) for c in tick_keys) + render_portals(portals)
     allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
              f'<div><b>{len(allc)}</b><span>여러 곳이 다룬 사건</span></div><div><b>{len(trends)}</b><span>급상승 검색어</span></div></div>')
