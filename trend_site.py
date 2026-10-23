@@ -952,7 +952,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .dl-r{display:flex;gap:8px;align-items:center;flex:none}.rf.busy{opacity:.5;pointer-events:none}.rf.new{border-color:var(--red);color:var(--red)}
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
-.brand{font:900 clamp(38px,7vw,60px)/1.15 var(--brand);letter-spacing:.12em;margin:0;padding-left:.12em}
+.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
 .nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
@@ -1055,6 +1055,12 @@ details.status{margin-top:28px;font-size:12px;color:var(--muted)}details.status 
 details.status ul{columns:3 220px;padding-left:18px}details.status li.bad{color:var(--red)}
 footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--rule);font-size:11.5px;color:var(--muted);letter-spacing:.04em;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 """
+
+# 로고: 네모 따옴표(2026-10-23 시안 19). 왼쪽은 글자색(다크모드 따라감), 오른쪽은 빨강
+LOGO_SVG = ('<svg class="mark" viewBox="0 0 104 88" aria-hidden="true">'
+            '<rect x="0" y="0" width="44" height="44" fill="currentColor"/><polygon points="22,44 44,44 30,88 8,88" fill="currentColor"/>'
+            '<rect x="60" y="0" width="44" height="44" fill="var(--red)"/><polygon points="82,44 104,44 90,88 68,88" fill="var(--red)"/></svg>')
+FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Serif+KR:wght@900&display=swap">'
 
 JS = """
 const tabs=document.querySelectorAll('.nav button'),pgs=document.querySelectorAll('.pg');
@@ -1344,11 +1350,11 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
 <link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@900&display=swap">
+{FONT_LINK}
 <style>{CSS}</style></head>
 <body data-built="{esc(now.isoformat())}"><div class="w">
 <div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button></span></div>
-<header class="titlerow"><h1 class="brand">{esc(brand)}</h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
+<header class="titlerow"><h1 class="brand">{LOGO_SVG}<span>{esc(brand)}</span></h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
 <nav class="nav" role="tablist">{tabs}</nav>
 {ticker}
 {render_brief(trends, pages, now, only or "전체")}
@@ -1446,10 +1452,10 @@ td.na,span.na{color:var(--dim)}td.sum{color:var(--muted);font-variant-numeric:ta
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@900&display=swap">
+{FONT_LINK}
 <style>{css}</style></head><body><div class="w">
 <div class="dateline"><span>{date}</span><a class="pill" href="index.html">← 첫 화면</a></div>
-<header class="titlerow"><h1 class="brand" style="font-size:clamp(30px,5vw,44px)">뉴스 출처</h1><p class="motto">어느 신문사에서 무엇을 가져오는지</p></header>
+<header class="titlerow"><h1 class="brand" style="font-size:clamp(32px,5.5vw,48px)">{LOGO_SVG}<span>뉴스 출처</span></h1><p class="motto">어느 신문사에서 무엇을 가져오는지</p></header>
 <div class="doc">
 <h2>신문사 RSS · {n_out}곳</h2>
 <p class="lead2">신문사가 공개한 RSS에서 기사 <b>제목·링크·발행 시각·썸네일 주소</b>만 가져옵니다. 숫자는 이번 수집에서 받은 기사 수이고, 누르면 그 RSS 주소로 갑니다.</p>
