@@ -1136,23 +1136,44 @@ def cluster(items, top=30, min_outlets=2):
                 break
         if not placed:
             seeds.append({"seed": a, "members": [a]})
+    groups = [c["members"] for c in seeds if len({a["outlet"] for a in c["members"]}) >= min_outlets]
+    groups = merge_groups(groups)
     out = []
-    for c in seeds:
+    for members in groups:
         by_outlet = {}
-        for a in c["members"]:
+        for a in members:
             by_outlet.setdefault(a["outlet"], a)  # 언론사당 1건(가장 먼저)
         ms = list(by_outlet.values())
-        if len(ms) < min_outlets:
-            continue
         rep = max(ms, key=lambda a: sum(len(a["_w"] & b["_w"]) for b in ms))
         out.append({"title": rep["title"], "count": len(ms), "outlets": sorted(by_outlet),
-                    "latest": max(a["date"] for a in c["members"]), "first": min(a["date"] for a in c["members"]),
-                    "total": len(c["members"]),
-                    "img": rep.get("img") or next((a["img"] for a in c["members"] if a.get("img")), None),
+                    "latest": max(a["date"] for a in members), "first": min(a["date"] for a in members),
+                    "total": len(members),
+                    "img": rep.get("img") or next((a["img"] for a in members if a.get("img")), None),
                     "links": [{"outlet": a["outlet"], "url": a["url"], "title": a["title"]}
                               for a in sorted(ms, key=lambda a: a["outlet"])]})
     out.sort(key=lambda c: (c["count"], c["total"], c["latest"]), reverse=True)
     return out[:top]
+
+
+def merge_groups(groups, jac_min=0.3, inter_min=3):
+    """같은 사건이 두 묶음으로 갈라진 것 합치기 (예: '이 대통령, 최길수 … 임명안 재가' / '李, 최길수 … 임명').
+    묶음마다 기사 제목 낱말을 모두 모아 비교한다. 큰 묶음부터, 원래 낱말끼리만 비교해 한 묶음이 계속 불어나지 않게 한다."""
+    groups = sorted(groups, key=len, reverse=True)
+    W = [set().union(*[a["_w"] for a in g]) for g in groups]
+    used, out = [False] * len(groups), []
+    for i, g in enumerate(groups):
+        if used[i]:
+            continue
+        merged = list(g)
+        for j in range(i + 1, len(groups)):
+            if used[j]:
+                continue
+            inter = len(W[i] & W[j])
+            if inter >= inter_min and inter / len(W[i] | W[j]) >= jac_min:
+                merged += groups[j]
+                used[j] = True
+        out.append(merged)
+    return out
 
 
 def keywords(items, min_outlets=3, top=40):
