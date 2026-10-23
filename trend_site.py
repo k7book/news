@@ -760,7 +760,7 @@ def render_book_titles(rows, info=None):
         i = info.get(_bk_key(e["title"])) or {}
         name = i.get("name") or e["title"]
         cover = (f'<a class="bkc" href="{esc(i["url"])}" target="_blank" rel="noopener noreferrer" title="예스24 책 정보">'
-                 f'<img src="{esc(i["cover"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
+                 f'<img src="{esc(re.sub(r"/L$", "/M", i["cover"]))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if i.get("cover") else ""
         meta = " · ".join(x for x in (i.get("author"), i.get("pub"), i.get("date")) if x)
         src = "·".join(e["outlets"][:3]) + (" 외" if len(e["outlets"]) > 3 else "")
         return (f'<li class="bk{" has-c" if cover else ""}">{cover}<div><div class="bkt">{link(e["url"], "『" + name + "』")}</div>'
