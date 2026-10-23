@@ -1,24 +1,23 @@
-import json, re, urllib.request, urllib.parse, urllib.robotparser
+import json, re, html, urllib.request, urllib.parse
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 def get(u, t=20):
     req = urllib.request.Request(u, headers={"User-Agent": UA, "Accept-Language": "ko"})
     with urllib.request.urlopen(req, timeout=t) as r:
         return r.status, r.read().decode("utf-8", "ignore")
-out = {"google": [], "robots": {}}
-for t in json.load(open("titles.json"))[:30]:
+out = {}
+for t in ["평행우주", "가호", "헬터 스켈터", "장하석의 과학하는 마음"]:
+    o = {}
     try:
-        st, b = get("https://www.googleapis.com/books/v1/volumes?" + urllib.parse.urlencode({"q": "intitle:" + t, "langRestrict": "ko", "maxResults": 3, "orderBy": "newest"}))
-        d = json.loads(b); it = (d.get("items") or [{}])
-        v = it[0].get("volumeInfo", {}) if it else {}
-        out["google"].append([t, d.get("totalItems"), v.get("title"), v.get("authors"), v.get("publisher"), v.get("publishedDate"), (v.get("imageLinks") or {}).get("thumbnail")])
+        st, b = get("https://www.yes24.com/Product/Search?" + urllib.parse.urlencode({"domain": "BOOK", "query": t}))
+        o["yes24_len"] = len(b)
+        i = b.find('class="gd_name"'); o["yes24_chunk"] = re.sub(r"\s+", " ", b[max(0, i-2500):i+2500]) if i >= 0 else b[:1500]
     except Exception as e:
-        out["google"].append([t, "ERR " + str(e)[:60]])
-for site, path in [("https://www.aladin.co.kr", "/search/wsearchresult.aspx?SearchWord=x"), ("https://www.yes24.com", "/Product/Search?query=x"),
-                   ("https://search.kyobobook.co.kr", "/search?keyword=x"), ("https://www.nl.go.kr", "/seoji/"), ("https://seoji.nl.go.kr", "/"), ("https://search.daum.net", "/search?w=book&q=x")]:
+        o["yes24"] = str(e)[:80]
     try:
-        st, b = get(site + "/robots.txt", 15)
-        rp = urllib.robotparser.RobotFileParser(); rp.parse(b.splitlines())
-        out["robots"][site] = [rp.can_fetch("*", site + path), b[:500]]
+        st, b = get("https://search.kyobobook.co.kr/search?" + urllib.parse.urlencode({"keyword": t, "gbCode": "TOT", "target": "total"}))
+        o["kyobo_len"] = len(b)
+        i = b.find("prod_info"); o["kyobo_chunk"] = re.sub(r"\s+", " ", b[max(0, i-1500):i+2500]) if i >= 0 else b[:1500]
     except Exception as e:
-        out["robots"][site] = ["ERR", str(e)[:80]]
+        o["kyobo"] = str(e)[:80]
+    out[t] = o
 json.dump(out, open("probe_out.json", "w"), ensure_ascii=False, indent=1)
