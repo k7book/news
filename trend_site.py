@@ -141,6 +141,18 @@ def item_image(it):
     return None
 
 
+def item_desc(it, n=220):
+    """item 요약: description/content:encoded/summary 의 글자만 (사진 표 등 태그는 버린다)"""
+    for el in it.iter():
+        tag = el.tag.split("}")[-1].lower()
+        if tag in ("description", "summary", "encoded") and el.text:
+            t = re.sub(r"<[^>]+>", " ", html.unescape(html.unescape(el.text)))
+            t = re.sub(r"\s+", " ", t).strip()
+            if len(t) >= 20:
+                return t[:n] + ("…" if len(t) > n else "")
+    return ""
+
+
 def gnews_search(q):
     return "https://news.google.com/rss/search?q=" + urllib.parse.quote_plus(q) + "&hl=ko&gl=KR&ceid=KR:ko"
 
@@ -173,7 +185,7 @@ def fetch_feed(feed):
     for it in root.iter("item"):
         src = it.find("source")
         items.append({"title": text(it, "title"), "url": text(it, "link") or (it.find("guid").text if it.find("guid") is not None else ""),
-                      "date": item_date(it), "img": item_image(it),
+                      "date": item_date(it), "img": item_image(it), "desc": item_desc(it) if not feed.get("by_source") else "",
                       "_src": (src.text or "").strip() if src is not None else ""})
     if not items:
         for it in root.iter(ATOM + "entry"):
@@ -583,7 +595,10 @@ def fetch_books(now, days=7, limit=150):
                 continue
             seen.add(key)
             n += 1
-            rows.append({"title": t, "url": a["url"], "outlet": a["outlet"], "img": a.get("img"), "date": a["date"].isoformat()})
+            desc = a.get("desc") or ""
+            if desc and re.sub(r"\W", "", desc)[:30] == re.sub(r"\W", "", t)[:30]:  # 제목을 되풀이만 하는 요약은 버린다
+                desc = ""
+            rows.append({"title": t, "url": a["url"], "outlet": a["outlet"], "img": a.get("img"), "date": a["date"].isoformat(), "desc": desc})
         name = f'{feed["outlet"]}·책' if how != "search" else f"구글뉴스 신간 검색({urllib.parse.unquote_plus(feed['url'].split('q=')[1].split('&')[0])})"
         status.append({"name": name, "ok": err is None and n > 0, "count": n, "error": err or ("0건" if not n else "")})
     rows.sort(key=lambda x: x["date"], reverse=True)
@@ -603,7 +618,8 @@ def render_books(rows, now):
         d = datetime.fromisoformat(x["date"])
         th = (f'<a class="bth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
               f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
-        return (f'<li data-o="{esc(x["outlet"])}">{th}<div><div class="bt">{link(x["url"], x["title"])}</div>'
+        bd = f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else ""
+        return (f'<li data-o="{esc(x["outlet"])}">{th}<div><div class="bt">{link(x["url"], x["title"])}</div>{bd}'
                 f'<div class="pm"><b>{esc(x["outlet"])}</b> · {d.month}.{d.day} ({WEEK[d.weekday()]}) {d.strftime("%H:%M")} · {ago(d, now)}</div></div></li>')
     homes = " · ".join(link(u, o) for o, u in BOOK_HOME.items())
     return (f'<div class="pg" data-c="{BOOK_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
@@ -1096,7 +1112,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .dl-r{display:flex;gap:8px;align-items:center;flex:none}.rf.busy{opacity:.5;pointer-events:none}.rf.new{border-color:var(--red);color:var(--red)}
 .pill{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);background:none;cursor:pointer;font-family:inherit}
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
-.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .pm{margin-top:4px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
+.brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1169,7 +1185,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .note{font-size:11px;color:var(--dim);margin:8px 0 0;letter-spacing:.02em}
 .pop li{counter-increment:p;display:grid;grid-template-columns:24px minmax(0,1fr);gap:0 8px;padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:13.5px;line-height:1.5}
 .pop li::before{content:counter(p);font-weight:800;color:var(--teal);font-size:13px}
-.pop .bdg{margin-left:6px;font-size:10.5px;font-weight:800;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:0 4px;vertical-align:1px}
+.pop .bdg{white-space:nowrap;margin-left:6px;font-size:10.5px;font-weight:800;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:0 4px;vertical-align:1px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;padding-top:12px}
 .chips a,.chips span{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;color:var(--ink-soft);background:var(--paper-3)}
 .chips i{font-style:normal;color:var(--dim);font-size:10.5px;margin-left:5px}
@@ -1434,7 +1450,7 @@ def render_portals(portals):
             if len({r.get("badge") for r in rows}) == 1:  # 모두 '신규'처럼 같으면 표시가 의미 없으니 뺀다
                 rows = [dict(r, badge="") for r in rows]
             body = ('<div class="pop"><ol>' + "".join(
-                f"<li>{link(r['url'], r['title'])}" + (f"<span class='bdg'>{esc(r['badge'])}</span>" if r.get("badge") else "") + "</li>"
+                f"<li><span>{link(r['url'], r['title'])}" + (f"<span class='bdg'>{esc(r['badge'])}</span>" if r.get("badge") else "") + "</span></li>"
                 for r in rows) + '</ol><p class="note">다음 집계 · 다음 검색에서 지금 많이 찾는 말 (베타)</p></div>')
             en = "DAUM TRENDS"
         elif name == DAUM_MAIN:
