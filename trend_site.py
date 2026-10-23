@@ -117,7 +117,7 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 DC = "{http://purl.org/dc/elements/1.1/}"
 
 
-_IMG_RX = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.I)
+_IMG_RX = re.compile(r'<img[^>]+src=(?:["\']([^"\']+)["\']|([^\s>"\']+))', re.I)  # 따옴표 없는 src(한겨레)도
 
 
 def item_image(it):
@@ -137,7 +137,7 @@ def item_image(it):
         if tag in ("description", "encoded", "content", "summary") and el.text:
             m = _IMG_RX.search(html.unescape(el.text))
             if m:
-                return m.group(1)
+                return m.group(1) or m.group(2)
     return None
 
 
@@ -566,6 +566,10 @@ def fetch_books(now, days=7, limit=150):
             t = re.sub(r"\s+", " ", html.unescape(a.get("title") or "")).strip()
             if a.get("outlet") and t.endswith(" - " + a["outlet"]):
                 t = t[: -len(a["outlet"]) - 3].rstrip()
+            if not a.get("date"):  # 한겨레 문화 RSS는 발행 시각이 없다 → 사진 주소의 날짜(/2026/1023/)로 대신(그날 09시)
+                m = re.search(r"/(20\d\d)/(\d\d)(\d\d)/", a.get("img") or "")
+                if m:
+                    a["date"] = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), 9, tzinfo=KST)
             if not t or not a.get("date") or not (lo <= a["date"] <= hi) or not re.match(r"https?://", a.get("url") or ""):
                 continue
             if how == "title" and not BOOK_TITLE_RX.search(t):
