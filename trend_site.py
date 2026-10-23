@@ -1137,7 +1137,11 @@ def cluster(items, top=30, min_outlets=2):
         if not placed:
             seeds.append({"seed": a, "members": [a]})
     groups = [c["members"] for c in seeds if len({a["outlet"] for a in c["members"]}) >= min_outlets]
-    groups = merge_groups(groups)
+    for _ in range(3):  # 합친 뒤 다시 비교하면 더 합쳐질 수 있다 (변화가 없을 때까지, 최대 3번)
+        n = len(groups)
+        groups = merge_groups(groups)
+        if len(groups) == n:
+            break
     out = []
     for members in groups:
         by_outlet = {}
