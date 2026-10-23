@@ -1,0 +1,18 @@
+name: probe
+on:
+  push:
+    branches: [probe2]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python probe.py
+      - run: |
+          git config user.name probe-bot && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b probe2-out && git add probe_out.json && git commit -qm "probe result" && git push -f origin probe2-out
