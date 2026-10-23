@@ -1374,8 +1374,9 @@ HOMEPAGES = {"연합뉴스": "https://www.yna.co.kr", "한겨레": "https://www.
              "뉴시스": "https://www.newsis.com", "줌": "https://news.zum.com",
              "KBS": "https://news.kbs.co.kr", "MBC": "https://imnews.imbc.com",
              "파이낸셜뉴스": "https://www.fnnews.com", "이데일리": "https://www.edaily.co.kr"}
-EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
+EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /) — 검색엔진만 허용", "2026-10-24 재확인"),
             ("네이버 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
+            ("네이버 뉴스 검색 API", "개발자센터 신규 신청 종료(2026-07-30), 바뀐 약관(9-07)이 결과 저장·캐싱·AI 입력 금지", "2026-10-24"),
             ("MBC 뉴스 사이트", "robots.txt가 모든 수집기를 차단 — 구글뉴스 검색으로 MBC 기사만 가져옴", "2026-10-19"),
             ("KBS 뉴스 사이트", "공개 RSS 없음, 기사 목록 API(/api)는 robots.txt 차단 — 구글뉴스 검색으로 KBS 기사만 가져옴", "2026-10-19"),
             ("노컷뉴스 분야별 RSS", "주소 404 — 전체 RSS만 사용", "2026-10-19"),
