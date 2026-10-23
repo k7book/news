@@ -238,6 +238,58 @@ def _strip_tags(x):
     return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", x))).strip()
 
 
+# 다음뉴스(news.daum.net): robots.txt 없음(404) = 제한 없음 (2026-10-24 확인). 첫 화면의 '실시간 트렌드'와 '이 시각 주요뉴스'만.
+DAUM_URL = "https://news.daum.net/"
+DAUM_TREND, DAUM_MAIN = "다음 실시간 트렌드", "다음 이 시각 주요뉴스"
+
+
+def fetch_daum():
+    """다음뉴스 첫 화면 → [(이름, rows, 오류)]: 실시간 트렌드(검색어 10), 이 시각 주요뉴스(기사 10)"""
+    names = (DAUM_TREND, DAUM_MAIN)
+    try:
+        if not robots_allows(DAUM_URL):
+            return [(n, [], "robots.txt 차단") for n in names]
+        body = http_get(DAUM_URL).decode("utf-8", "ignore")
+    except Exception as e:
+        err = f"{type(e).__name__}: {str(e)[:60]}"
+        return [(n, [], err) for n in names]
+    # 1) 실시간 트렌드: <ol class="list_trendranking"> 안의 검색 링크
+    trend, seen = [], set()
+    i = body.find("list_trendranking")
+    chunk = body[i:body.find("</ol>", i)] if i >= 0 else ""
+    for li in re.findall(r"<li\b[^>]*>(.*?)</li>", chunk, re.S):
+        m = re.search(r'<a href="([^"]+)"[^>]*data-tiara-copy="([^"]*)"', li)
+        if not m:
+            continue
+        kw = html.unescape(m.group(2)).strip()
+        if not kw or kw in seen:
+            continue
+        seen.add(kw)
+        badge = "신규" if "ico_new" in li else ("상승" if "ico_up" in li else "")
+        trend.append({"title": kw, "url": html.unescape(m.group(1)), "badge": badge})
+    # 2) 이 시각 주요뉴스: <ul class="list_newsheadline2"> 의 기사(제목·언론사·사진)
+    main, seen = [], set()
+    j = body.find("list_newsheadline2")
+    chunk = body[j:body.find("</ul>", j)] if j >= 0 else ""
+    for li in re.findall(r"<li\b[^>]*>(.*?)</li>", chunk, re.S):
+        m = re.search(r'href="(https://v\.daum\.net/v/\d+)"', li)
+        t = re.search(r'<strong class="tit_txt">(.*?)</strong>', li, re.S)
+        if not m or not t or m.group(1) in seen:
+            continue
+        seen.add(m.group(1))
+        o = re.search(r'<span class="txt_info">(.*?)</span>', li, re.S)
+        im = re.search(r'srcset="([^"\s]+)', li)
+        img = html.unescape(im.group(1)) if im else None
+        if img and img.startswith("//"):
+            img = "https:" + img
+        main.append({"title": _strip_tags(t.group(1)), "url": m.group(1), "outlet": _strip_tags(o.group(1)) if o else "", "img": img})
+        if len(main) >= 10:
+            break
+    night = 1 <= datetime.now(KST).hour < 6
+    return [(names[0], trend[:10], None if trend else ("새벽(01~06시)에는 다음이 제한적으로만 제공" if night else "실시간 트렌드를 찾지 못함(페이지 구조 변경?)")),
+            (names[1], main, None if main else "주요뉴스를 찾지 못함(페이지 구조 변경?)")]
+
+
 def fetch_zum():
     """줌 메인 → [(이름, rows, 오류)] 두 개: 많이 본 뉴스, 이슈 키워드. 원본 HTML은 debug/zum.html에 남긴다."""
     names = ("언론사별 많이 본 뉴스", "줌 이슈 키워드")
@@ -929,7 +981,11 @@ def demo_data(now):
         ["최저임금 확정에 소상공인 반발 확산", "코스피 사상 최고치 경신, 외국인 순매수", "서울 첫 한파주의보 발효",
          "수도권 지하철 파업 예고에 출근길 비상", "가수 A 신곡 음원차트 1위 데뷔"])],
         "줌 이슈 키워드": [{"title": t, "url": f"https://example.com/q{i}"} for i, t in enumerate(
-        ["손흥민", "한국시리즈", "환율", "예산안", "공천", "한파"])]}
+        ["손흥민", "한국시리즈", "환율", "예산안", "공천", "한파"])],
+        "다음 이 시각 주요뉴스": [{"title": t, "url": f"https://example.com/d{i}", "outlet": o} for i, (t, o) in enumerate(
+        [("정부, 내년 최저임금 인상률 확정 발표", "연합뉴스"), ("서울 첫 한파주의보", "뉴스1")])]}
+    portals = {"다음 실시간 트렌드": [{"title": t, "url": f"https://example.com/t{i}", "badge": b} for i, (t, b) in enumerate(
+        [("한국시리즈", "신규"), ("최저임금", ""), ("한파", "상승")])], **portals}
     feeds_status = [{"name": "샘플 데이터", "ok": True, "count": len(items), "error": ""}]
     portal_status = [{"name": "언론사별 많이 본 뉴스", "ok": True, "count": 5, "error": ""}, {"name": "줌 이슈 키워드", "ok": True, "count": 6, "error": ""},
                      {"name": "언론사별 많이 본 뉴스", "ok": True, "count": 5, "error": ""}, {"name": "줌 이슈 키워드", "ok": True, "count": 6, "error": ""}]
@@ -1024,6 +1080,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .note{font-size:11px;color:var(--dim);margin:8px 0 0;letter-spacing:.02em}
 .pop li{counter-increment:p;display:grid;grid-template-columns:24px minmax(0,1fr);gap:0 8px;padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:13.5px;line-height:1.5}
 .pop li::before{content:counter(p);font-weight:800;color:var(--teal);font-size:13px}
+.pop .bdg{margin-left:6px;font-size:10.5px;font-weight:800;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:0 4px;vertical-align:1px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;padding-top:12px}
 .chips a,.chips span{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;color:var(--ink-soft);background:var(--paper-3)}
 .chips i{font-style:normal;color:var(--dim);font-size:10.5px;margin-left:5px}
@@ -1281,7 +1338,19 @@ def render_portals(portals):
     for name, rows in (portals or {}).items():
         if not rows:
             continue
-        if "키워드" in name:
+        if name == DAUM_TREND:
+            if len({r.get("badge") for r in rows}) == 1:  # 모두 '신규'처럼 같으면 표시가 의미 없으니 뺀다
+                rows = [dict(r, badge="") for r in rows]
+            body = ('<div class="pop"><ol>' + "".join(
+                f"<li>{link(r['url'], r['title'])}" + (f"<span class='bdg'>{esc(r['badge'])}</span>" if r.get("badge") else "") + "</li>"
+                for r in rows) + '</ol><p class="note">다음 집계 · 다음 검색에서 지금 많이 찾는 말 (베타)</p></div>')
+            en = "DAUM TRENDS"
+        elif name == DAUM_MAIN:
+            body = ('<div class="pop"><ul>' + "".join(
+                f"<li>{link(r['url'], r['title'])}<span class='o'>{esc(r.get('outlet', ''))}</span></li>" for r in rows)
+                + '</ul><p class="note">다음뉴스 첫 화면의 주요뉴스 · 누르면 다음뉴스 기사로 갑니다</p></div>')
+            en = "DAUM"
+        elif "키워드" in name:
             body = '<div class="chips">' + "".join(link(r["url"], r["title"]) for r in rows) + "</div>"
             en = "ISSUES"
         else:
@@ -1424,6 +1493,8 @@ def render_sources(feeds, status, now):
     extra = [
         ("구글 트렌드", "급상승 검색어 (대한민국)", "RSS", "trends.google.com/trending/rss?geo=KR", "구글 트렌드"),
         ("줌", "언론사별 많이 본 뉴스 · 이슈 키워드", "메인 페이지", "news.zum.com", "언론사별 많이 본 뉴스"),
+        ("다음", "실시간 트렌드(검색어 10)", "다음뉴스 첫 화면", "news.daum.net", DAUM_TREND),
+        ("다음", "이 시각 주요뉴스(기사 10)", "다음뉴스 첫 화면", "news.daum.net", DAUM_MAIN),
         ("연합뉴스", "그래픽 목록", "목록 페이지", "yna.co.kr/graphic/index", "연합뉴스 그래픽"),
         ("뉴시스", "그래픽뉴스 목록", "목록 페이지", "newsis.com/photo/gralist", "뉴시스 그래픽"),
         ("경향신문", "인터랙티브 목록(1~2쪽)", "목록 페이지", "khan.co.kr/interactive", "경향신문 인터랙티브"),
@@ -1590,7 +1661,8 @@ def main():
         status.append({"name": "구글 트렌드", "ok": terr is None, "count": len(trends), "error": terr or ""})
         portals, pstatus = {}, []
         if not args.no_portal:
-            for name, rows, err in fetch_zum():
+            daum = fetch_daum()
+            for name, rows, err in [daum[0]] + fetch_zum() + [daum[1]]:  # 다음 트렌드 → 줌 → 다음 주요뉴스 순으로 보인다
                 portals[name] = rows
                 pstatus.append({"name": name, "ok": err is None, "count": len(rows), "error": err or ""})
         yna_g, gerr = fetch_yna_graphic()
