@@ -8,4 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 probe/feeds.py
+      - run: |
+          python3 probe/feeds.py > out.txt
+          python3 - <<'PY'
+          lines=[l[6:].strip() for l in open("out.txt",encoding="utf-8") if l.startswith("PROBE ")]
+          for i in range(0,len(lines),3):
+              msg="%0A".join(lines[i:i+3]).replace("::","：")
+              print("::notice title=p%d::%s"%(i,msg))
+          PY
