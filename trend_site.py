@@ -200,6 +200,9 @@ def fetch_feed(feed):
     return feed, items, None
 
 
+HANGUL = re.compile(r"[가-힣]")
+
+
 def fetch_trends():
     """구글 트렌드 KR 급상승 RSS"""
     url = "https://trends.google.com/trending/rss?geo=KR"
@@ -217,6 +220,12 @@ def fetch_trends():
         for n in it.findall(ns + "news_item"):
             news.append({"title": text(n, ns + "news_item_title"), "url": text(n, ns + "news_item_url"),
                          "outlet": text(n, ns + "news_item_source")})
+        # 한국어만: 구글 KR 피드에 외국 검색어(天気, lyon, บาร์ซ่า…)가 섞여 들어온다(2026-10-26).
+        # 검색어에 한글이 있거나, 영문 검색어라도 함께 온 기사 제목이 한글이면(예: KT, BTS) 남긴다. 기사도 한글 제목만.
+        ko_news = [n for n in news if HANGUL.search(n["title"] or "")]
+        if not HANGUL.search(kw) and not ko_news:
+            continue
+        news = ko_news or news
         start = parse_date(text(it, "pubDate"))
         out.append({"keyword": kw, "traffic": text(it, ns + "approx_traffic"), "news": news[:3],
                     "start": start.isoformat() if start else None})
