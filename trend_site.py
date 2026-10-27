@@ -1198,10 +1198,12 @@ def fetch_paju_city(days=3):
             if not title:
                 continue
             img = re.search(r'<img src="([^"]+)"', blk)
-            desc = _plain((re.search(r'<span class="content">(.*?)</span>', blk, re.S) or [None, ""])[1])
-            if desc.startswith(title[:15]):  # 요약 앞에 제목·부제가 되풀이되면 본문 첫 문장부터
-                k = desc.find("파주시가") if "파주시가" in desc else -1
-                desc = desc[k:] if k > 0 else desc
+            raw = (re.search(r'<span class="content">(.*?)</span>', blk, re.S) or [None, ""])[1]
+            # 요약은 '제목- 부제- 부제' 한 줄 + 빈 줄 + 본문 → 제목 줄은 버리고 본문부터
+            parts = [_plain(x) for x in re.split(r"\n[ \t]*\n", raw) if _plain(x)]
+            key = re.sub(r"\W", "", title)[:10]
+            body = [x for x in parts if not re.sub(r"\W", "", x).startswith(key)]
+            desc = " ".join(body) or _plain(raw)
             dm = re.search(r"(20\d\d)[.\-/](\d\d)[.\-/](\d\d)", blk[blk.find("</span>"):] if "</span>" in blk else blk)
             out["focus"].append({"title": title, "url": PAJU_NEWS + html.unescape(m.group(1)),
                                  "img": urllib.parse.urljoin(PAJU_NEWS, img.group(1)) if img else None,
