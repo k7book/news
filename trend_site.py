@@ -1234,31 +1234,29 @@ def fetch_paju_city(days=3):
     return out, status
 
 
-def paju_city_items(pc, now, press_days=3, focus_days=7):
-    """파주시청 주요뉴스·보도자료 제목 → 파주 탭 기사 목록에 섞을 기사(언론사 '파주시청').
-    같은 일을 다룬 언론 기사와 한 묶음이 되고, 없으면 따로 한 줄로 나온다."""
-    out = []
-    if not pc:
-        return out
+def render_paju_city(pc):
+    """파주 탭의 '파주뉴스' 화면: 파주시청 주요뉴스 카드 + 날짜별 보도자료 제목"""
+    if not pc or not (pc.get("focus") or pc.get("press")):
+        return ""
 
-    def dt(d, t="09:00"):
+    def md(iso):
         try:
-            return datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M").replace(tzinfo=KST)
+            d = datetime.strptime(iso, "%Y-%m-%d")
+            return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
         except Exception:
-            return None
-    for x in pc.get("focus", []):
-        d = dt(x.get("date") or "")
-        if d and now - timedelta(days=focus_days) <= d <= now + timedelta(minutes=10):
-            out.append({"title": x["title"], "url": x["url"], "outlet": "파주시청", "date": d, "img": x.get("img"),
-                        "category": "파주", "cats": {"파주"}})
-    for p in pc.get("press", []):
-        d = dt(p["date"], p.get("time") or "09:00")
-        if not d or not (now - timedelta(days=press_days) <= d <= now + timedelta(minutes=10)):
-            continue
-        for k, t in enumerate(p["titles"]):
-            out.append({"title": t, "url": p["url"], "outlet": "파주시청", "date": d - timedelta(seconds=k), "img": None,
-                        "category": "파주", "cats": {"파주"}})
-    return out
+            return ""
+    cards = "".join(
+        f'<li>' + (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
+                   f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>' if x.get("img") else "")
+        + f'<div><div class="pm top"><b class="ot oc2">파주시청</b>{md(x["date"])}</div><div class="bt">{link(x["url"], x["title"])}</div>'
+        + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>" for x in pc.get("focus", [])[:5])
+    press = "".join(
+        f'<div class="ppress"><h3>{md(p["date"])} 보도자료 <span>{len(p["titles"])}건</span> {link(p["url"], "원문")}</h3><ol>'
+        + "".join(f"<li>{esc(t)}</li>" for t in p["titles"]) + "</ol></div>" for p in pc.get("press", []))
+    return (f'<section class="photos books pcity" style="margin-top:0"><div class="shead"><h2>파주시청 주요뉴스</h2><span class="en">PAJU CITY</span></div>'
+            + (f'<ul class="blist dlist">{cards}</ul>' if cards else "")
+            + (f'</section><section class="photos books pcity"><div class="shead"><h2>보도자료</h2><span class="en">최근 3일</span></div><div class="ppress-wrap">{press}</div>' if press else "")
+            + f'<p class="note">파주시청 누리집 {link("https://www.paju.go.kr/news/index.do", "파주뉴스")}의 주요뉴스와 보도자료 제목입니다. 보도자료 본문은 원문(한글 파일)에서 볼 수 있습니다.</p></section>')
 
 
 def enrich_graphics(rows, workers=6):
@@ -1680,7 +1678,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
-.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
+.subtabs{display:flex;gap:0;margin:14px 0 2px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -1832,12 +1830,17 @@ document.querySelectorAll('#bl>li').forEach(li=>li.hidden=k?li.dataset.k!==k:li.
 (function(){const nav=document.querySelector('.nav');const off=()=>(nav?nav.offsetHeight:0)+10;
 const go=el=>scrollTo({top:el.getBoundingClientRect().top+scrollY-off(),behavior:'smooth'});
 const lab=t=>t.replace(/\\s*·.*$/,'').replace(/^언론사 \\d+곳 이상이 쓴 낱말/,'많이 쓴 낱말').replace(/^시간대별 새 기사/,'시간대별 기사');
-document.querySelectorAll('.pg[role=tabpanel]').forEach(p=>{const t=[];
-const lead=p.querySelector(':scope > article');if(lead)t.push([lead,p.dataset.c==='전체'?'오늘의 사건':'사건 묶음']);
-p.querySelectorAll('section').forEach(s=>{if(s.closest('.pg[role=tabpanel]')!==p)return;const h=s.querySelector('.shead h2');if(h)t.push([s,lab(h.innerText)]);
-if(s.classList.contains('pcity')){const pr=s.querySelector('.ppress');if(pr)t.push([pr,'보도자료'])}});
+document.querySelectorAll('.pg[role=tabpanel]').forEach(p=>{const subs=[...p.querySelectorAll(':scope > .subv')];
+(subs.length?subs:[p]).forEach(box=>{const t=[];
+const lead=box.querySelector(':scope > article');if(lead)t.push([lead,p.dataset.c==='전체'?'오늘의 사건':'사건 묶음']);
+box.querySelectorAll('section').forEach(s=>{if(s.closest('.subv, .pg[role=tabpanel]')!==box)return;const h=s.querySelector('.shead h2');if(h)t.push([s,lab(h.innerText)])});
 if(t.length<2)return;const j=document.createElement('nav');j.className='jump';j.setAttribute('aria-label','이 탭 안에서 바로 가기');
-t.forEach(([el,l])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.onclick=()=>go(el);j.appendChild(b)});p.prepend(j)});
+t.forEach(([el,l])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.onclick=()=>go(el);j.appendChild(b)});box.prepend(j)});
+const st=p.querySelector(':scope > .subtabs');if(st){const bs=[...st.querySelectorAll('button')];
+const show=v=>{bs.forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});subs.forEach(x=>x.hidden=x.dataset.v!==v);
+try{localStorage.setItem('sub_'+p.dataset.c,v)}catch(e){}};
+bs.forEach(b=>b.onclick=()=>{show(b.dataset.v);if(st.getBoundingClientRect().top<0)go(st)});
+try{const v=localStorage.getItem('sub_'+p.dataset.c);if(v&&bs.some(b=>b.dataset.v===v))show(v)}catch(e){}}});
 const up=document.createElement('button');up.type='button';up.className='totop';up.setAttribute('aria-label','맨 위로');up.textContent='↑';
 up.onclick=()=>scrollTo({top:0,behavior:'smooth'});document.body.appendChild(up);
 addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:true})})();
@@ -2064,7 +2067,7 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
@@ -2093,10 +2096,15 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     body = []
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
-        body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}'
-                    f'{render_timeline(p, now, c)}'
-                    f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
-                    f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
+        main = (f'{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
+                f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
+                f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section>')
+        city = render_paju_city(paju_city) if c == "파주" else ""
+        if city:  # 파주 탭: 신문뉴스 | 파주뉴스(파주시청) 전환
+            main = ('<div class="subtabs" role="tablist" aria-label="파주 소식 보기"><button type="button" role="tab" class="on" aria-selected="true" data-v="news">신문뉴스</button>'
+                    '<button type="button" role="tab" aria-selected="false" data-v="city">파주뉴스</button></div>'
+                    f'<div class="subv" data-v="news">{main}</div><div class="subv" data-v="city" hidden>{city}</div>')
+        body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{main}</div>')
     def side_tr(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         first = c == "전체" or c not in pages
@@ -2317,7 +2325,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2431,10 +2439,7 @@ def main():
             sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
             continue
-        if c == "파주":  # 파주시청 주요뉴스·보도자료 제목도 같은 목록에(시간대별·낱말 통계에는 넣지 않음)
-            cs = cluster(sub + paju_city_items(paju_city, now), top=45, min_outlets=1)
-        else:
-            cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
+        cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
         kws = keywords(sub, min_outlets=2 if c in NICHE else 3)
         if c in NICHE:
             kws = [k for k in kws if not NICHE[c].search(k[0])]
@@ -2462,7 +2467,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep)
+                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
