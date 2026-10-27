@@ -1173,6 +1173,90 @@ def render_deep_side(rows):
             f'<ul class="barts dside">{lis}</ul></section>')
 
 
+# ── 파주 탭: 파주시청 소식(파주뉴스 주요뉴스 + 매일 보도자료 제목) ──
+# 2026-10-27 확인: robots.txt는 /user/… 일부만 막고 /news/는 허용. RSS 없음 → 목록 HTML을 읽는다.
+PAJU_NEWS = "https://www.paju.go.kr/news/user/"
+PAJU_FOCUS = PAJU_NEWS + "BD_focusNewsList.do?q_currPage=1&q_rowPerPage=6"
+PAJU_PRESS = PAJU_NEWS + "board/BD_board.list.do?bbsCd=1023&q_ctgCds=5226,5227,5229"
+PAJU_PRESS_VIEW = PAJU_NEWS + "board/BD_board.view.do?seq={seq}&bbsCd=1023&q_ctgCds=5226,5227,5229"
+
+
+def _plain(x):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", x or ""))).strip()
+
+
+def fetch_paju_city(days=3):
+    """→ ({"focus": [{title,url,img,date,desc}], "press": [{date,url,titles:[...]}]}, status)"""
+    out, status = {"focus": [], "press": []}, []
+    try:
+        if not robots_allows(PAJU_FOCUS):
+            raise RuntimeError("robots.txt 차단")
+        t = http_get(PAJU_FOCUS).decode("utf-8", "replace")
+        for m in re.finditer(r'<li>\s*<a href="(BD_newsView\.do\?q_ctgCd=\d+&(?:amp;)?newsSeq=\d+)" class="thumb">(.*?)</li>', t, re.S):
+            blk = m.group(2)
+            title = _plain((re.search(r'<strong class="subject">(.*?)</strong>', blk, re.S) or [None, ""])[1])
+            if not title:
+                continue
+            img = re.search(r'<img src="([^"]+)"', blk)
+            desc = _plain((re.search(r'<span class="content">(.*?)</span>', blk, re.S) or [None, ""])[1])
+            if desc.startswith(title[:15]):  # 요약 앞에 제목·부제가 되풀이되면 본문 첫 문장부터
+                k = desc.find("파주시가") if "파주시가" in desc else -1
+                desc = desc[k:] if k > 0 else desc
+            dm = re.search(r"(20\d\d)[.\-/](\d\d)[.\-/](\d\d)", blk[blk.find("</span>"):] if "</span>" in blk else blk)
+            out["focus"].append({"title": title, "url": PAJU_NEWS + html.unescape(m.group(1)),
+                                 "img": urllib.parse.urljoin(PAJU_NEWS, img.group(1)) if img else None,
+                                 "date": "-".join(dm.groups()) if dm else "", "desc": desc[:200] + ("…" if len(desc) > 200 else "")})
+        status.append({"name": "파주시청 주요뉴스", "ok": bool(out["focus"]), "count": len(out["focus"]), "error": "" if out["focus"] else "0건"})
+    except Exception as e:
+        status.append({"name": "파주시청 주요뉴스", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+    try:
+        if not robots_allows(PAJU_PRESS):
+            raise RuntimeError("robots.txt 차단")
+        t = http_get(PAJU_PRESS).decode("utf-8", "replace")
+        posts = re.findall(r"jsView\('1023',\s*'(\d{17})'[^>]*>\s*([^<]*?보도자료[^<]*?)\s*<", t)[:days]
+        for seq, _ in posts:
+            u = PAJU_PRESS_VIEW.format(seq=seq)
+            v = http_get(u).decode("utf-8", "replace")
+            body = (re.search(r'<div class="article-conetnt">(.*?)</div>', v, re.S) or [None, ""])[1]
+            titles = []
+            for line in re.split(r"<br\s*/?>|</p>|\n", body):
+                m = re.match(r"\s*\d{1,2}\s*[.)]\s*(.+)", _plain(line))
+                if m and len(m.group(1)) >= 6:
+                    titles.append(m.group(1))
+            if titles:
+                out["press"].append({"date": f"{seq[:4]}-{seq[4:6]}-{seq[6:8]}", "url": u, "titles": titles})
+        n = sum(len(x["titles"]) for x in out["press"])
+        status.append({"name": "파주시청 보도자료", "ok": n > 0, "count": n, "error": "" if n else "0건"})
+    except Exception as e:
+        status.append({"name": "파주시청 보도자료", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+    return out, status
+
+
+def render_paju_city(pc):
+    """파주 탭 안의 '파주시청 소식' 칸: 주요뉴스 카드 + 날짜별 보도자료 제목"""
+    if not pc or not (pc.get("focus") or pc.get("press")):
+        return ""
+
+    def md(iso):
+        try:
+            d = datetime.strptime(iso, "%Y-%m-%d")
+            return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
+        except Exception:
+            return ""
+    cards = "".join(
+        f'<li>' + (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
+                   f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>' if x.get("img") else "")
+        + f'<div><div class="pm top"><b class="ot oc2">파주시청</b>{md(x["date"])}</div><div class="bt">{link(x["url"], x["title"])}</div>'
+        + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>" for x in pc.get("focus", [])[:5])
+    press = "".join(
+        f'<div class="ppress"><h3>{md(p["date"])} 보도자료 <span>{len(p["titles"])}건</span> {link(p["url"], "원문")}</h3><ol>'
+        + "".join(f"<li>{esc(t)}</li>" for t in p["titles"]) + "</ol></div>" for p in pc.get("press", []))
+    return (f'<section class="photos books pcity"><div class="shead"><h2>파주시청 소식</h2><span class="en">PAJU CITY</span></div>'
+            + (f'<ul class="blist dlist">{cards}</ul>' if cards else "")
+            + (f'<div class="ppress-wrap">{press}</div>' if press else "")
+            + f'<p class="note">파주시청 누리집 {link("https://www.paju.go.kr/news/index.do", "파주뉴스")}의 주요뉴스와 보도자료 제목입니다. 보도자료 본문은 원문(한글 파일)에서 볼 수 있습니다.</p></section>')
+
+
 def enrich_graphics(rows, workers=6):
     """사진 없는 구글뉴스 그래픽 기사: 원문 주소로 바꾸고 원문 대표 사진을 붙인다. 결과는 캐시."""
     try:
@@ -1584,7 +1668,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .titlerow{text-align:center;padding:22px 0 18px;border-bottom:1px solid var(--ink)}
 .brand{display:inline-flex;align-items:center;gap:.28em;font:400 clamp(40px,7.5vw,64px)/1.1 "Do Hyeon",var(--sans);letter-spacing:.02em;margin:0}.blist{list-style:none;margin:0;padding:0}.blist li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px dotted var(--rule-dot)}.blist li{gap:18px;padding:16px 0}.blist .bth{flex:none;width:140px;height:186px;background:var(--paper-2);display:block;border-radius:2px}@media(max-width:600px){.blist li{gap:12px}.blist .bth{width:104px;height:138px}}.blist .bth img{width:100%;height:100%;object-fit:contain;display:block}.blist .bt{font-size:16px;font-weight:700;line-height:1.45}.blist .bt a{color:var(--ink)}.blist .bd{margin:6px 0 0;font-size:13.5px;line-height:1.6;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.blist .pm{margin-top:6px;font-size:12px;font-weight:400;color:var(--muted)}.blist .pm b{font-weight:700;color:var(--ink-soft)}
 .bklist{list-style:none;margin:0;padding:0}.bklist .bk{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dotted var(--rule-dot)}.bklist .bkc{flex:none;width:76px;height:110px;background:var(--paper-2);display:block}.bklist .bkc img{width:100%;height:100%;object-fit:contain;display:block}.bklist .bkt{font-size:14.5px;font-weight:700;line-height:1.4}.bklist .bkt a{color:var(--ink)}.bklist .bkm{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45}.bklist .bko{font-size:11.5px;color:var(--muted);margin-top:3px}.bklist .bki{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-soft);margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:.02em}.bklist .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;color:var(--muted)}.bklist .cpy:hover{color:var(--ink);background:var(--paper-2)}.bklist .cpy:focus-visible{outline:2px solid var(--teal);outline-offset:1px}.bklist .cpd{display:none;font-size:11px;color:var(--teal);font-weight:700;letter-spacing:0}.bklist .cpy.done .cpd{display:inline}
-.shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{display:flex;flex-direction:column;gap:3px;min-width:0}.bopen{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px}.bopen:hover .bnm{text-decoration:underline}.bopen:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bsrc{font-size:11px;color:var(--muted);line-height:1.35}.bsrc.hot{color:var(--red);font-weight:700}.bcard .bki{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}.bcard .cpy,#bmodal .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 3px;border-radius:4px;color:var(--muted)}.bcard .cpy:hover,#bmodal .cpy:hover{color:var(--ink);background:var(--paper-2)}.bcard .cpd,#bmodal .cpd{display:none;font-size:10.5px;color:var(--teal);font-weight:700}.bcard .cpy.done .cpd,#bmodal .cpy.done .cpd{display:inline}#bmodal{border:0;padding:22px 22px 18px;width:min(640px,92vw);max-height:86vh;overflow:auto;border-radius:10px;background:var(--paper-3);color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.35)}#bmodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#bmodal{width:100vw;max-width:100vw;margin:auto 0 0;max-height:88vh;border-radius:14px 14px 0 0;padding:18px 16px 22px;animation:bup .22s ease-out}}@keyframes bup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:sticky;float:right;top:0;margin:-10px -8px 0 8px;font-size:18px;color:var(--muted);padding:6px 10px;z-index:2}.bclose:hover{color:var(--ink)}#bmodal h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.oc0{--c:#1d4ed8;--cb:#dbeafe}.oc1{--c:#b91c1c;--cb:#fee2e2}.oc2{--c:#047857;--cb:#d1fae5}.oc3{--c:#7c3aed;--cb:#ede9fe}.oc4{--c:#b45309;--cb:#fef3c7}.oc5{--c:#be185d;--cb:#fce7f3}.oc6{--c:#0e7490;--cb:#cffafe}.oc7{--c:#4d7c0f;--cb:#ecfccb}@media (prefers-color-scheme:dark){.oc0{--c:#93c5fd;--cb:#1e3a8a66}.oc1{--c:#fca5a5;--cb:#7f1d1d66}.oc2{--c:#6ee7b7;--cb:#064e3b66}.oc3{--c:#c4b5fd;--cb:#4c1d9566}.oc4{--c:#fcd34d;--cb:#78350f66}.oc5{--c:#f9a8d4;--cb:#83184366}.oc6{--c:#67e8f9;--cb:#164e6366}.oc7{--c:#bef264;--cb:#36531466}}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.dlist .dth{flex:none;width:168px;height:108px;background:var(--paper-2);display:block;border-radius:3px;overflow:hidden}.dlist .dth img{width:100%;height:100%;object-fit:cover;display:block}@media(max-width:600px){.dlist .dth{width:104px;height:72px}}.dlist .pm.top{margin:0 0 4px}.dlist b.ot,.dside b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.dlist li[hidden]{display:none}.dside li{display:flex;align-items:baseline;gap:2px}.dside li .o{margin-left:auto}.blist .bth{width:100px!important;height:140px!important}@media(max-width:600px){.blist .bth{width:80px!important;height:112px!important}}
+.shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{display:flex;flex-direction:column;gap:3px;min-width:0}.bopen{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px}.bopen:hover .bnm{text-decoration:underline}.bopen:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bsrc{font-size:11px;color:var(--muted);line-height:1.35}.bsrc.hot{color:var(--red);font-weight:700}.bcard .bki{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}.bcard .cpy,#bmodal .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 3px;border-radius:4px;color:var(--muted)}.bcard .cpy:hover,#bmodal .cpy:hover{color:var(--ink);background:var(--paper-2)}.bcard .cpd,#bmodal .cpd{display:none;font-size:10.5px;color:var(--teal);font-weight:700}.bcard .cpy.done .cpd,#bmodal .cpy.done .cpd{display:inline}#bmodal{border:0;padding:22px 22px 18px;width:min(640px,92vw);max-height:86vh;overflow:auto;border-radius:10px;background:var(--paper-3);color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.35)}#bmodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#bmodal{width:100vw;max-width:100vw;margin:auto 0 0;max-height:88vh;border-radius:14px 14px 0 0;padding:18px 16px 22px;animation:bup .22s ease-out}}@keyframes bup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:sticky;float:right;top:0;margin:-10px -8px 0 8px;font-size:18px;color:var(--muted);padding:6px 10px;z-index:2}.bclose:hover{color:var(--ink)}#bmodal h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.oc0{--c:#1d4ed8;--cb:#dbeafe}.oc1{--c:#b91c1c;--cb:#fee2e2}.oc2{--c:#047857;--cb:#d1fae5}.oc3{--c:#7c3aed;--cb:#ede9fe}.oc4{--c:#b45309;--cb:#fef3c7}.oc5{--c:#be185d;--cb:#fce7f3}.oc6{--c:#0e7490;--cb:#cffafe}.oc7{--c:#4d7c0f;--cb:#ecfccb}@media (prefers-color-scheme:dark){.oc0{--c:#93c5fd;--cb:#1e3a8a66}.oc1{--c:#fca5a5;--cb:#7f1d1d66}.oc2{--c:#6ee7b7;--cb:#064e3b66}.oc3{--c:#c4b5fd;--cb:#4c1d9566}.oc4{--c:#fcd34d;--cb:#78350f66}.oc5{--c:#f9a8d4;--cb:#83184366}.oc6{--c:#67e8f9;--cb:#164e6366}.oc7{--c:#bef264;--cb:#36531466}}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.pcity .ppress-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px;margin-top:10px}.ppress h3{font-size:14px;margin:10px 0 4px;color:var(--ink)}.ppress h3 span{font-weight:400;color:var(--muted);font-size:12px}.ppress h3 a{font-weight:400;font-size:12px;color:var(--teal);margin-left:4px}.ppress ol{margin:0;padding-left:22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)}.ppress li{padding:2px 0}.dlist .dth{flex:none;width:168px;height:108px;background:var(--paper-2);display:block;border-radius:3px;overflow:hidden}.dlist .dth img{width:100%;height:100%;object-fit:cover;display:block}@media(max-width:600px){.dlist .dth{width:104px;height:72px}}.dlist .pm.top{margin:0 0 4px}.dlist b.ot,.dside b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.dlist li[hidden]{display:none}.dside li{display:flex;align-items:baseline;gap:2px}.dside li .o{margin-left:auto}.blist .bth{width:100px!important;height:140px!important}@media(max-width:600px){.blist .bth{width:80px!important;height:112px!important}}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
 .nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
@@ -1963,7 +2047,7 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
@@ -1992,7 +2076,8 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     body = []
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
-        body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
+        body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}'
+                    f'{render_paju_city(paju_city) if c == "파주" else ""}{render_timeline(p, now, c)}'
                     f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
                     f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
     def side_tr(c):
@@ -2215,7 +2300,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2239,6 +2324,11 @@ def main():
                  for i, g in enumerate(yna_g[:6])]
         nis_g = []
         book_info = {}
+        deep = []
+        paju_city = {"focus": [{"title": "파주시, 샘플 주요뉴스", "url": "https://www.paju.go.kr/news/index.do", "img": None,
+                                "date": now.strftime("%Y-%m-%d"), "desc": "파주시가 샘플 소식을 알렸다."}],
+                     "press": [{"date": now.strftime("%Y-%m-%d"), "url": "https://www.paju.go.kr/news/index.do",
+                                "titles": ["파주시, 샘플 보도자료 하나", "파주시, 샘플 보도자료 둘"]}]}
         books = [{"title": f"[신간] 샘플 책 {i}", "url": f"https://example.com/b{i}", "outlet": ("동아일보", "한겨레", "독서신문")[i % 3],
                   "img": yna_g[i % 6]["img"] if i % 2 else None, "date": (now - timedelta(hours=5 * i)).isoformat()} for i in range(7)]
     else:
@@ -2291,6 +2381,8 @@ def main():
         book_info = enrich_book_titles(books)
         pstatus.append({"name": "책 정보(예스24 검색)", "ok": bool(book_info), "count": len(book_info), "error": "" if book_info else "0권"})
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
+        paju_city, cstatus = fetch_paju_city()
+        pstatus += cstatus
         deep, dstatus = fetch_deep(now)
         pstatus += dstatus
         n_todo, n_dimg = enrich_books(deep, path=DEEP_META, need_img=True)
@@ -2350,7 +2442,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep)
+                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2365,7 +2457,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     if not args.demo:
