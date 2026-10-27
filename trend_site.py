@@ -1226,7 +1226,7 @@ def fetch_paju_city(days=3):
                 if m and len(m.group(1)) >= 6:
                     titles.append(m.group(1))
             if titles:
-                out["press"].append({"date": f"{seq[:4]}-{seq[4:6]}-{seq[6:8]}", "url": u, "titles": titles})
+                out["press"].append({"date": f"{seq[:4]}-{seq[4:6]}-{seq[6:8]}", "time": f"{seq[8:10]}:{seq[10:12]}", "url": u, "titles": titles})
         n = sum(len(x["titles"]) for x in out["press"])
         status.append({"name": "파주시청 보도자료", "ok": n > 0, "count": n, "error": "" if n else "0건"})
     except Exception as e:
@@ -1234,29 +1234,31 @@ def fetch_paju_city(days=3):
     return out, status
 
 
-def render_paju_city(pc):
-    """파주 탭 안의 '파주시청 소식' 칸: 주요뉴스 카드 + 날짜별 보도자료 제목"""
-    if not pc or not (pc.get("focus") or pc.get("press")):
-        return ""
+def paju_city_items(pc, now, press_days=3, focus_days=7):
+    """파주시청 주요뉴스·보도자료 제목 → 파주 탭 기사 목록에 섞을 기사(언론사 '파주시청').
+    같은 일을 다룬 언론 기사와 한 묶음이 되고, 없으면 따로 한 줄로 나온다."""
+    out = []
+    if not pc:
+        return out
 
-    def md(iso):
+    def dt(d, t="09:00"):
         try:
-            d = datetime.strptime(iso, "%Y-%m-%d")
-            return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
+            return datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M").replace(tzinfo=KST)
         except Exception:
-            return ""
-    cards = "".join(
-        f'<li>' + (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
-                   f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>' if x.get("img") else "")
-        + f'<div><div class="pm top"><b class="ot oc2">파주시청</b>{md(x["date"])}</div><div class="bt">{link(x["url"], x["title"])}</div>'
-        + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>" for x in pc.get("focus", [])[:5])
-    press = "".join(
-        f'<div class="ppress"><h3>{md(p["date"])} 보도자료 <span>{len(p["titles"])}건</span> {link(p["url"], "원문")}</h3><ol>'
-        + "".join(f"<li>{esc(t)}</li>" for t in p["titles"]) + "</ol></div>" for p in pc.get("press", []))
-    return (f'<section class="photos books pcity"><div class="shead"><h2>파주시청 소식</h2><span class="en">PAJU CITY</span></div>'
-            + (f'<ul class="blist dlist">{cards}</ul>' if cards else "")
-            + (f'<div class="ppress-wrap">{press}</div>' if press else "")
-            + f'<p class="note">파주시청 누리집 {link("https://www.paju.go.kr/news/index.do", "파주뉴스")}의 주요뉴스와 보도자료 제목입니다. 보도자료 본문은 원문(한글 파일)에서 볼 수 있습니다.</p></section>')
+            return None
+    for x in pc.get("focus", []):
+        d = dt(x.get("date") or "")
+        if d and now - timedelta(days=focus_days) <= d <= now + timedelta(minutes=10):
+            out.append({"title": x["title"], "url": x["url"], "outlet": "파주시청", "date": d, "img": x.get("img"),
+                        "category": "파주", "cats": {"파주"}})
+    for p in pc.get("press", []):
+        d = dt(p["date"], p.get("time") or "09:00")
+        if not d or not (now - timedelta(days=press_days) <= d <= now + timedelta(minutes=10)):
+            continue
+        for k, t in enumerate(p["titles"]):
+            out.append({"title": t, "url": p["url"], "outlet": "파주시청", "date": d - timedelta(seconds=k), "img": None,
+                        "category": "파주", "cats": {"파주"}})
+    return out
 
 
 def enrich_graphics(rows, workers=6):
@@ -2062,7 +2064,7 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
@@ -2092,7 +2094,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
         body.append(f'<div class="pg" data-c="{esc(c)}" role="tabpanel">{render_clusters(p["clusters"], now, label, render_photos(p, c))}'
-                    f'{render_paju_city(paju_city) if c == "파주" else ""}{render_timeline(p, now, c)}'
+                    f'{render_timeline(p, now, c)}'
                     f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
                     f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section></div>')
     def side_tr(c):
@@ -2315,7 +2317,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2429,7 +2431,10 @@ def main():
             sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
             continue
-        cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
+        if c == "파주":  # 파주시청 주요뉴스·보도자료 제목도 같은 목록에(시간대별·낱말 통계에는 넣지 않음)
+            cs = cluster(sub + paju_city_items(paju_city, now), top=45, min_outlets=1)
+        else:
+            cs = cluster(sub, min_outlets=1 if c in NICHE else 2)
         kws = keywords(sub, min_outlets=2 if c in NICHE else 3)
         if c in NICHE:
             kws = [k for k in kws if not NICHE[c].search(k[0])]
@@ -2457,7 +2462,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city)
+                       interactive=inter, books=books, book_info=book_info, deep=deep)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
