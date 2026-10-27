@@ -1678,6 +1678,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
+.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";font-size:12px;color:var(--muted);margin-right:2px}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -1826,6 +1827,18 @@ cs.sort((p,q)=>by==='d'?q.dataset.d.localeCompare(p.dataset.d):(q.dataset.n-p.da
 document.querySelectorAll('#bcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#bcat button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#bl>li').forEach(li=>li.hidden=k?li.dataset.k!==k:li.dataset.k==='기타')});
+(function(){const nav=document.querySelector('.nav');const off=()=>(nav?nav.offsetHeight:0)+10;
+const go=el=>scrollTo({top:el.getBoundingClientRect().top+scrollY-off(),behavior:'smooth'});
+const lab=t=>t.replace(/\\s*·.*$/,'').replace(/^언론사 \\d+곳 이상이 쓴 낱말/,'많이 쓴 낱말').replace(/^시간대별 새 기사/,'시간대별 기사');
+document.querySelectorAll('.pg[role=tabpanel]').forEach(p=>{const t=[];
+const lead=p.querySelector(':scope > article');if(lead)t.push([lead,p.dataset.c==='전체'?'오늘의 사건':'사건 묶음']);
+p.querySelectorAll('section').forEach(s=>{if(s.closest('.pg[role=tabpanel]')!==p)return;const h=s.querySelector('.shead h2');if(h)t.push([s,lab(h.innerText)]);
+if(s.classList.contains('pcity')){const pr=s.querySelector('.ppress');if(pr)t.push([pr,'보도자료'])}});
+if(t.length<2)return;const j=document.createElement('nav');j.className='jump';j.setAttribute('aria-label','이 탭 안에서 바로 가기');
+t.forEach(([el,l])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.onclick=()=>go(el);j.appendChild(b)});p.prepend(j)});
+const up=document.createElement('button');up.type='button';up.className='totop';up.setAttribute('aria-label','맨 위로');up.textContent='↑';
+up.onclick=()=>scrollTo({top:0,behavior:'smooth'});document.body.appendChild(up);
+addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:true})})();
 document.querySelectorAll('#dcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#dcat button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#dl>li').forEach(li=>li.hidden=!!k&&li.dataset.k!==k)});
