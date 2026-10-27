@@ -1235,28 +1235,52 @@ def fetch_paju_city(days=3):
 
 
 def render_paju_city(pc):
-    """파주 탭의 '파주뉴스' 화면: 파주시청 주요뉴스 카드 + 날짜별 보도자료 제목"""
+    """파주 탭의 '파주뉴스' 화면: 파주시청 주요뉴스와 보도자료 제목을 날짜별 한 목록으로.
+    같은 일이 양쪽에 있으면(제목 낱말이 많이 겹치면) 사진·요약이 있는 주요뉴스만 남긴다."""
     if not pc or not (pc.get("focus") or pc.get("press")):
         return ""
+    rows = []  # (날짜, 순서, 종류, 항목)
+    common = {"파주시", "파주", "개최", "추진", "운영", "실시", "모집", "진행", "참여", "시민"}
+
+    def kw(t):  # 흔한 낱말·날짜 숫자를 뺀 제목 낱말
+        return {w for w in words(t) if w not in common and not re.search(r"\d", w)}
+    fw = [(x, kw(x["title"])) for x in pc.get("focus", [])]
+    for x, _ in fw:
+        rows.append((x.get("date") or "", f'{x.get("time", "")}', 0, "focus", x))
+    for p in pc.get("press", []):
+        for k, t in enumerate(p["titles"]):
+            w = kw(t)
+            dup = any(len(w & v) >= 2 and len(w & v) / len(w | v) >= 0.35 for _, v in fw)
+            if not dup:
+                rows.append((p["date"], p.get("time", ""), k + 1, "press", {"title": t, "url": p["url"]}))
+    rows.sort(key=lambda r: (r[0], r[1], -r[2]), reverse=True)
 
     def md(iso):
         try:
             d = datetime.strptime(iso, "%Y-%m-%d")
             return f"{d.month}.{d.day} ({WEEK[d.weekday()]})"
         except Exception:
-            return ""
-    cards = "".join(
-        f'<li>' + (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
-                   f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>' if x.get("img") else "")
-        + f'<div><div class="pm top"><b class="ot oc2">파주시청</b>{md(x["date"])}</div><div class="bt">{link(x["url"], x["title"])}</div>'
-        + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>" for x in pc.get("focus", [])[:5])
-    press = "".join(
-        f'<div class="ppress"><h3>{md(p["date"])} 보도자료 <span>{len(p["titles"])}건</span> {link(p["url"], "원문")}</h3><ol>'
-        + "".join(f"<li>{esc(t)}</li>" for t in p["titles"]) + "</ol></div>" for p in pc.get("press", []))
-    return (f'<section class="photos books pcity" style="margin-top:0"><div class="shead"><h2>파주시청 주요뉴스</h2><span class="en">PAJU CITY</span></div>'
-            + (f'<ul class="blist dlist">{cards}</ul>' if cards else "")
-            + (f'</section><section class="photos books pcity"><div class="shead"><h2>보도자료</h2><span class="en">최근 3일</span></div><div class="ppress-wrap">{press}</div>' if press else "")
-            + f'<p class="note">파주시청 누리집 {link("https://www.paju.go.kr/news/index.do", "파주뉴스")}의 주요뉴스와 보도자료 제목입니다. 보도자료 본문은 원문(한글 파일)에서 볼 수 있습니다.</p></section>')
+            return "날짜 없음"
+
+    def item(kind, x):
+        if kind == "focus":
+            th = (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
+                  f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
+            return (f'<li>{th}<div><div class="pm top"><b class="ot oc2">주요뉴스</b></div><div class="bt">{link(x["url"], x["title"])}</div>'
+                    + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>")
+        return f'<li class="pr"><div><b class="ot oc0">보도자료</b> {link(x["url"], x["title"])}</div></li>'
+    days, cur = [], None
+    for d, _, _, kind, x in rows:
+        if d != cur:
+            days.append([d, []])
+            cur = d
+        days[-1][1].append(item(kind, x))
+    nf = sum(1 for r in rows if r[3] == "focus")
+    body = "".join(f'<h3 class="pday">{md(d)}<span>{len(its)}건</span></h3><ul class="blist dlist">{"".join(its)}</ul>' for d, its in days)
+    return (f'<section class="photos books pcity" style="margin-top:0"><div class="shead"><h2>파주시청 소식</h2>'
+            f'<span class="en">주요뉴스 {nf} · 보도자료 {len(rows) - nf}</span></div>{body}'
+            f'<p class="note">파주시청 누리집 {link("https://www.paju.go.kr/news/index.do", "파주뉴스")}의 주요뉴스와 최근 3일 보도자료 제목입니다. '
+            f'보도자료를 누르면 그날 보도자료 게시글(한글 파일 첨부)로 갑니다.</p></section>')
 
 
 def enrich_graphics(rows, workers=6):
@@ -1678,7 +1702,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
-.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
+.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
