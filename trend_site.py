@@ -1702,7 +1702,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
-.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
+.nav .sbtn{display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ink-soft);padding:3px 2px 5px;border-bottom:0}.nav .sbtn:hover{color:var(--ink)}@media(max-width:560px){.nav .sbtn{position:sticky;right:0;z-index:2;color:var(--ink);background:var(--paper);padding-left:10px;margin-left:-4px;box-shadow:-10px 0 10px var(--paper)}.nav .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border-radius:0}}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -1807,8 +1807,20 @@ LOGO_SVG = ('<svg class="mark" viewBox="0 0 104 88" aria-hidden="true">'
             '<rect x="60" y="0" width="44" height="44" fill="var(--red)"/><polygon points="82,44 104,44 90,88 68,88" fill="var(--red)"/></svg>')
 FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Serif+KR:wght@900&display=swap">'
 
+
+SEARCH_ICON = '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>'
+SEARCH_BTN = f'<button type="button" class="sbtn" id="sopen" aria-label="기사 검색" title="기사 검색 ( / )">{SEARCH_ICON}<span>검색</span></button>'
+SEARCH_DIALOG = (
+    '<dialog id="smodal" aria-label="기사 검색"><div class="shd">' + SEARCH_ICON
+    + '<input id="sq" type="search" placeholder="기사 제목·언론사 검색" autocomplete="off" enterkeyhint="search" aria-label="검색어">'
+    '<button type="button" class="sx" id="sclose" aria-label="닫기">닫기</button></div>'
+    '<div class="sflt"><div class="ofilter" id="speriod" role="group" aria-label="기간"><button class="on" data-d="15">15일</button>'
+    '<button data-d="7">7일</button><button data-d="3">3일</button><button data-d="1">오늘</button></div>'
+    '<div class="ofilter" id="stab" role="group" aria-label="분야"></div></div>'
+    '<div id="sinfo" class="sinfo" aria-live="polite"></div><div id="sres"></div></dialog>')
+
 JS = """
-const tabs=document.querySelectorAll('.nav button'),pgs=document.querySelectorAll('.pg');
+const tabs=document.querySelectorAll('.nav button[role=tab]'),pgs=document.querySelectorAll('.pg');
 function show(c){tabs.forEach(b=>{const on=b.dataset.c===c;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
 pgs.forEach(p=>p.classList.toggle('on',p.dataset.c===c));try{localStorage.setItem('trend_tab',c)}catch(e){}
 const b=[...tabs].find(x=>x.dataset.c===c),n=b&&b.parentNode;  // 좁은 화면: 고른 탭이 보이게 가운데로
@@ -1851,6 +1863,43 @@ cs.sort((p,q)=>by==='d'?q.dataset.d.localeCompare(p.dataset.d):(q.dataset.n-p.da
 document.querySelectorAll('#bcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#bcat button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#bl>li').forEach(li=>li.hidden=k?li.dataset.k!==k:li.dataset.k==='기타')});
+(function(){const dlg=document.getElementById('smodal'),btn=document.getElementById('sopen');if(!dlg||!btn)return;
+const q=document.getElementById('sq'),info=document.getElementById('sinfo'),res=document.getElementById('sres'),tb=document.getElementById('stab');
+let D=null,H=null,loading=null,days=15,tab=-1,limit=200,timer=0;const W='일월화수목금토';
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function load(){if(D)return D;if(!loading)loading=fetch('search.json?v='+encodeURIComponent(document.body.dataset.built||'')).then(r=>r.json()).then(d=>{D=d;
+H=d.r.map(r=>{const h=(r[0]+' '+d.o[r[1]]).toLowerCase();return[h,h.replace(/\\s+/g,'')]});return d});return loading}
+function kst(m){return new Date((m+540)*60000)}
+function hl(t,terms){let h=esc(t);terms.forEach(w=>{if(!w)return;const re=new RegExp(w.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&'),'gi');h=h.replace(re,x=>'<mark>'+x+'</mark>')});return h}
+function hot(){const hs=(D&&D.hot)||[];return hs.length?'<div class="shot"><b>지금 뜨는 말</b>'+hs.map(k=>'<button type="button" data-k="'+esc(k)+'">'+esc(k)+'</button>').join('')+'</div>':''}
+function run(){if(!D){info.textContent='검색 목록을 불러오는 중…';load().then(run).catch(()=>{info.textContent='검색 목록을 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.'});return}
+const raw=q.value.trim();const terms=raw.toLowerCase().split(/\\s+/).filter(Boolean);
+try{history.replaceState(null,'',raw?'#q='+encodeURIComponent(raw):location.pathname+location.search)}catch(e){}
+if(!terms.length){tb.innerHTML='';res.innerHTML=hot();info.textContent='최근 '+D.days+'일 기사 '+D.r.length.toLocaleString()+'건에서 찾습니다. 낱말 여러 개는 띄어 쓰면 모두 들어간 기사만 나옵니다.';return}
+const lo=days===1?(()=>{const n=kst(Math.floor(Date.now()/60000));return Math.floor(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())/60000)-540})():Math.floor(Date.now()/60000)-days*1440;
+const hits=[];for(let i=0;i<D.r.length;i++){const r=D.r[i];if(r[3]<lo)continue;const h=H[i];if(terms.every(w=>h[0].includes(w)||h[1].includes(w.replace(/\\s+/g,''))))hits.push(r)}
+const cnt={};hits.forEach(r=>cnt[r[2]]=(cnt[r[2]]||0)+1);if(tab>=0&&!cnt[tab])tab=-1;
+tb.innerHTML=hits.length?'<button class="'+(tab<0?'on':'')+'" data-t="-1">전체<i>'+hits.length+'</i></button>'+D.t.map((t,i)=>cnt[i]?'<button class="'+(tab===i?'on':'')+'" data-t="'+i+'">'+esc(t)+'<i>'+cnt[i]+'</i></button>':'').join(''):'';
+const list=tab<0?hits:hits.filter(r=>r[2]===tab);
+info.textContent=list.length?('‘'+raw+'’ '+list.length.toLocaleString()+'건'+(list.length>limit?' · 최근 '+limit+'건 표시':'')):('‘'+raw+'’ 기사가 최근 '+(days===1?'오늘':days+'일')+' 안에 없습니다.');
+let out='',cur='';list.slice(0,limit).forEach(r=>{const d=kst(r[3]),day=(d.getUTCMonth()+1)+'.'+d.getUTCDate()+' ('+W[d.getUTCDay()]+')';
+if(day!==cur){out+=(cur?'</ul>':'')+'<h3 class="pday">'+day+'</h3><ul class="slist">';cur=day}
+const u=r[4].startsWith('g:')?'https://news.google.com/rss/articles/'+r[4].slice(2)+'?oc=5':/^https?:/.test(r[4])?r[4]:'https://'+r[4];
+out+='<li><b class="ot oc'+D.oc[r[1]]+'">'+esc(D.o[r[1]])+'</b><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+hl(r[0],terms)+'</a><span class="o">'+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+' · '+esc(D.t[r[2]])+'</span></li>'});
+if(cur)out+='</ul>';if(list.length>limit)out+='<button type="button" class="smore">더 보기 ('+(list.length-limit).toLocaleString()+'건 더)</button>';
+res.innerHTML=out||hot()}
+function open(v){if(typeof v==='string')q.value=v;if(!dlg.open){if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','')}limit=200;run();setTimeout(()=>q.focus(),30)}
+btn.onclick=()=>open();document.getElementById('sclose').onclick=()=>dlg.close();
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
+dlg.addEventListener('close',()=>{try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}});
+q.addEventListener('input',()=>{clearTimeout(timer);limit=200;timer=setTimeout(run,120)});
+document.getElementById('speriod').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;days=+b.dataset.d;
+[...b.parentNode.children].forEach(x=>x.classList.toggle('on',x===b));limit=200;run()});
+tb.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tab=+b.dataset.t;limit=200;run()});
+res.addEventListener('click',e=>{const k=e.target.closest('.shot button');if(k){q.value=k.dataset.k;run();return}
+if(e.target.closest('.smore')){limit+=200;run()}});
+addEventListener('keydown',e=>{if(e.key==='/'&&!dlg.open&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')){e.preventDefault();open()}});
+const m=location.hash.match(/^#q=(.*)$/);if(m)open(decodeURIComponent(m[1]));})();
 (function(){const nav=document.querySelector('.nav');const off=()=>(nav?nav.offsetHeight:0)+10;
 const go=el=>scrollTo({top:el.getBoundingClientRect().top+scrollY-off(),behavior:'smooth'});
 const lab=t=>t.replace(/\\s*·.*$/,'').replace(/^언론사 \\d+곳 이상이 쓴 낱말/,'많이 쓴 낱말').replace(/^시간대별 새 기사/,'시간대별 기사');
@@ -2109,7 +2158,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     if only:
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
     else:
-        tabs += '<a class="srclink" href="sources.html">출처</a>'
+        tabs += '<a class="srclink" href="sources.html">출처</a>' + SEARCH_BTN
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
     tick_keys = list(pages) + ([DEEP_TAB] if deep else []) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
@@ -2156,7 +2205,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
 <body data-built="{esc(now.isoformat())}"><div class="w">
 <div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button></span></div>
 <header class="titlerow"><h1 class="brand">{LOGO_SVG}<span>{esc(brand)}</span></h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
-<nav class="nav" role="tablist">{tabs}</nav>
+<nav class="nav" role="tablist">{tabs}</nav>{"" if only else SEARCH_DIALOG}
 {ticker}
 {render_brief(trends, pages, now, only or "전체")}
 <div class="cols"><main>{"".join(body)}{gpanel}</main><aside class="side">{side}</aside></div>
@@ -2315,6 +2364,119 @@ def load_feeds():
         return json.load(open(fp, encoding="utf-8"))
     except Exception:
         return []
+
+
+# ── 검색: 최근 15일 기사 목록(site/search.json) ──
+# 매시간 지금 화면의 기사(사건 묶음 링크·책·맥락·탐사·파주시청)를 history/search_index.json에 모아 두고 15일이 지난 것은 뺀다.
+# 처음 한 번은 history/의 시간별 기록(최대 7일)으로 채운다. 날짜는 그 기사가 처음 보인 시각과 사건 묶음 최근 시각 중 이른 쪽.
+SEARCH_INDEX = os.path.join(HERE, "history", "search_index.json")
+SEARCH_DAYS = 15
+
+
+def _search_rows(d):
+    """data.json 하나 → {url: [제목, 언론사, ISO 시각, 탭]}"""
+    built = d.get("built") or ""
+    out = {}
+
+    def add(url, title, outlet, date, tab):
+        if not url or not title or not date:
+            return
+        r = out.get(url)
+        if r:
+            if date < r[2]:
+                r[2] = date
+            if r[3] == "전체" and tab != "전체":
+                r[3] = tab
+            return
+        title = re.sub(r"\s*[-|]\s*(?:https?://|www\.)\S+\s*$", "", re.sub(r"\s+", " ", title)).strip()  # 끝에 붙은 주소 꼬리 제거
+        out[url] = [title, outlet or "", date, tab]
+    for c, p in (d.get("pages") or {}).items():
+        for cl in p.get("clusters", []):
+            dt = min(x for x in (cl.get("latest") or built, built) if x)
+            for l in cl.get("links", []):
+                add(l.get("url"), l.get("title"), l.get("outlet"), dt, c)
+    for x in d.get("books") or []:
+        add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), BOOK_TAB)
+    for x in d.get("deep") or []:
+        add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), DEEP_TAB)
+    pc = d.get("paju_city") or {}
+    for x in pc.get("focus", []):
+        if x.get("date"):
+            add(x.get("url"), x.get("title"), "파주시청", x["date"] + "T09:00:00+09:00", "파주")
+    for pr in pc.get("press", []):
+        for k, t in enumerate(pr.get("titles", [])):
+            add(pr["url"] + f"#{k + 1}", t, "파주시청", f'{pr["date"]}T{pr.get("time") or "09:00"}:00+09:00', "파주")
+    return out
+
+
+def build_search(data, now, out_dir, persist=True):
+    """→ 검색 목록 기사 수. site/search.json = {built, days, o:[언론사], oc:[색 번호], t:[탭], hot:[급상승], r:[[제목, 언론사 번호, 탭 번호, 분(유닉스), 주소]]}"""
+    idx = {}
+    if persist:
+        try:
+            idx = json.load(open(SEARCH_INDEX, encoding="utf-8"))
+        except Exception:  # 처음: 시간별 기록으로 채우기
+            hd = os.path.join(HERE, "history")
+            for fn in sorted(os.listdir(hd)) if os.path.isdir(hd) else []:
+                if re.match(r"20\d\d-\d\d-\d\d-\d\d\.json$", fn):
+                    try:
+                        for u, r in _search_rows(json.load(open(os.path.join(hd, fn), encoding="utf-8"))).items():
+                            if u not in idx or r[2] < idx[u][2]:
+                                idx[u] = r if u not in idx else [idx[u][0], idx[u][1], r[2], idx[u][3]]
+                    except Exception:
+                        pass
+    for u, r in _search_rows(data).items():
+        if u in idx:
+            old = idx[u]
+            idx[u] = [old[0], old[1], min(old[2], r[2]), r[3] if old[3] == "전체" else old[3]]
+        else:
+            idx[u] = r
+    cutoff = (now - timedelta(days=SEARCH_DAYS)).isoformat()
+    lo = now - timedelta(days=SEARCH_DAYS)
+    keep = {}
+    for u, r in idx.items():
+        try:
+            if datetime.fromisoformat(r[2]) >= lo:
+                keep[u] = r
+        except Exception:
+            pass
+    if persist:
+        try:
+            os.makedirs(os.path.dirname(SEARCH_INDEX), exist_ok=True)
+            json.dump(keep, open(SEARCH_INDEX, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+        except Exception:
+            pass
+    seen, rows = set(), []
+    for u, r in sorted(keep.items(), key=lambda kv: kv[1][2], reverse=True):
+        k = (r[1], re.sub(r"\W", "", r[0]))
+        if k in seen:  # 같은 언론사·같은 제목(주소만 다른 것)은 하나만
+            continue
+        seen.add(k)
+        rows.append((u, r))
+    outlets = sorted({r[1] for _, r in rows})
+    for _, r in rows:  # '전체' 탭에만 있던 기사는 검색 화면에서 '종합'으로(분야 버튼의 '전체'와 헷갈리지 않게)
+        if r[3] == "전체":
+            r[3] = "종합"
+    tabs = [c for c in ["종합"] + CATEGORIES[1:] if any(r[3] == c for _, r in rows)] + [t for t in (DEEP_TAB, BOOK_TAB) if any(r[3] == t for _, r in rows)]
+    oi, ti = {o: i for i, o in enumerate(outlets)}, {t: i for i, t in enumerate(tabs)}
+    try:
+        gnc = json.load(open(GN_CACHE, encoding="utf-8"))
+    except Exception:
+        gnc = {}
+
+    def short(u):  # 주소 줄이기: 구글뉴스는 원문 주소(풀어 둔 것) 또는 'g:아이디', 나머지는 https:// 빼기
+        u = u.split("#")[0]
+        m = GN_RX.search(u)
+        if m:
+            o = (gnc.get(m.group(1)) or {}).get("url")
+            return re.sub(r"^https://", "", o) if o else "g:" + m.group(1)
+        return re.sub(r"^https://", "", u)
+    out = {"built": now.isoformat(), "days": SEARCH_DAYS, "o": outlets, "oc": [outlet_color(o) for o in outlets], "t": tabs,
+           "hot": [t["keyword"] for t in (data.get("trends") or [])[:8]],
+           "r": [[r[0], oi[r[1]], ti.get(r[3], 0), int(datetime.fromisoformat(r[2]).timestamp() // 60), short(u)] for u, r in rows if r[3] in ti]}
+    with open(os.path.join(out_dir, "search.json"), "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    return len(out["r"])
 
 
 def save_history(data, now, keep_days=7):
@@ -2509,6 +2671,11 @@ def main():
             "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
+    try:
+        n_search = build_search(data, now, args.out, persist=not args.demo)
+        print(f"검색 목록 {n_search:,}건 (최근 {SEARCH_DAYS}일)")
+    except Exception as e:
+        print("검색 목록 실패:", type(e).__name__, e)
     if not args.demo:
         save_history(data, now)
     ok = sum(1 for s in allstatus if s["ok"])
