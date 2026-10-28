@@ -652,7 +652,8 @@ def book_titles_of(x):
             out.append(m.group(1))
     res, seen = [], set()
     for b in out:
-        b = re.sub(r"\s*(?:외|外)\s*$", "", re.sub(r"\s+", " ", b)).strip(" ·,")
+        b = re.sub(r"\s*(?:…|\.{2,})\s*$", "", re.sub(r"\s+", " ", b))  # 끝 말줄임표(줄여 쓴 제목)
+        b = re.sub(r"\s*(?:외|外)\s*$", "", b).strip(" ·,")
         k = re.sub(r"\W", "", b)
         if 2 <= len(b) <= 40 and not re.fullmatch(r"[\d\s.,]+", b) and not _BK_NOT.search(b) and k not in seen:
             seen.add(k)
@@ -660,8 +661,9 @@ def book_titles_of(x):
     return res
 
 
-def book_titles(rows, top=60):
-    """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로. arts = 그 책을 다룬 기사 번호(rows 안)"""
+def book_titles(rows, top=60, info=None):
+    """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로. arts = 그 책을 다룬 기사 번호(rows 안)
+    info(서점 정보)를 주면 제목 표기가 달라도 ISBN(없으면 서점 주소)이 같은 책은 한 권으로 합친다."""
     agg = {}
     for n, x in enumerate(rows):
         for b in book_titles_of(x):
@@ -673,6 +675,21 @@ def book_titles(rows, top=60):
                 e["arts"].append(n)
             if x["date"] > e["date"]:
                 e["date"] = x["date"]
+    if info:  # 예: '이루어질 수 없는 사랑…'(연합) = '이루어질 수 없는 사랑, 이루어질 수없는 사랑'(동아)
+        merged, by_id = [], {}
+        for e in sorted(agg.values(), key=lambda e: (len(e["arts"]), e["date"]), reverse=True):
+            i = info.get(_bk_key(e["title"])) or {}
+            bid = i.get("isbn") or i.get("url")
+            m = by_id.get(bid) if bid else None
+            if m is None:
+                if bid:
+                    by_id[bid] = e
+                merged.append(e)
+                continue
+            m["outlets"] += [o for o in e["outlets"] if o not in m["outlets"]]
+            m["arts"] += [n for n in e["arts"] if n not in m["arts"]]
+            m["date"] = max(m["date"], e["date"])
+        agg = {i: e for i, e in enumerate(merged)}
     out = sorted(agg.values(), key=lambda e: (len(e["outlets"]), e["date"]), reverse=True)
     return out[:top]
 
@@ -795,7 +812,7 @@ def enrich_book_titles(rows, max_new=40, workers=4):
 
 def render_book_side(rows, info=None):
     """책책책 탭 오른쪽: 많이 소개된 책 TOP 20 (누르면 책 정보 창)"""
-    bl = book_titles(rows or [])[:20]
+    bl = book_titles(rows or [], info=info or {})[:20]
     if not bl:
         return ""
     info = info or {}
@@ -847,7 +864,7 @@ def render_books(rows, now, info=None):
     if not rows:
         return ""
     info = info or {}
-    bl = book_titles(rows)
+    bl = book_titles(rows, info=info)
     linked = {}  # 기사 번호 → 책 번호
     for k, e in enumerate(bl):
         for n in e["arts"]:
