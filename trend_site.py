@@ -655,10 +655,14 @@ def book_titles_of(x):
         b = re.sub(r"\s*(?:…|\.{2,})\s*$", "", re.sub(r"\s+", " ", b))  # 끝 말줄임표(줄여 쓴 제목)
         b = re.sub(r"\s*(?:외|外)\s*$", "", b).strip(" ·,")
         k = re.sub(r"\W", "", b)
+        if re.search(r"[…‘’“”'\"]", b):  # 말줄임표·따옴표가 안에 남은 것은 기사 제목 조각(예: 기억 잃은 엄마의 시간…'다이브 인)
+            continue
         if 2 <= len(b) <= 40 and not re.fullmatch(r"[\d\s.,]+", b) and not _BK_NOT.search(b) and k not in seen:
             seen.add(k)
             res.append(b)
-    return res
+    # 한 기사에서 '왕의 탈출'과 '왕의 탈출 : 아관파천'이 함께 나오면 더 긴(부제까지 있는) 쪽만
+    keys = [re.sub(r"\W", "", b).lower() for b in res]
+    return [b for b, k in zip(res, keys) if not any(o != k and o.startswith(k) for o in keys)]
 
 
 def book_titles(rows, top=60, info=None):
@@ -690,7 +694,24 @@ def book_titles(rows, top=60, info=None):
             m["arts"] += [n for n in e["arts"] if n not in m["arts"]]
             m["date"] = max(m["date"], e["date"])
         agg = {i: e for i, e in enumerate(merged)}
-    out = sorted(agg.values(), key=lambda e: (len(e["outlets"]), e["date"]), reverse=True)
+    # 기사마다 부제 표기가 다른 같은 책(앞부분 4자 이상이 같고 서점 정보가 다르지 않은 것)은 한 권으로
+    es = sorted(agg.values(), key=lambda e: len(_bk_key(e["title"])), reverse=True)
+    keep = []
+    for e in es:
+        k = _bk_key(e["title"])
+        ie = ((info or {}).get(k) or {}).get("isbn")
+        m = next((x for x in keep if len(k) >= 4 and _bk_key(x["title"]).startswith(k)
+                  and (not ie or not ((info or {}).get(_bk_key(x["title"])) or {}).get("isbn")
+                       or ie == ((info or {}).get(_bk_key(x["title"])) or {}).get("isbn"))), None)
+        if m is None:
+            keep.append(e)
+            continue
+        if ie and not ((info or {}).get(_bk_key(m["title"])) or {}).get("isbn"):
+            m["title"] = e["title"]  # 서점 정보가 있는 표기를 쓴다
+        m["outlets"] += [o for o in e["outlets"] if o not in m["outlets"]]
+        m["arts"] += [n for n in e["arts"] if n not in m["arts"]]
+        m["date"] = max(m["date"], e["date"])
+    out = sorted(keep, key=lambda e: (len(e["outlets"]), e["date"]), reverse=True)
     return out[:top]
 
 
