@@ -1484,7 +1484,7 @@ def render_visual(rows):
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
             + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>그림 없는 글</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
             + f'<p class="note">하루 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
-            f'McKinsey(Chart of the Week)·IMF(블로그)는 사용 허락을 받아 구글뉴스로 찾은 글의 대표 그림까지 보여 줍니다. '
+            f'McKinsey(Chart of the Week)·IMF(블로그)는 사용 허락을 받았지만 두 사이트가 자동 접속을 막고 있어 지금은 구글뉴스로 찾은 제목과 링크만 보여 줍니다(그림은 원문에서). '
             f'Voronoi는 이용약관상 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
             f'Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
             f'</section></div>')
