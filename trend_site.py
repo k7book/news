@@ -11,7 +11,7 @@
 
 환경변수(선택): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — 설정 시 전체 실패/저조 때 알림
 """
-import argparse, html, json, os, re, sys, time, urllib.request, urllib.parse, urllib.robotparser
+import argparse, hashlib, html, json, os, re, sys, time, urllib.request, urllib.parse, urllib.robotparser
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
