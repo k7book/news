@@ -1342,7 +1342,7 @@ VISUAL_LINKS = [("Visual Capitalist", "https://www.visualcapitalist.com/", "경�
 VISUAL_CREDIT = {"Visual Capitalist": "© Visual Capitalist", "Our World in Data": "Our World in Data · CC BY"}
 
 
-def fetch_visual(now, days=30, limit=90):
+def fetch_visual(now, days=30, limit=60):
     """→ (rows, status). rows = {title, url, outlet, img, date, cats}. 하루 한 번만 받는다(23시간 안이면 저장해 둔 것).
     피드에 최근 것만 나오므로 history/visual.json에 모아 30일 보관."""
     A = "{http://www.w3.org/2005/Atom}"
@@ -1352,7 +1352,7 @@ def fetch_visual(now, days=30, limit=90):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 2]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     try:
         fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23) and cache.get("conf") == conf
     except Exception:
@@ -1420,7 +1420,12 @@ def fetch_visual(now, days=30, limit=90):
         if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
             by[x["url"]] = x
     lo = (now - timedelta(days=days)).isoformat()
-    rows = sorted((x for x in by.values() if x["date"] >= lo), key=lambda x: x["date"], reverse=True)[:limit]
+    per = Counter()
+    rows = []
+    for x in sorted((x for x in by.values() if x["date"] >= lo), key=lambda x: x["date"], reverse=True):
+        per[x["outlet"]] += 1
+        if per[x["outlet"]] <= (limit if x.get("img") else 25):  # 제목만인 곳(Voronoi 등)은 매체마다 25건까지 → 다른 매체가 밀리지 않게
+            rows.append(x)
     try:
         os.makedirs(os.path.dirname(VISUAL_CACHE), exist_ok=True)
         json.dump({"fetched": now.isoformat() if any(st["ok"] for st in status) else cache.get("fetched", ""), "conf": conf, "rows": rows},
