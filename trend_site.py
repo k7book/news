@@ -1340,8 +1340,6 @@ VISUAL_LINKS = [("Visual Capitalist", "https://www.visualcapitalist.com/", "경�
                 ("McKinsey", "https://www.mckinsey.com/featured-insights/charts", "Chart of the Week (매주 수요일)"),
                 ("IMF", "https://www.imf.org/en/Blogs/chart-of-the-week", "Chart of the Week")]
 VISUAL_CREDIT = {"Visual Capitalist": "© Visual Capitalist", "Our World in Data": "Our World in Data · CC BY"}
-# 2026-10-30 사용자가 McKinsey·IMF에 사용 허락을 받음 → 두 곳은 원문 페이지의 대표 그림(og:image)도 받는다(하루 한 번, 글마다 한 번).
-VISUAL_OG_OK = {"McKinsey", "IMF"}
 
 
 def fetch_visual(now, days=30, limit=60):
@@ -1354,7 +1352,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, sorted(VISUAL_OG_OK), 2]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 2]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     try:
         fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23) and cache.get("conf") == conf
     except Exception:
@@ -1420,23 +1418,7 @@ def fetch_visual(now, days=30, limit=60):
     by = {x["url"]: x for x in cache["rows"]}
     for x in got:
         if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
-            old = by.get(x["url"]) or {}
-            if old.get("img") or old.get("og_tried"):  # 전에 받은 그림·시도 기록은 남긴다
-                x = dict(x, img=x.get("img") or old.get("img"), og_tried=old.get("og_tried"))
             by[x["url"]] = x
-    todo = [x for x in by.values() if x["outlet"] in VISUAL_OG_OK and not x.get("img") and not x.get("og_tried")][:20]
-    n_og = 0
-    for x in todo:  # 허락받은 곳: 원문 대표 그림
-        x["og_tried"] = now.strftime("%Y-%m-%d")
-        try:
-            img = og_meta(x["url"]).get("img")
-            if img:
-                x["img"] = img
-                n_og += 1
-        except Exception:
-            pass
-    if todo:
-        status.append({"name": "McKinsey·IMF 대표 그림(허락)", "ok": True, "count": n_og, "error": "" if n_og else f"{len(todo)}건 중 0"})
     lo = (now - timedelta(days=days)).isoformat()
     per = Counter()
     rows = []
@@ -1482,11 +1464,10 @@ def render_visual(rows):
     return (f'<div class="pg" data-c="{VISUAL_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>오늘의 차트</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
-            + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>그림 없는 글</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
+            + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>Voronoi · McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
             + f'<p class="note">하루 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
-            f'McKinsey(Chart of the Week)·IMF(블로그)는 사용 허락을 받았지만 두 사이트가 자동 접속을 막고 있어 지금은 구글뉴스로 찾은 제목과 링크만 보여 줍니다(그림은 원문에서). '
-            f'Voronoi는 이용약관상 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
-            f'Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
+            f'Voronoi·McKinsey(Chart of the Week)·IMF(블로그)는 이용약관·접속 차단 때문에 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
+            f'그림은 원문에서 보세요. Visual Capitalist 그래픽은 Visual Capitalist, Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
             f'</section></div>')
 
 
