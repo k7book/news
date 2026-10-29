@@ -1321,10 +1321,10 @@ def render_paju_city(pc):
             f'보도자료를 누르면 그날 보도자료 게시글(한글 파일 첨부)로 갑니다.</p></section>')
 
 
-# ── 비쥬얼뉴스 탭: 해외 데이터 시각화(공식 피드) + 바로 가기 ──
+# ── 오늘의 차트 탭(옛 이름 비쥬얼뉴스): 해외 데이터 시각화(공식 피드) + 바로 가기 ──
 # 2026-10-29 검토: Visual Capitalist(RSS 허용, 소규모 사이트 무료·원문 링크·출처 표시·그림 수정 금지),
 # Our World in Data(CC BY, Atom 피드). Voronoi·Tableau Public·McKinsey·IMF는 약관(자동 수집 금지 등)·차단 때문에 링크만.
-VISUAL_TAB = "비쥬얼뉴스"
+VISUAL_TAB = "오늘의 차트"
 VISUAL_FEEDS = [("Visual Capitalist", "https://www.visualcapitalist.com/feed/"),
                 ("Our World in Data", "https://ourworldindata.org/atom-data-insights.xml")]
 VISUAL_CACHE = os.path.join(HERE, "history", "visual.json")
@@ -1358,7 +1358,7 @@ def fetch_visual(now, days=30, limit=90):
         fresh = False
     if fresh:
         cnt = Counter(x["outlet"] for x in cache["rows"])
-        return cache["rows"], [{"name": f"비쥬얼뉴스(하루 한 번 · {cache['fetched'][5:16].replace('T', ' ')} 받음)", "ok": True,
+        return cache["rows"], [{"name": f"오늘의 차트(하루 한 번 · {cache['fetched'][5:16].replace('T', ' ')} 받음)", "ok": True,
                                 "count": len(cache["rows"]), "error": ""}]
     got, status = [], []
     for name, url in VISUAL_FEEDS:
@@ -1383,9 +1383,9 @@ def fetch_visual(now, days=30, limit=90):
                             "outlet": name, "img": re.sub(r"/w=\d+$", "/w=750", im.group(1)) if im else None,
                             "date": d.isoformat() if d else "", "cats": []})
                 n += 1
-            status.append({"name": f"{name}(비쥬얼뉴스)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
+            status.append({"name": f"{name}(오늘의 차트)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
         except Exception as e:
-            status.append({"name": f"{name}(비쥬얼뉴스)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+            status.append({"name": f"{name}(오늘의 차트)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
     for name, q, need, tail in VISUAL_GN:  # 제목·링크만 (구글뉴스)
         n = 0
         try:
@@ -1411,9 +1411,9 @@ def fetch_visual(now, days=30, limit=90):
                     u2 = u
                 got.append({"title": t, "url": u2, "gn": u, "outlet": name, "img": None, "date": a["date"].isoformat(), "cats": []})
                 n += 1
-            status.append({"name": f"{name}(비쥬얼뉴스·구글뉴스 제목)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
+            status.append({"name": f"{name}(오늘의 차트·구글뉴스 제목)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
         except Exception as e:
-            status.append({"name": f"{name}(비쥬얼뉴스·구글뉴스 제목)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+            status.append({"name": f"{name}(오늘의 차트·구글뉴스 제목)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
     by = {x["url"]: x for x in cache["rows"]}
     for x in got:
         if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
@@ -1430,7 +1430,7 @@ def fetch_visual(now, days=30, limit=90):
 
 
 def render_visual(rows):
-    """비쥬얼뉴스 탭: 출처 버튼 + 그림 카드(누르면 원문). 그림은 잘라내지 않고 그대로 줄여 보여 준다."""
+    """오늘의 차트 탭: 출처 버튼 + 그림 카드(누르면 원문). 그림은 잘라내지 않고 그대로 줄여 보여 준다."""
     if not rows:
         return ""
     per = Counter()
@@ -1457,7 +1457,7 @@ def render_visual(rows):
                 + f'<div class="pm"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>{d.month}.{d.day} ({WEEK[d.weekday()]})'
                 f'<span class="vcr">{esc(VISUAL_CREDIT.get(x["outlet"], ""))}</span></div></a>')
     return (f'<div class="pg" data-c="{VISUAL_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
-            f'<div class="shead" style="padding-top:12px"><h2>비쥬얼뉴스</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
+            f'<div class="shead" style="padding-top:12px"><h2>오늘의 차트</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
             + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>Voronoi · McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
             + f'<p class="note">하루 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
@@ -1468,7 +1468,7 @@ def render_visual(rows):
 
 def render_visual_side():
     lis = "".join(f'<li><b class="ot oc{outlet_color(n)}">{esc(n)}</b> {link(u, d)}</li>' for n, u, d in VISUAL_LINKS)
-    return (f'<section class="pg" data-c="{VISUAL_TAB}"><div class="shead"><h2>비쥬얼 바로 가기</h2><span class="en">LINKS</span></div>'
+    return (f'<section class="pg" data-c="{VISUAL_TAB}"><div class="shead"><h2>차트 바로 가기</h2><span class="en">LINKS</span></div>'
             f'<ul class="barts dside vside">{lis}</ul><p class="note">Tableau Public 오늘의 비주얼은 이용약관상 콘텐츠를 가져올 수 없어 바로 가기만 둡니다.</p></section>')
 
 
@@ -2624,6 +2624,9 @@ def build_search(data, now, out_dir, persist=True):
                                 idx[u] = r if u not in idx else [idx[u][0], idx[u][1], r[2], idx[u][3]]
                     except Exception:
                         pass
+    for r in idx.values():  # 탭 이름 바뀐 것(2026-10-29 비쥬얼뉴스 → 오늘의 차트)
+        if len(r) > 3 and r[3] == "비쥬얼뉴스":
+            r[3] = VISUAL_TAB
     for u, r in _search_rows(data).items():
         if u in idx:
             old = idx[u]
