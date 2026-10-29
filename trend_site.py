@@ -1331,7 +1331,7 @@ VISUAL_CACHE = os.path.join(HERE, "history", "visual.json")
 # 사이트에 직접 접속하지 않고 구글뉴스 검색 RSS로 제목·링크만(2026-10-19 구글뉴스 예외 결정 범위). 그림은 가져오지 않는다.
 # (이름, 검색어, 원문 주소에 있어야 할 경로(구글 링크를 풀어 확인) 또는 None, 제목 끝에서 지울 꼬리)
 VISUAL_GN = [("Voronoi", "site:voronoiapp.com when:30d", None, r"\s*-\s*Voronoi by Visual Capitalist$"),
-             ("McKinsey", "site:mckinsey.com chart when:30d", "/featured-insights/charts/", r"\s*-\s*McKinsey & Company$"),
+             ("McKinsey", "site:mckinsey.com/featured-insights/charts when:30d", "/featured-insights/charts/", r"\s*-\s*McKinsey & Company$"),
              ("IMF", "site:imf.org/en/Blogs when:30d", "/Blogs/Articles/", r"\s*-\s*International Monetary Fund.*$")]
 VISUAL_LINKS = [("Visual Capitalist", "https://www.visualcapitalist.com/", "경제·시장·지정학 인포그래픽"),
                 ("Our World in Data", "https://ourworldindata.org/", "세계 데이터 차트 (CC BY)"),
@@ -1352,8 +1352,9 @@ def fetch_visual(now, days=30, limit=90):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     try:
-        fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23)
+        fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23) and cache.get("conf") == conf
     except Exception:
         fresh = False
     if fresh:
@@ -1422,7 +1423,7 @@ def fetch_visual(now, days=30, limit=90):
     rows = sorted((x for x in by.values() if x["date"] >= lo), key=lambda x: x["date"], reverse=True)[:limit]
     try:
         os.makedirs(os.path.dirname(VISUAL_CACHE), exist_ok=True)
-        json.dump({"fetched": now.isoformat() if any(st["ok"] for st in status) else cache.get("fetched", ""), "rows": rows},
+        json.dump({"fetched": now.isoformat() if any(st["ok"] for st in status) else cache.get("fetched", ""), "conf": conf, "rows": rows},
                   open(VISUAL_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
     except Exception:
         pass
