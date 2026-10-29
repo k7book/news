@@ -557,8 +557,9 @@ BOOK_FEEDS = [  # (언론사, RSS, 거르는 방법: None=전부 / "title"=제�
     ("한겨레", "https://www.hani.co.kr/rss/culture/", "/arti/culture/book/"),
     ("경향신문", "https://www.khan.co.kr/rss/rssdata/culture_news.xml", "title"),
     ("연합뉴스", "https://www.yna.co.kr/rss/culture.xml", "title"),
-    ("독서신문", "https://www.readersnews.com/rss/allArticle.xml", None),
+    ("독서신문", "https://www.readersnews.com/rss/allArticle.xml", "kw"),  # 전체 기사 RSS라 일반 문화 기사가 섞임 → 책 낱말 있는 것만
 ]
+BOOK_KW_RX = re.compile(r"책|도서|출판|작가|저자|지음|펴냄|옮김|번역|『|《|문학|서점|도서관|신간|소설|시집|에세이|그림책|북페스티벌|독서")
 BOOK_SEARCH = ["intitle:신간 when:3d", "intitle:새책 when:7d", "intitle:책꽂이 when:7d"]
 BOOK_SEARCH_OUTLETS = {"중앙일보", "한국일보", "문화일보", "서울신문", "국민일보", "세계일보", "매일경제", "한국경제", "서울경제",
                        "뉴시스", "뉴스1", "파이낸셜뉴스", "이데일리", "머니투데이", "헤럴드경제", "아시아경제", "연합뉴스", "경향신문",
@@ -597,7 +598,11 @@ def fetch_books(now, days=7, limit=150):
                 continue
             if how == "search" and a["outlet"] not in BOOK_SEARCH_OUTLETS:
                 continue
-            if how not in (None, "title", "search") and how not in a["url"]:
+            if how == "kw" and not BOOK_KW_RX.search(t + " " + (a.get("desc") or "")):
+                continue
+            if how not in (None, "title", "search", "kw") and how not in a["url"]:
+                continue
+            if re.search(r"\[\d+화\]", t) or len(re.sub(r"\[[^\]]*\]|\W", "", t)) < 2:  # 연재소설, '[책꽂이]'처럼 제목이 빈 것
                 continue
             key = (a["outlet"], re.sub(r"\W", "", t)[:40])
             if key in seen:
@@ -646,10 +651,7 @@ def book_titles_of(x):
     m = re.match(r"^\[[^\]]+\]\s*[‘']([^’']{2,40})[’']\s*(?:외|外)", t)  # [북카페] ‘왜 다시 아시아인가’ 외
     if m:
         out.append(m.group(1))
-    if t.endswith("[.txt]"):  # 한겨레 서평: 제목 안 첫 ‘…’
-        m = re.search(r"[‘']([^’']{2,40})[’']", t)
-        if m:
-            out.append(m.group(1))
+    # (2026-10-30 삭제) 한겨레 서평 '[.txt]' 제목 속 따옴표 낱말 규칙: '억울함'·'오리'처럼 책 제목이 아닌 경우가 대부분이었다.
     res, seen = [], set()
     for b in out:
         b = re.sub(r"\s*(?:…|\.{2,})\s*$", "", re.sub(r"\s+", " ", b))  # 끝 말줄임표(줄여 쓴 제목)
@@ -665,7 +667,7 @@ def book_titles_of(x):
     return [b for b, k in zip(res, keys) if not any(o != k and o.startswith(k) for o in keys)]
 
 
-def book_titles(rows, top=60, info=None):
+def book_titles(rows, top=60, info=None, only_found=True):
     """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로. arts = 그 책을 다룬 기사 번호(rows 안)
     info(서점 정보)를 주면 제목 표기가 달라도 ISBN(없으면 서점 주소)이 같은 책은 한 권으로 합친다."""
     agg = {}
@@ -679,6 +681,8 @@ def book_titles(rows, top=60, info=None):
                 e["arts"].append(n)
             if x["date"] > e["date"]:
                 e["date"] = x["date"]
+    if info is not None and info and only_found:  # 서점(예스24)에서 찾은 책만: 책 제목이 아닌 낱말·기사 사진 표지를 거른다
+        agg = {k: e for k, e in agg.items() if (info.get(k) or {}).get("name")}
     if info:  # 예: '이루어질 수 없는 사랑…'(연합) = '이루어질 수 없는 사랑, 이루어질 수없는 사랑'(동아)
         merged, by_id = [], {}
         for e in sorted(agg.values(), key=lambda e: (len(e["arts"]), e["date"]), reverse=True):
