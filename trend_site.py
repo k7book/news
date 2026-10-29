@@ -1321,6 +1321,155 @@ def render_paju_city(pc):
             f'보도자료를 누르면 그날 보도자료 게시글(한글 파일 첨부)로 갑니다.</p></section>')
 
 
+# ── 비쥬얼뉴스 탭: 해외 데이터 시각화(공식 피드) + 바로 가기 ──
+# 2026-10-29 검토: Visual Capitalist(RSS 허용, 소규모 사이트 무료·원문 링크·출처 표시·그림 수정 금지),
+# Our World in Data(CC BY, Atom 피드). Voronoi·Tableau Public·McKinsey·IMF는 약관(자동 수집 금지 등)·차단 때문에 링크만.
+VISUAL_TAB = "비쥬얼뉴스"
+VISUAL_FEEDS = [("Visual Capitalist", "https://www.visualcapitalist.com/feed/"),
+                ("Our World in Data", "https://ourworldindata.org/atom-data-insights.xml")]
+VISUAL_CACHE = os.path.join(HERE, "history", "visual.json")
+# 사이트에 직접 접속하지 않고 구글뉴스 검색 RSS로 제목·링크만(2026-10-19 구글뉴스 예외 결정 범위). 그림은 가져오지 않는다.
+# (이름, 검색어, 원문 주소에 있어야 할 경로(구글 링크를 풀어 확인) 또는 None, 제목 끝에서 지울 꼬리)
+VISUAL_GN = [("Voronoi", "site:voronoiapp.com when:30d", None, r"\s*-\s*Voronoi by Visual Capitalist$"),
+             ("McKinsey", "site:mckinsey.com chart when:30d", "/featured-insights/charts/", r"\s*-\s*McKinsey & Company$"),
+             ("IMF", "site:imf.org/en/Blogs when:30d", "/Blogs/Articles/", r"\s*-\s*International Monetary Fund.*$")]
+VISUAL_LINKS = [("Visual Capitalist", "https://www.visualcapitalist.com/", "경제·시장·지정학 인포그래픽"),
+                ("Our World in Data", "https://ourworldindata.org/", "세계 데이터 차트 (CC BY)"),
+                ("Voronoi", "https://www.voronoiapp.com/", "Visual Capitalist의 데이터 시각화 앱"),
+                ("Tableau Public", "https://public.tableau.com/app/discover/viz-of-the-day", "오늘의 비주얼(Viz of the Day)"),
+                ("McKinsey", "https://www.mckinsey.com/featured-insights/charts", "Chart of the Week (매주 수요일)"),
+                ("IMF", "https://www.imf.org/en/Blogs/chart-of-the-week", "Chart of the Week")]
+VISUAL_CREDIT = {"Visual Capitalist": "© Visual Capitalist", "Our World in Data": "Our World in Data · CC BY"}
+
+
+def fetch_visual(now, days=30, limit=90):
+    """→ (rows, status). rows = {title, url, outlet, img, date, cats}. 하루 한 번만 받는다(23시간 안이면 저장해 둔 것).
+    피드에 최근 것만 나오므로 history/visual.json에 모아 30일 보관."""
+    A = "{http://www.w3.org/2005/Atom}"
+    try:
+        cache = json.load(open(VISUAL_CACHE, encoding="utf-8"))
+        if isinstance(cache, list):
+            cache = {"fetched": "", "rows": cache}
+    except Exception:
+        cache = {"fetched": "", "rows": []}
+    try:
+        fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23)
+    except Exception:
+        fresh = False
+    if fresh:
+        cnt = Counter(x["outlet"] for x in cache["rows"])
+        return cache["rows"], [{"name": f"비쥬얼뉴스(하루 한 번 · {cache['fetched'][5:16].replace('T', ' ')} 받음)", "ok": True,
+                                "count": len(cache["rows"]), "error": ""}]
+    got, status = [], []
+    for name, url in VISUAL_FEEDS:
+        n = 0
+        try:
+            if not robots_allows(url):
+                raise RuntimeError("robots.txt 차단")
+            root = ET.fromstring(http_get(url))
+            for it in root.iter("item"):  # RSS (Visual Capitalist)
+                m = it.find("{http://search.yahoo.com/mrss/}content")
+                d = parse_date(text(it, "pubDate"))
+                got.append({"title": html.unescape(text(it, "title")), "url": text(it, "link"), "outlet": name,
+                            "img": m.get("url") if m is not None else item_image(it), "date": d.isoformat() if d else "",
+                            "cats": [c.text.strip() for c in it.findall("category") if c.text][:3]})
+                n += 1
+            for it in root.iter(A + "entry"):  # Atom (Our World in Data)
+                ln = it.find(A + "link")
+                c = it.find(A + "content")
+                im = re.search(r'<img[^>]+src="([^"]+)"', c.text or "") if c is not None else None
+                d = parse_date(text(it, A + "published") or text(it, A + "updated"))
+                got.append({"title": html.unescape(text(it, A + "title")), "url": ln.get("href", "") if ln is not None else "",
+                            "outlet": name, "img": re.sub(r"/w=\d+$", "/w=750", im.group(1)) if im else None,
+                            "date": d.isoformat() if d else "", "cats": []})
+                n += 1
+            status.append({"name": f"{name}(비쥬얼뉴스)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
+        except Exception as e:
+            status.append({"name": f"{name}(비쥬얼뉴스)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+    for name, q, need, tail in VISUAL_GN:  # 제목·링크만 (구글뉴스)
+        n = 0
+        try:
+            feed = {"outlet": name, "category": VISUAL_TAB, "url": "https://news.google.com/rss/search?q=" + urllib.parse.quote_plus(q) + "&hl=en-US&gl=US&ceid=US:en"}
+            _, its, err = fetch_feed(feed)
+            if err:
+                raise RuntimeError(err)
+            for a in its:
+                raw = re.sub(r"\s+", " ", html.unescape(a.get("title") or "")).strip()
+                if not need and not re.search(tail, raw):  # 주소로 확인하지 않는 곳은 제목 꼬리(매체 이름)로 확인
+                    continue
+                t = re.sub(tail, "", raw).strip()
+                if not t or not a.get("date") or now - a["date"] > timedelta(days=days) or re.match(r"(IMF Blogs|Chart of the Week|Voronoi by)", t):
+                    continue
+                u = a["url"]
+                if need:  # 원문 주소로 풀어 경로 확인(구글에만 묻는다)
+                    known = next((x for x in cache["rows"] if x.get("gn") == u), None)
+                    real = known["url"] if known else (gn_decode(u) or "")
+                    if need.lower() not in real.lower():
+                        continue
+                    u2 = real
+                else:
+                    u2 = u
+                got.append({"title": t, "url": u2, "gn": u, "outlet": name, "img": None, "date": a["date"].isoformat(), "cats": []})
+                n += 1
+            status.append({"name": f"{name}(비쥬얼뉴스·구글뉴스 제목)", "ok": n > 0, "count": n, "error": "" if n else "0건"})
+        except Exception as e:
+            status.append({"name": f"{name}(비쥬얼뉴스·구글뉴스 제목)", "ok": False, "count": 0, "error": f"{type(e).__name__}: {str(e)[:60]}"})
+    by = {x["url"]: x for x in cache["rows"]}
+    for x in got:
+        if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
+            by[x["url"]] = x
+    lo = (now - timedelta(days=days)).isoformat()
+    rows = sorted((x for x in by.values() if x["date"] >= lo), key=lambda x: x["date"], reverse=True)[:limit]
+    try:
+        os.makedirs(os.path.dirname(VISUAL_CACHE), exist_ok=True)
+        json.dump({"fetched": now.isoformat() if any(st["ok"] for st in status) else cache.get("fetched", ""), "rows": rows},
+                  open(VISUAL_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return rows, status
+
+
+def render_visual(rows):
+    """비쥬얼뉴스 탭: 출처 버튼 + 그림 카드(누르면 원문). 그림은 잘라내지 않고 그대로 줄여 보여 준다."""
+    if not rows:
+        return ""
+    cnt = Counter(x["outlet"] for x in rows)
+    order = [o for o, _ in VISUAL_FEEDS] + [g[0] for g in VISUAL_GN]
+    chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
+             + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in order if cnt.get(o)))
+    pics = [x for x in rows if x.get("img")]
+    plain = [x for x in rows if not x.get("img")]
+
+    def line(x):
+        d = datetime.fromisoformat(x["date"])
+        return (f'<li data-o="{esc(x["outlet"])}"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>'
+                f'{link(x["url"], x["title"])}<span class="o">{d.month}.{d.day}</span></li>')
+
+    def card(x):
+        d = datetime.fromisoformat(x["date"])
+        ph = (f'<div class="vph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>'
+              if x.get("img") else "")
+        cats = "".join(f"<span>{esc(c)}</span>" for c in x.get("cats", []))
+        return (f'<a class="vcard" data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
+                f'<div class="vt">{esc(x["title"])}</div>' + (f'<div class="vcat">{cats}</div>' if cats else "")
+                + f'<div class="pm"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>{d.month}.{d.day} ({WEEK[d.weekday()]})'
+                f'<span class="vcr">{esc(VISUAL_CREDIT.get(x["outlet"], ""))}</span></div></a>')
+    return (f'<div class="pg" data-c="{VISUAL_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
+            f'<div class="shead" style="padding-top:12px"><h2>비쥬얼뉴스</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
+            f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
+            + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>Voronoi · McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
+            + f'<p class="note">하루 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
+            f'Voronoi·McKinsey(Chart of the Week)·IMF(블로그)는 이용약관·접속 차단 때문에 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
+            f'그림은 원문에서 보세요. Visual Capitalist 그래픽은 Visual Capitalist, Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
+            f'</section></div>')
+
+
+def render_visual_side():
+    lis = "".join(f'<li><b class="ot oc{outlet_color(n)}">{esc(n)}</b> {link(u, d)}</li>' for n, u, d in VISUAL_LINKS)
+    return (f'<section class="pg" data-c="{VISUAL_TAB}"><div class="shead"><h2>비쥬얼 바로 가기</h2><span class="en">LINKS</span></div>'
+            f'<ul class="barts dside vside">{lis}</ul><p class="note">Tableau Public 오늘의 비주얼은 이용약관상 콘텐츠를 가져올 수 없어 바로 가기만 둡니다.</p></section>')
+
+
 def enrich_graphics(rows, workers=6):
     """사진 없는 구글뉴스 그래픽 기사: 원문 주소로 바꾸고 원문 대표 사진을 붙인다. 결과는 캐시."""
     try:
@@ -1740,7 +1889,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
-.nav .sbtn{display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ink-soft);padding:3px 2px 5px;border-bottom:0}.nav .sbtn:hover{color:var(--ink)}@media(max-width:560px){.nav .sbtn{position:sticky;right:0;z-index:2;color:var(--ink);background:var(--paper);padding-left:10px;margin-left:-4px;box-shadow:-10px 0 10px var(--paper)}.nav .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{inset:0;width:auto;max-width:none;height:auto;max-height:none;margin:0;border-radius:0}}#sres{min-width:0}.slist li{overflow-wrap:anywhere}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
+.nav .sbtn{display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ink-soft);padding:3px 2px 5px;border-bottom:0}.nav .sbtn:hover{color:var(--ink)}@media(max-width:560px){.nav .sbtn{position:sticky;right:0;z-index:2;color:var(--ink);background:var(--paper);padding-left:10px;margin-left:-4px;box-shadow:-10px 0 10px var(--paper)}.nav .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{inset:0;width:auto;max-width:none;height:auto;max-height:none;margin:0;border-radius:0}}#sres{min-width:0}.slist li{overflow-wrap:anywhere}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.vgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 18px;margin-top:10px}@media(max-width:900px){.vgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.vgrid{grid-template-columns:1fr}}.vcard{display:flex;flex-direction:column;gap:6px;color:var(--ink);min-width:0}.vcard[hidden]{display:none}.vcard:hover .vt{text-decoration:underline}.vph{aspect-ratio:4/3;background:#fff;border:1px solid var(--rule);border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center}.vph img{width:100%;height:100%;object-fit:contain;display:block}.vt{font-size:15px;font-weight:700;line-height:1.4}.vcat{display:flex;flex-wrap:wrap;gap:4px}.vcat span{font-size:11px;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:0 5px}.vcard .pm{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}.vcard b.ot,.vside b.ot{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:var(--c);background:var(--cb)}.vcr{margin-left:auto;font-size:11px;color:var(--dim)}.vside li{display:block}.vlist li[hidden],#vl[hidden],#vlh[hidden]{display:none}#vlh{margin-top:28px}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -1958,6 +2107,10 @@ try{const v=localStorage.getItem('sub_'+p.dataset.c);if(v&&bs.some(b=>b.dataset.
 const up=document.createElement('button');up.type='button';up.className='totop';up.setAttribute('aria-label','맨 위로');up.textContent='↑';
 up.onclick=()=>scrollTo({top:0,behavior:'smooth'});document.body.appendChild(up);
 addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:true})})();
+document.querySelectorAll('#vf button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
+document.querySelectorAll('#vf button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#vg>a,#vl>li').forEach(a=>a.hidden=!!o&&a.dataset.o!==o);
+const vl=document.getElementById('vl'),vh=document.getElementById('vlh');if(vl&&vh){const any=[...vl.children].some(li=>!li.hidden);vl.hidden=!any;vh.hidden=!any}});
 document.querySelectorAll('#dcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#dcat button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#dl>li').forEach(li=>li.hidden=!!k&&li.dataset.k!==k)});
@@ -2181,19 +2334,20 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None, visual=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
-        graphic, portals, interactive, books, deep = None, {}, None, None, None
+        graphic, portals, interactive, books, deep, visual = None, {}, None, None, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    gpanel = render_deep(deep or [], now) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_interactive(interactive or [])
+    gpanel = render_deep(deep or [], now) + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
                    for c in CATEGORIES if c in pages)
     if gpanel:
         tabs += f'<button role="tab" data-c="{DEEP_TAB}" class="gtab">{DEEP_TAB}</button>' if deep else ""
-        tabs += f'<button role="tab" data-c="{BOOK_TAB}"{"" if deep else " class=gtab"}>{BOOK_TAB}</button>' if books else ""
+        tabs += f'<button role="tab" data-c="{VISUAL_TAB}"{"" if deep else " class=gtab"}>{VISUAL_TAB}</button>' if visual else ""
+        tabs += f'<button role="tab" data-c="{BOOK_TAB}"{"" if deep or visual else " class=gtab"}>{BOOK_TAB}</button>' if books else ""
         tabs += ('<button role="tab" data-c="그래픽">그래픽</button>' if books else '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>') if graphic else ""
         tabs += '<button role="tab" data-c="인터랙티브">인터랙티브</button>' if interactive else ""
     if only:
@@ -2202,7 +2356,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         tabs += '<a class="srclink" href="sources.html">출처</a>' + SEARCH_BTN
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
-    tick_keys = list(pages) + ([DEEP_TAB] if deep else []) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
+    tick_keys = list(pages) + ([DEEP_TAB] if deep else []) + ([VISUAL_TAB] if visual else []) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + (["인터랙티브"] if interactive else [])
     def tk(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         return (f'<span class="items pg" data-c="{esc(c)}">' + '<span class="sep">/</span>'.join(esc(t["keyword"]) for t in src[:6]) + "</span>")
@@ -2227,7 +2381,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         note = "" if first else '<p class="note">구글 급상승 검색어 중 이 분야 기사에 나온 것, 그리고 최근 3시간 이 분야 기사에서 갑자기 많이 쓰인 낱말입니다.</p>'
         return (f'<section class="pg" data-c="{esc(c)}"><div class="shead"><h2>{esc(h)}</h2><span class="en">{en}</span></div>'
                 f'{render_trends(src, now)}{note}</section>')
-    side = "".join(render_book_side(books, book_info) if c == BOOK_TAB else render_deep_side(deep) if c == DEEP_TAB else side_tr(c)
+    side = "".join(render_book_side(books, book_info) if c == BOOK_TAB else render_deep_side(deep) if c == DEEP_TAB else render_visual_side() if c == VISUAL_TAB else side_tr(c)
                    for c in tick_keys) + render_portals(portals)
     allc = (pages.get("전체") or next(iter(pages.values()), {})).get("clusters", [])
     stats = (f'<div class="stats"><div><b>{nitems:,}</b><span>분석한 기사</span></div><div><b>{outlets}</b><span>언론사</span></div>'
@@ -2440,6 +2594,8 @@ def _search_rows(d):
         add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), BOOK_TAB)
     for x in d.get("deep") or []:
         add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), DEEP_TAB)
+    for x in d.get("visual") or []:
+        add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), VISUAL_TAB)
     pc = d.get("paju_city") or {}
     for x in pc.get("focus", []):
         if x.get("date"):
@@ -2498,7 +2654,7 @@ def build_search(data, now, out_dir, persist=True):
     for _, r in rows:  # '전체' 탭에만 있던 기사는 검색 화면에서 '종합'으로(분야 버튼의 '전체'와 헷갈리지 않게)
         if r[3] == "전체":
             r[3] = "종합"
-    tabs = [c for c in ["종합"] + CATEGORIES[1:] if any(r[3] == c for _, r in rows)] + [t for t in (DEEP_TAB, BOOK_TAB) if any(r[3] == t for _, r in rows)]
+    tabs = [c for c in ["종합"] + CATEGORIES[1:] if any(r[3] == c for _, r in rows)] + [t for t in (DEEP_TAB, VISUAL_TAB, BOOK_TAB) if any(r[3] == t for _, r in rows)]
     oi, ti = {o: i for i, o in enumerate(outlets)}, {t: i for i, t in enumerate(tabs)}
     try:
         gnc = json.load(open(GN_CACHE, encoding="utf-8"))
@@ -2552,7 +2708,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"), visual=d.get("visual"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2577,6 +2733,8 @@ def main():
         nis_g = []
         book_info = {}
         deep = []
+        visual = [{"title": "Sample: The World's Biggest Economies", "url": "https://www.visualcapitalist.com/", "outlet": "Visual Capitalist",
+                   "img": None, "date": now.isoformat(), "cats": ["Economy"]}]
         paju_city = {"focus": [{"title": "파주시, 샘플 주요뉴스", "url": "https://www.paju.go.kr/news/index.do", "img": None,
                                 "date": now.strftime("%Y-%m-%d"), "desc": "파주시가 샘플 소식을 알렸다."}],
                      "press": [{"date": now.strftime("%Y-%m-%d"), "url": "https://www.paju.go.kr/news/index.do",
@@ -2635,6 +2793,8 @@ def main():
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
         paju_city, cstatus = fetch_paju_city()
         pstatus += cstatus
+        visual, vstatus = fetch_visual(now)
+        pstatus += vstatus
         deep, dstatus = fetch_deep(now)
         pstatus += dstatus
         n_todo, n_dimg = enrich_books(deep, path=DEEP_META, need_img=True)
@@ -2694,7 +2854,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city)
+                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -2709,7 +2869,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "visual": visual, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     try:
