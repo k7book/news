@@ -1454,8 +1454,7 @@ def render_visual(rows):
         cats = "".join(f"<span>{esc(c)}</span>" for c in x.get("cats", []))
         return (f'<a class="vcard" data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
                 f'<div class="vt">{esc(x["title"])}</div>' + (f'<div class="vcat">{cats}</div>' if cats else "")
-                + f'<div class="pm"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>{d.month}.{d.day} ({WEEK[d.weekday()]})'
-                f'<span class="vcr">{esc(VISUAL_CREDIT.get(x["outlet"], ""))}</span></div></a>')
+                + f'<div class="pm"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>{d.month}.{d.day} ({WEEK[d.weekday()]})</div></a>')
     return (f'<div class="pg" data-c="{VISUAL_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>오늘의 차트</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
