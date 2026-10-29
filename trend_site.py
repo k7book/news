@@ -1433,6 +1433,8 @@ def render_visual(rows):
     """비쥬얼뉴스 탭: 출처 버튼 + 그림 카드(누르면 원문). 그림은 잘라내지 않고 그대로 줄여 보여 준다."""
     if not rows:
         return ""
+    per = Counter()
+    rows = [x for x in rows if x.get("img") or (per.update([x["outlet"]]) or per[x["outlet"]] <= 20)]  # 제목만인 곳은 매체마다 최근 20건
     cnt = Counter(x["outlet"] for x in rows)
     order = [o for o, _ in VISUAL_FEEDS] + [g[0] for g in VISUAL_GN]
     chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
