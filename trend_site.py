@@ -1896,7 +1896,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
 .tag{flex:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;padding:3px 9px 3px 10px;border-radius:2px}
-.ticker .items{flex:1;min-width:0;white-space:normal;overflow:hidden;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.75}.ticker .items:not(.on){display:none!important}.ticker .tk{all:unset;cursor:pointer;color:var(--ink-body)}.ticker .tk:hover{color:var(--ink);text-decoration:underline}@media(max-width:600px){.ticker .items{display:block!important;white-space:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-line-clamp:unset}.ticker .items::-webkit-scrollbar{display:none}.ticker .items:not(.on){display:none!important}}.ticker .items.pg.on{display:block}.ticker .sep{color:var(--dim);margin:0 8px}
+.ticker .items{flex:1;min-width:0;white-space:nowrap;overflow-x:auto;scrollbar-width:none}.ticker .items::-webkit-scrollbar{display:none}.ticker .tk{all:unset;cursor:pointer;color:var(--ink-body)}.ticker .tk:hover{color:var(--ink);text-decoration:underline}.ticker .items.pg.on{display:block}.ticker .sep{color:var(--dim);margin:0 8px}
 .cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:0 44px;padding-top:28px}
 .side{border-left:1px solid var(--rule);padding-left:22px}
 @media(max-width:900px){.cols{grid-template-columns:1fr}.side{border-left:0;padding-left:0;margin-top:36px}}
@@ -2364,7 +2364,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     def tk(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         kws = [t["keyword"] for t in src]
-        if c == "전체" or c not in pages:  # 전체: 구글 급상승에 다음 실시간 트렌드·줌 이슈 키워드를 더해 최대 20개
+        if c == "전체" or c not in pages:  # 전체: 구글 급상승에 다음 실시간 트렌드·줌 이슈 키워드를 더해 최대 12개(한 줄)
             for name in (DAUM_TREND, "줌 이슈 키워드"):
                 kws += [r["title"] for r in (portals or {}).get(name, []) if r.get("title")]
         seen, uniq = set(), []
@@ -2374,7 +2374,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
                 seen.add(kk)
                 uniq.append(k)
         return (f'<span class="items pg" data-c="{esc(c)}">' + '<span class="sep">/</span>'.join(
-            f'<button type="button" class="tk" data-k="{esc(k)}" title="‘{esc(k)}’ 기사 검색">{esc(k)}</button>' for k in uniq[:20]) + "</span>")
+            f'<button type="button" class="tk" data-k="{esc(k)}" title="‘{esc(k)}’ 기사 검색">{esc(k)}</button>' for k in uniq[:12]) + "</span>")
     ticker = '<div class="ticker"><span class="tag">급상승</span>' + "".join(tk(c) for c in tick_keys) + "</div>"
     body = []
     for c, p in pages.items():
