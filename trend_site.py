@@ -2134,15 +2134,17 @@ function gfilter(o){window._go=o||'';document.querySelectorAll('#gg>a').forEach(
 let n=0;document.querySelectorAll('#gl li').forEach(li=>{const v=li.dataset.img==='0'&&(!o||li.dataset.o===o);li.style.display=v?'':'none';if(v)n++});
 const gl=document.getElementById('gl');if(gl)gl.style.display=n?'':'none';}
 (function(){const z=document.getElementById('gzoom');if(!z)return;const zi=document.getElementById('gzi');
-// 더 큰 그림 주소: 연합 _P1→_P4, 기사 CMS 썸네일(/thumbnail/…_v150)→원본(/photo/…). 안 되면 원래 그림으로
-const big=u=>u.replace(/_P[123]\\.jpg/i,'_P4.jpg').replace(/\\/news\\/thumbnail\\/(\\d+)\\/([\\w-]+?)_v\\d+\\.(jpg|jpeg|png|gif)/i,'/news/photo/$1/$2.$3');
+// 더 큰 그림 후보: 연합 _P1→_P4(원본), 기사 CMS 썸네일(/thumbnail/…_v150.jpg)→원본(/photo/….jpg, .png). 다 안 되면 원래 그림
+const cands=u=>{const out=[];if(/_P[123]\\.jpg/i.test(u))out.push(u.replace(/_P[123]\\.jpg/i,'_P4.jpg'));
+const m=u.match(/^(.*)\\/news\\/thumbnail\\/(\\d+)\\/([\\w-]+?)_v\\d+\\.(jpg|jpeg|png|gif)/i);if(m){const base=m[1]+'/news/photo/'+m[2]+'/'+m[3];out.push(base+'.'+m[4],base+'.png',base+'.jpg')}
+return [...new Set(out),u]};
 document.getElementById('gg')?.addEventListener('click',e=>{const img=e.target.closest('.gph img');if(!img)return;e.preventDefault();
-const a=img.closest('a');const small=img.currentSrc||img.src;zi.onerror=()=>{if(zi.src!==small){zi.onerror=null;zi.src=small}};
-zi.src=big(small);zi.alt=a.querySelector('.pt')?.textContent||'';document.getElementById('gzt').textContent=zi.alt;
+const a=img.closest('a');const list=cands(img.currentSrc||img.src);let k=0;zi.onerror=()=>{if(++k<list.length)zi.src=list[k]};zi.src=list[0];
+zi.alt=a.querySelector('.pt')?.textContent||'';document.getElementById('gzt').textContent=zi.alt;
 document.getElementById('gzm').textContent=a.querySelector('.pm')?.textContent||'';document.getElementById('gzl').href=a.href;
 if(z.showModal)z.showModal();else z.setAttribute('open','')});
 document.getElementById('gzclose').onclick=()=>z.close();z.addEventListener('click',e=>{if(e.target===z||e.target.closest('.gzimg'))z.close()});
-z.addEventListener('close',()=>{zi.removeAttribute('src')})})();
+z.addEventListener('close',()=>{zi.onerror=null;zi.removeAttribute('src')})})();
 function gfail(img){const a=img.closest('a');const li=[...document.querySelectorAll('#gl li')].find(l=>l.querySelector('a').href===a.href);
 if(li)li.dataset.img='0';a.remove();gfilter(window._go);}
 gfilter('');
