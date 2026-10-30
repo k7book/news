@@ -1332,6 +1332,7 @@ VISUAL_TAB = "오늘의 차트"
 VISUAL_FEEDS = [("Visual Capitalist", "https://www.visualcapitalist.com/feed/"),
                 ("Our World in Data", "https://ourworldindata.org/atom-data-insights.xml")]
 VISUAL_CACHE = os.path.join(HERE, "history", "visual.json")
+VISUAL_HOUR = 8  # 하루 한 번 받는 시각(한국 시간)
 # 사이트에 직접 접속하지 않고 구글뉴스 검색 RSS로 제목·링크만(2026-10-19 구글뉴스 예외 결정 범위). 그림은 가져오지 않는다.
 # (이름, 검색어, 원문 주소에 있어야 할 경로(구글 링크를 풀어 확인) 또는 None, 제목 끝에서 지울 꼬리)
 VISUAL_GN = [("Voronoi", "site:voronoiapp.com when:30d", None, r"\s*-\s*Voronoi by Visual Capitalist$"),
@@ -1347,7 +1348,7 @@ VISUAL_CREDIT = {"Visual Capitalist": "© Visual Capitalist", "Our World in Data
 
 
 def fetch_visual(now, days=30, limit=60):
-    """→ (rows, status). rows = {title, url, outlet, img, date, cats}. 하루 한 번만 받는다(23시간 안이면 저장해 둔 것).
+    """→ (rows, status). rows = {title, url, outlet, img, date, cats}. 하루 한 번만 받는다(매일 8시 뒤 첫 갱신, 그 전엔 저장해 둔 것).
     피드에 최근 것만 나오므로 history/visual.json에 모아 30일 보관."""
     A = "{http://www.w3.org/2005/Atom}"
     try:
@@ -1356,9 +1357,13 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 2]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 3]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
+    anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
+    if now < anchor:
+        anchor -= timedelta(days=1)
     try:
-        fresh = now - datetime.fromisoformat(cache["fetched"]) < timedelta(hours=23) and cache.get("conf") == conf
+        fresh = datetime.fromisoformat(cache["fetched"]) >= anchor and cache.get("conf") == conf
     except Exception:
         fresh = False
     if fresh:
@@ -1469,7 +1474,7 @@ def render_visual(rows):
             f'<div class="shead" style="padding-top:12px"><h2>오늘의 차트</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vgrid" id="vg">{"".join(card(x) for x in pics)}</div>'
             + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>Voronoi · McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
-            + f'<p class="note">하루 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
+            + f'<p class="note">매일 아침 8시에 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
             f'Voronoi·McKinsey(Chart of the Week)·IMF(블로그)는 이용약관·접속 차단 때문에 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
             f'그림은 원문에서 보세요. Visual Capitalist 그래픽은 Visual Capitalist, Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
             f'</section></div>')
