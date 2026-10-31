@@ -1534,7 +1534,7 @@ YNA_GALLERY = "https://www.yna.co.kr/gallery/index"
 PHOTO_CACHE = os.path.join(HERE, "history", "photo.json")
 
 
-def fetch_photo(now, days=7, pages=2, max_new=16):
+def fetch_photo(now, days=7, pages=2, max_new=30):
     """→ (rows, status). rows = {id, title, url, date, count, cover, photos:[{u, alt}]}"""
     try:
         cache = json.load(open(PHOTO_CACHE, encoding="utf-8"))
@@ -1605,7 +1605,7 @@ def render_photo(rows):
     rows = [g for g in rows or [] if g.get("cover") or g.get("photos")]
     if not rows:
         return ""
-    data = [[p["u"] for p in g.get("photos") or []] or [g["cover"]] for g in rows]
+    data = [{"t": g["title"], "u": g["url"], "p": [p["u"] for p in g.get("photos") or []] or [g["cover"]]} for g in rows]
 
     def card(k, g):
         d = datetime.fromisoformat(g["date"])
@@ -2324,15 +2324,19 @@ const cands=u=>{const out=[];if(/_P[123]\\.jpg/i.test(u))out.push(u.replace(/_P[
 if(/ourworldindata\\.org\\/cdn-cgi\\/imagedelivery\\/.*\\/w=\\d+$/.test(u))out.push(u.replace(/\\/w=\\d+$/,'/w=1350'));
 const m=u.match(/^(.*)\\/news\\/thumbnail\\/(\\d+)\\/([\\w-]+?)_v\\d+\\.(jpg|jpeg|png|gif)/i);if(m){const base=m[1]+'/news/photo/'+m[2]+'/'+m[3];out.push(base+'.'+m[4],base+'.png',base+'.jpg')}
 return [...new Set(out),u]};
-const prev=document.getElementById('gzprev'),next=document.getElementById('gznext');let gl=null,gi=0,gt='',gu='';
+const prev=document.getElementById('gzprev'),next=document.getElementById('gznext');let gl=null,gk=0,gi=0;
 const nav=on=>{prev.hidden=next.hidden=!on};
-function gshow(){zi.removeAttribute('src');zi.onerror=null;zi.src=gl[gi];document.getElementById('gzt').textContent=gt;
-document.getElementById('gzm').textContent='연합뉴스 화보 · '+(gi+1)+' / '+gl.length;document.getElementById('gzl').href=gu;prev.disabled=gi<=0;next.disabled=gi>=gl.length-1}
 const pdata=(()=>{try{return JSON.parse(document.getElementById('pgdata')?.textContent||'[]')}catch(e){return []}})();
+// 화보 사진을 차례로, 마지막 사진 다음은 다음 화보 첫 사진(이전도 마찬가지) → 끊기지 않고 이어 보기
+function gshow(){const G=pdata[gk];gl=G.p;zi.removeAttribute('src');zi.onerror=null;zi.src=gl[gi];document.getElementById('gzt').textContent=G.t;
+document.getElementById('gzm').textContent='연합뉴스 화보 '+(gk+1)+'/'+pdata.length+' · 사진 '+(gi+1)+' / '+gl.length;document.getElementById('gzl').href=G.u;
+prev.disabled=gk<=0&&gi<=0;next.disabled=gk>=pdata.length-1&&gi>=gl.length-1;
+const nx=gi<gl.length-1?gl[gi+1]:(pdata[gk+1]||{p:[]}).p[0];if(nx)(new Image()).src=nx}  // 다음 사진 미리 받기
 document.addEventListener('click',e=>{const img=e.target.closest('#pmas .vph img, #pmas .pcnt');if(!img)return;e.preventDefault();
-const a=img.closest('a');gl=pdata[+a.dataset.g]||[img.currentSrc||img.src];gi=0;gt=(a.querySelector('.vt')?.textContent||'').trim();gu=a.href;nav(gl.length>1);gshow();
+const a=img.closest('a');gk=+a.dataset.g;gi=0;if(!pdata[gk])return;nav(true);gshow();
 if(z.showModal)z.showModal();else z.setAttribute('open','')});
-prev.onclick=e=>{e.stopPropagation();if(gl&&gi>0){gi--;gshow()}};next.onclick=e=>{e.stopPropagation();if(gl&&gi<gl.length-1){gi++;gshow()}};
+prev.onclick=e=>{e.stopPropagation();if(!gl)return;if(gi>0)gi--;else if(gk>0){gk--;gi=pdata[gk].p.length-1}else return;gshow()};
+next.onclick=e=>{e.stopPropagation();if(!gl)return;if(gi<gl.length-1)gi++;else if(gk<pdata.length-1){gk++;gi=0}else return;gshow()};
 z.addEventListener('keydown',e=>{if(!gl||prev.hidden)return;if(e.key==='ArrowLeft'){prev.click();e.preventDefault()}if(e.key==='ArrowRight'){next.click();e.preventDefault()}});
 document.addEventListener('click',e=>{const img=e.target.closest('#gg .gph img, #vg .vph img');if(!img)return;e.preventDefault();gl=null;nav(false);
 const a=img.closest('a');const list=cands(img.currentSrc||img.src);let k=0;zi.removeAttribute('src');zi.onerror=()=>{if(++k<list.length)zi.src=list[k]};zi.src=list[0];
