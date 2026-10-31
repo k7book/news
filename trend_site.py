@@ -1347,6 +1347,29 @@ VISUAL_LINKS = [("Visual Capitalist", "https://www.visualcapitalist.com/", "경�
 VISUAL_CREDIT = {"Visual Capitalist": "© Visual Capitalist", "Our World in Data": "Our World in Data · CC BY"}
 
 
+def vc_full_image(url, share=""):
+    """Visual Capitalist 기사 페이지 → 원본 전체 그래픽 주소. RSS 대표 그림(…-share.webp, 1200×675)은 윗부분만 자른 공유용이라서.
+    본문의 wp-content/uploads 그림 중 사이트 장식(로고·광고·체크 표시)과 크기 줄인 사본(-300x200)을 빼고, 공유 그림과 이름이 비슷한 것을 고른다."""
+    if not robots_allows(url):
+        return None
+    page = http_get(url)[:1500000].decode("utf-8", "ignore")
+    cands = []
+    for m in re.finditer(r'<img[^>]+?(?:data-lazy-src|data-src|src)="(https://www\.visualcapitalist\.com/wp-content/uploads/[^"]+?\.(?:webp|jpe?g|png))"', page):
+        u = m.group(1)
+        name = u.rsplit("/", 1)[-1].lower()
+        if re.search(r"-\d+x\d+\.", name) or re.search(r"wealth101|check\d*\.|logo|icon|avatar|banner|badge|newsletter|-share|shareable", name):
+            continue
+        if u not in cands:
+            cands.append(u)
+    if not cands:
+        return None
+    stem = re.sub(r"[^a-z]", "", re.sub(r"[-_](share|shareable).*$", "", share.rsplit("/", 1)[-1].lower()))[:8]
+    for u in cands:  # 공유 그림과 이름 앞부분이 같은 것(예: costofwater-share → costofwater-1)
+        if stem and stem in re.sub(r"[^a-z]", "", u.rsplit("/", 1)[-1].lower()):
+            return u
+    return cands[0]
+
+
 def fetch_visual(now, days=30, limit=60):
     """→ (rows, status). rows = {title, url, outlet, img, date, cats}. 하루 한 번만 받는다(매일 8시 뒤 첫 갱신, 그 전엔 저장해 둔 것).
     피드에 최근 것만 나오므로 history/visual.json에 모아 30일 보관."""
@@ -1357,7 +1380,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 3]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 4]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
     anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
     if now < anchor:
@@ -1427,7 +1450,22 @@ def fetch_visual(now, days=30, limit=60):
     by = {x["url"]: x for x in cache["rows"]}
     for x in got:
         if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
+            old = by.get(x["url"]) or {}
+            for k in ("full", "full_tried"):  # 전에 찾은 원본 그림은 남긴다
+                if old.get(k):
+                    x[k] = old[k]
             by[x["url"]] = x
+    todo = [x for x in by.values() if x["outlet"] == "Visual Capitalist" and not x.get("full") and not x.get("full_tried")][:25]
+    n_full = 0
+    for x in todo:
+        try:
+            x["full"] = vc_full_image(x["url"], x.get("img") or "")
+            x["full_tried"] = now.strftime("%Y-%m-%d")
+            n_full += bool(x["full"])
+        except Exception:
+            pass  # 접속 실패는 다음 날 다시
+    if todo:
+        status.append({"name": "Visual Capitalist 원본 그림", "ok": True, "count": n_full, "error": "" if n_full else f"{len(todo)}건 중 0"})
     lo = (now - timedelta(days=days)).isoformat()
     per = Counter()
     rows = []
@@ -1464,7 +1502,9 @@ def render_visual(rows):
 
     def card(x):
         d = datetime.fromisoformat(x["date"])
-        ph = (f'<div class="vph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>'
+        src = x.get("full") or x["img"]  # Visual Capitalist는 잘린 공유 그림 대신 원본 전체 그래픽
+        ph = (f'<div class="vph"><img src="{esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+              f'onerror="if(this.dataset.f){{this.parentNode.remove()}}else{{this.dataset.f=1;this.src=\'{esc(x["img"])}\'}}"></div>'
               if x.get("img") else "")
         cats = "".join(f"<span>{esc(c)}</span>" for c in x.get("cats", []))
         return (f'<a class="vcard" data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">{ph}'
