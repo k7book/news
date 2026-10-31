@@ -2267,8 +2267,8 @@ const up=document.createElement('button');up.type='button';up.className='totop';
 up.onclick=()=>scrollTo({top:0,behavior:'smooth'});document.body.appendChild(up);
 addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:true})})();
 (function(){const g=document.getElementById('pmas'),pg=document.getElementById('ppg');if(!g)return;
-// 포토: 오늘의 차트와 같은 Masonry + 한 쪽 16개
-const cards=[...g.querySelectorAll('.pcard')],PER=16,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
+// 포토: 오늘의 차트와 같은 Masonry, 쪽 나누지 않고 모두
+const cards=[...g.querySelectorAll('.pcard')],PER=1e9,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
 const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
 function layout(){const all=cards.filter(c=>!c.dataset.dead),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
