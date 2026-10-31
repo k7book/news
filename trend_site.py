@@ -2178,7 +2178,8 @@ function layout(){const all=list(),pages=Math.max(1,Math.ceil(all.length/PER));i
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
 for(let i=0;i<ncol;i++){const d=document.createElement('div');d.className='vcol';g.appendChild(d);cs.push(d)}
 cards.forEach(c=>{if(!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
-vis.forEach(c=>cs.reduce((a,b)=>b.offsetHeight<a.offsetHeight?b:a).appendChild(c));pager(pages)}
+vis.forEach(c=>{const im=c.querySelector('img');if(im&&im.loading==='lazy')im.loading='eager';  // 지금 쪽 그림은 바로 불러오기(높이를 알아야 쌓는다)
+cs.reduce((a,b)=>b.offsetHeight<a.offsetHeight?b:a).appendChild(c)});pager(pages)}
 function pager(pages){if(!pg)return;if(pages<=1){pg.innerHTML='';return}
 let h='<button type="button" data-p="'+(page-1)+'"'+(page<=1?' disabled':'')+'>‹ 이전</button>';
 for(let i=1;i<=pages;i++)h+='<button type="button" data-p="'+i+'"'+(i===page?' class="on" aria-current="page"':'')+'>'+i+'</button>';
