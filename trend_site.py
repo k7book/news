@@ -1612,7 +1612,7 @@ def render_photo(rows):
         src = (g.get("photos") or [{}])[0].get("u") or g["cover"]
         n = len(g.get("photos") or []) or g.get("count") or 1
         return (f'<a class="vcard pcard" data-g="{k}" href="{esc(g["url"])}" target="_blank" rel="noopener noreferrer">'
-                f'<div class="vph"><img src="{esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.pcard\').remove()">'
+                f'<div class="vph"><img src="{esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="const c=this.closest(\'.pcard\');c.dataset.dead=1;c.remove()">'
                 f'<span class="pcnt">사진 {n}</span></div><div class="vt">{esc(g["title"])}</div>'
                 f'<div class="pm"><b class="ot oc4">연합뉴스</b>{d.month}.{d.day} {d.strftime("%H:%M")}</div></a>')
     return (f'<div class="pg" data-c="{PHOTO_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
@@ -2270,7 +2270,7 @@ addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:tru
 // 포토: 오늘의 차트와 같은 Masonry + 한 쪽 16개
 const cards=[...g.querySelectorAll('.pcard')],PER=16,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
 const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
-function layout(){const all=cards.filter(c=>c.isConnected),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
+function layout(){const all=cards.filter(c=>!c.dataset.dead),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
 for(let i=0;i<ncol;i++){const d=document.createElement('div');d.className='vcol';g.appendChild(d);cs.push(d)}
 all.forEach(c=>{if(!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
@@ -2346,15 +2346,15 @@ if(z.showModal)z.showModal();else z.setAttribute('open','')});
 document.getElementById('gzclose').onclick=()=>z.close();z.addEventListener('click',e=>{if(e.target===z||e.target.closest('.gzimg'))z.close()});
 z.addEventListener('close',()=>{if(!z.open)zi.onerror=null})})();
 function gfail(img){const a=img.closest('a');const li=[...document.querySelectorAll('#gl li')].find(l=>l.querySelector('a').href===a.href);
-if(li)li.dataset.img='0';a.remove();gfilter(window._go);}
+if(li)li.dataset.img='0';a.dataset.dead=1;a.remove();gfilter(window._go);}
 (function(){const g=document.getElementById('gg'),pg=document.getElementById('gpg');if(!g)return;
 // 그래픽: Masonry(원래 비율) + 한 쪽 16개. 언론사 버튼(window._go)으로 거른 뒤 나눈다
 const cards=[...g.querySelectorAll(':scope>a')],PER=16,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
 const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
-function layout(reset){if(reset)page=1;const o=window._go||'';const all=cards.filter(c=>c.isConnected&&(!o||c.dataset.o===o)),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
+function layout(reset){if(reset)page=1;const o=window._go||'';const all=cards.filter(c=>!c.dataset.dead&&(!o||c.dataset.o===o)),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
 for(let i=0;i<ncol;i++){const d=document.createElement('div');d.className='vcol';g.appendChild(d);cs.push(d)}
-cards.forEach(c=>{if(c.isConnected&&!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
+cards.forEach(c=>{if(!c.dataset.dead&&!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
 vis.forEach(c=>{const im=c.querySelector('img');if(im&&im.loading==='lazy')im.loading='eager';cs.reduce((a,b)=>b.offsetHeight<a.offsetHeight?b:a).appendChild(c)});
 if(!pg)return;if(pages<=1){pg.innerHTML='';return}
 let h='<button type="button" data-p="'+(page-1)+'"'+(page<=1?' disabled':'')+'>‹ 이전</button>';
