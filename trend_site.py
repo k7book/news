@@ -2348,8 +2348,8 @@ z.addEventListener('close',()=>{if(!z.open)zi.onerror=null})})();
 function gfail(img){const a=img.closest('a');const li=[...document.querySelectorAll('#gl li')].find(l=>l.querySelector('a').href===a.href);
 if(li)li.dataset.img='0';a.dataset.dead=1;a.remove();gfilter(window._go);}
 (function(){const g=document.getElementById('gg'),pg=document.getElementById('gpg');if(!g)return;
-// 그래픽: Masonry(원래 비율) + 한 쪽 16개. 언론사 버튼(window._go)으로 거른 뒤 나눈다
-const cards=[...g.querySelectorAll(':scope>a')],PER=16,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
+// 그래픽: Masonry(원래 비율), 쪽 나누지 않고 모두 보여 준다. 언론사 버튼(window._go)으로 거른다
+const cards=[...g.querySelectorAll(':scope>a')],PER=1e9,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
 const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
 function layout(reset){if(reset)page=1;const o=window._go||'';const all=cards.filter(c=>!c.dataset.dead&&(!o||c.dataset.o===o)),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
