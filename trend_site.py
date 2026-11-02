@@ -2042,7 +2042,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
-.dl-r .srcpill{text-decoration:none;display:inline-flex;align-items:center}.dl-r .srcpill:hover{color:var(--ink);border-color:var(--ink)}.dl-r .sbtn{display:inline-flex;align-items:center;gap:4px;cursor:pointer}@media(max-width:560px){.dl-r .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{inset:0;width:auto;max-width:none;height:auto;max-height:none;margin:0;border-radius:0}}#sres{min-width:0}.slist li{overflow-wrap:anywhere}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.snone{margin:14px 0 0;font-size:14px}.snone a{color:var(--teal);font-weight:700}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.vmas{column-count:3;column-gap:18px;margin-top:10px}.vmas>.vcard{break-inside:avoid;margin-bottom:22px}.vmas.js{column-count:auto;display:flex;gap:18px;align-items:flex-start}.vcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:24px}@media(max-width:900px){.vmas{column-count:2}}@media(max-width:520px){.vmas{column-count:1}}.vcard{display:flex;flex-direction:column;gap:6px;color:var(--ink);min-width:0}.vcard[hidden]{display:none}.vcard:hover .vt{text-decoration:underline}.vph{background:#fff;border:1px solid var(--rule);border-radius:4px;overflow:hidden;min-height:80px}.vph img{width:100%;height:auto;display:block}.vt{font-size:15px;font-weight:700;line-height:1.4}.vcat{display:flex;flex-wrap:wrap;gap:4px}.vcat span{font-size:11px;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:0 5px}.vcard .pm{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}.vcard b.ot,.vside b.ot{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:var(--c);background:var(--cb)}.vcr{margin-left:auto;font-size:11px;color:var(--dim)}.vside li{display:block}.vlist li[hidden],#vl[hidden],#vlh[hidden]{display:none}#vlh{margin-top:28px}#gzoom{border:0;padding:0;background:transparent;max-width:96vw;max-height:96vh;overflow:visible}#gzoom[open]{display:flex;flex-direction:column;align-items:center;gap:10px}#gzoom::backdrop{background:rgba(8,8,12,.86)}#gzoom .bclose{position:fixed;top:12px;right:14px;float:none;margin:0;color:#fff;font-size:24px;z-index:3}.gzimg{cursor:zoom-out}.gzimg img{display:block;max-width:94vw;max-height:80vh;object-fit:contain;background:#fff;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5)}.gzcap{max-width:min(860px,94vw);color:#eee;text-align:center}.gzt{font-size:16px;font-weight:700;line-height:1.45}.gzm{font-size:12.5px;color:#bbb;margin-top:4px}.gzm a{color:#7dd3c8;margin-left:6px}#gg .gph img,#vg .vph img{cursor:zoom-in}.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:18px 0 6px}.pager:empty{display:none}.pager button{font:inherit;font-size:13px;min-width:34px;padding:5px 10px;border:1px solid var(--rule);border-radius:999px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer}.pager button.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}.pager button:disabled{opacity:.4;cursor:default}.pager button:not(:disabled):not(.on):hover{border-color:var(--ink);color:var(--ink)}.pcard .vph{position:relative}.pcnt{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;cursor:zoom-in}#pmas .vph img{cursor:zoom-in}.gznav{position:fixed;top:50%;transform:translateY(-50%);width:46px;height:64px;border:0;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:3}.gznav:hover:not(:disabled){background:rgba(255,255,255,.28)}.gznav:disabled{opacity:.25;cursor:default}#gzprev{left:12px}#gznext{right:12px}.gznav[hidden]{display:none}#gg.vmas .gph{aspect-ratio:auto;background:#fff}#gg.vmas img{height:auto}#gg .vcol>a{display:block}#ndrawer{position:fixed;inset:0 0 0 auto;margin:0;height:100dvh;max-height:100dvh;width:min(520px,100vw);max-width:100vw;border:0;padding:0;background:var(--paper-3);color:var(--ink);box-shadow:-12px 0 40px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column}#ndrawer:not([open]){display:none}#ndrawer.in{transform:none}#ndrawer::backdrop{background:rgba(10,10,14,.45)}.ndh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--rule)}.ndk{font-size:12.5px;color:var(--muted);font-weight:700}.ndx{all:unset;cursor:pointer;font-size:20px;color:var(--muted);padding:4px 8px}.ndx:hover{color:var(--ink)}.ndb{overflow:auto;padding:16px 18px 28px;flex:1}.ndimg{margin:0 0 14px;border-radius:6px;overflow:hidden;background:var(--paper-2)}.ndimg img{width:100%;display:block;max-height:320px;object-fit:cover}.ndt{font-size:21px;line-height:1.4;margin:0 0 6px}.ndm{font-size:12.5px;color:var(--muted)}.ndbtns{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}.ndgo,.ndsr{font:inherit;font-size:13px;border-radius:999px;padding:6px 14px;cursor:pointer;text-decoration:none}.ndgo{background:var(--ink);color:var(--paper);font-weight:700}.ndsr{border:1px solid var(--rule);background:var(--paper);color:var(--ink)}.ndh3{font-size:13px;color:var(--muted);margin:18px 0 4px;letter-spacing:.02em}.ndl{list-style:none;margin:0;padding:0}.ndl li{padding:10px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.ndl li a{color:var(--ink)}.ndl li a:hover{text-decoration:underline}.ndo{display:inline-block;font-size:11.5px;font-weight:800;color:var(--teal);margin-right:8px;min-width:4em}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
+.dl-r .srcpill{text-decoration:none;display:inline-flex;align-items:center}.dl-r .srcpill:hover{color:var(--ink);border-color:var(--ink)}.dl-r .sbtn{display:inline-flex;align-items:center;gap:4px;cursor:pointer}@media(max-width:560px){.dl-r .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{inset:0;width:auto;max-width:none;height:auto;max-height:none;margin:0;border-radius:0}}#sres{min-width:0}.slist li{overflow-wrap:anywhere}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.snone{margin:14px 0 0;font-size:14px}.snone a{color:var(--teal);font-weight:700}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.vmas{column-count:3;column-gap:18px;margin-top:10px}.vmas>.vcard{break-inside:avoid;margin-bottom:22px}.vmas.js{column-count:auto;display:flex;gap:18px;align-items:flex-start}.vcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:24px}@media(max-width:900px){.vmas{column-count:2}}@media(max-width:520px){.vmas{column-count:1}}.vcard{display:flex;flex-direction:column;gap:6px;color:var(--ink);min-width:0}.vcard[hidden]{display:none}.vcard:hover .vt{text-decoration:underline}.vph{background:#fff;border:1px solid var(--rule);border-radius:4px;overflow:hidden;min-height:80px}.vph img{width:100%;height:auto;display:block}.vt{font-size:15px;font-weight:700;line-height:1.4}.vcat{display:flex;flex-wrap:wrap;gap:4px}.vcat span{font-size:11px;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:0 5px}.vcard .pm{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}.vcard b.ot,.vside b.ot{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:var(--c);background:var(--cb)}.vcr{margin-left:auto;font-size:11px;color:var(--dim)}.vside li{display:block}.vlist li[hidden],#vl[hidden],#vlh[hidden]{display:none}#vlh{margin-top:28px}#gzoom{border:0;padding:0;background:transparent;max-width:96vw;max-height:96vh;overflow:visible}#gzoom[open]{display:flex;flex-direction:column;align-items:center;gap:10px}#gzoom::backdrop{background:rgba(8,8,12,.86)}#gzoom .bclose{position:fixed;top:12px;right:14px;float:none;margin:0;color:#fff;font-size:24px;z-index:3}.gzimg{cursor:zoom-out}.gzimg img{display:block;max-width:94vw;max-height:80vh;object-fit:contain;background:#fff;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5)}.gzcap{max-width:min(860px,94vw);color:#eee;text-align:center}.gzt{font-size:16px;font-weight:700;line-height:1.45}.gzm{font-size:12.5px;color:#bbb;margin-top:4px}.gzm a{color:#7dd3c8;margin-left:6px}#gg .gph img,#vg .vph img{cursor:zoom-in}.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:18px 0 6px}.pager:empty{display:none}.pager button{font:inherit;font-size:13px;min-width:34px;padding:5px 10px;border:1px solid var(--rule);border-radius:999px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer}.pager button.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}.pager button:disabled{opacity:.4;cursor:default}.pager button:not(:disabled):not(.on):hover{border-color:var(--ink);color:var(--ink)}.pcard .vph{position:relative}.pcnt{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;cursor:zoom-in}#pmas .vph img{cursor:zoom-in}.gznav{position:fixed;top:50%;transform:translateY(-50%);width:46px;height:64px;border:0;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:3}.gznav:hover:not(:disabled){background:rgba(255,255,255,.28)}.gznav:disabled{opacity:.25;cursor:default}#gzprev{left:12px}#gznext{right:12px}.gznav[hidden]{display:none}#gg.vmas .gph{aspect-ratio:auto;background:#fff}#gg.vmas img{height:auto}#gg .vcol>a{display:block}#ndrawer{position:fixed;inset:0 0 0 auto;margin:0;height:100dvh;max-height:100dvh;width:min(520px,100vw);max-width:100vw;border:0;padding:0;background:var(--paper-3);color:var(--ink);box-shadow:-12px 0 40px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column}#ndrawer:not([open]){display:none}#ndrawer.in{transform:none}#ndrawer::backdrop{background:rgba(10,10,14,.45)}.ndh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--rule)}.ndk{font-size:12.5px;color:var(--muted);font-weight:700}.ndx{all:unset;cursor:pointer;font-size:20px;color:var(--muted);padding:4px 8px}.ndx:hover{color:var(--ink)}.ndb{overflow:auto;padding:16px 18px 28px;flex:1}.ndimg{margin:0 0 14px;border-radius:6px;overflow:hidden;background:var(--paper-2)}.ndimg img{width:100%;display:block;max-height:320px;object-fit:cover}.ndt{font-size:21px;line-height:1.4;margin:0 0 6px}.ndm{font-size:12.5px;color:var(--muted)}.ndbtns{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}.ndgo,.ndsr{font:inherit;font-size:13px;border-radius:999px;padding:6px 14px;cursor:pointer;text-decoration:none}.ndgo{background:var(--ink);color:var(--paper);font-weight:700}.ndsr{border:1px solid var(--rule);background:var(--paper);color:var(--ink)}.ndh3{font-size:13px;color:var(--muted);margin:18px 0 4px;letter-spacing:.02em}.ndl{list-style:none;margin:0;padding:0}.ndl li{padding:10px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.ndl li a{color:var(--ink)}.ndl li a:hover{text-decoration:underline}.ndo{display:inline-block;font-size:11.5px;font-weight:800;color:var(--teal);margin-right:8px;min-width:4em}#ndrawer.wide{width:min(980px,100vw)}.ndah{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:-4px 0 10px}.ndback{all:unset;cursor:pointer;font-size:13px;color:var(--teal);font-weight:700}.ndat{flex:1 1 100%;font-size:16px;font-weight:700;line-height:1.45}.ndnew{font-size:12.5px;color:var(--muted);margin-left:auto}.ndnew:hover{color:var(--ink)}.ndframe{display:block;width:100%;height:calc(100dvh - 190px);min-height:420px;border:1px solid var(--rule);border-radius:6px;background:#fff}.ndno{margin-top:20px;padding:24px 18px;border:1px dashed var(--rule);border-radius:8px;text-align:center;color:var(--ink-soft);font-size:14px}.ndno .ndgo{display:inline-block;margin-top:8px}.ndin{margin-left:8px;font-size:11px;color:var(--teal);border:1px solid var(--teal);border-radius:999px;padding:0 6px;vertical-align:1px}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
@@ -2322,24 +2322,38 @@ let n=0;document.querySelectorAll('#gl li').forEach(li=>{const v=li.dataset.img=
 const gl=document.getElementById('gl');if(gl)gl.style.display=n?'':'none';}
 (function(){const d=document.getElementById('ndrawer');if(!d)return;const body=document.getElementById('ndb'),kick=document.getElementById('ndk');
 const esc=t=>(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-// 사건 묶음 제목·사진을 누르면 오른쪽 드로어: 대표 사진, 제목, 같은 사건을 다룬 언론사별 기사 목록(원문 링크)
-document.addEventListener('click',e=>{const a=e.target.closest('.lead h2 a, .story h3 a, .lead a.ph, .story a.th');if(!a)return;
-if(e.ctrlKey||e.metaKey||e.shiftKey||e.button===1)return;  // 새 탭 열기는 그대로
-const art=a.closest('article');if(!art)return;e.preventDefault();
-const h=art.querySelector('h2 a, h3 a');const img=art.querySelector('a.ph img, a.th img');
+const okd=new Set((()=>{try{return JSON.parse(document.getElementById('frameok')?.textContent||'[]')}catch(e){return []}})());
+const canFrame=u=>{try{const x=new URL(u);return x.protocol==='https:'&&okd.has(x.host.toLowerCase())}catch(e){return false}};
+let cur=null;  // 지금 드로어에 연 사건(article)
+const open=()=>{if(!d.open){if(d.showModal)d.showModal();else d.setAttribute('open','');requestAnimationFrame(()=>d.classList.add('in'))}};
+// ① 사건 보기: 대표 사진, 제목, 같은 사건을 다룬 언론사별 기사 목록
+function showList(art){cur=art;d.classList.remove('wide');const h=art.querySelector('h2 a, h3 a');const img=art.querySelector('a.ph img, a.th img');
 const pg=art.closest('.pg[role=tabpanel]');const no=art.querySelector('.no')?.textContent||(art.classList.contains('lead')?'1':'');
 kick.textContent=(pg?pg.dataset.c+' · ':'')+(no?no+'위':'');
 const by=(art.querySelector('.byline .cnt')?art.querySelector('.byline'):art.querySelector('.kicker .km'))?.textContent.replace(/\\s+/g,' ').trim()||'';
-const items=[...art.querySelectorAll('.outlets a')].map(x=>'<li><b class="ndo">'+esc(x.textContent)+'</b><a href="'+esc(x.href)+'" target="_blank" rel="noopener noreferrer">'+esc(x.title||h.textContent)+'</a></li>').join('');
+const items=[...art.querySelectorAll('.outlets a')].map((x,i)=>'<li><b class="ndo">'+esc(x.textContent)+'</b><a href="'+esc(x.href)+'" data-i="'+i+'" target="_blank" rel="noopener noreferrer">'+esc(x.title||h.textContent)+'</a>'+(canFrame(x.href)?'<span class="ndin">드로어에서 보기</span>':'')+'</li>').join('');
 body.innerHTML=(img&&img.naturalWidth?'<div class="ndimg"><img src="'+esc(img.currentSrc||img.src)+'" alt="" referrerpolicy="no-referrer"></div>':'')
 +'<h2 class="ndt">'+esc(h.textContent)+'</h2>'+(by?'<div class="ndm">'+esc(by)+'</div>':'')
-+'<div class="ndbtns"><a class="ndgo" href="'+esc(h.href)+'" target="_blank" rel="noopener noreferrer">대표 기사 원문 보기 →</a><button type="button" class="ndsr" data-q="'+esc(h.textContent)+'">관련 기사 검색</button></div>'
-+'<h3 class="ndh3">같은 사건을 다룬 기사 '+art.querySelectorAll('.outlets a').length+'건</h3><ul class="ndl">'+items+'</ul>';
-body.scrollTop=0;if(d.showModal)d.showModal();else d.setAttribute('open','');requestAnimationFrame(()=>d.classList.add('in'))});
-const close=()=>{d.classList.remove('in');setTimeout(()=>d.close(),180)};
++'<div class="ndbtns"><a class="ndgo" href="'+esc(h.href)+'" data-i="-1" target="_blank" rel="noopener noreferrer">대표 기사 보기 →</a><button type="button" class="ndsr" data-q="'+esc(h.textContent)+'">관련 기사 검색</button></div>'
++'<h3 class="ndh3">같은 사건을 다룬 기사 '+art.querySelectorAll('.outlets a').length+'건 · 누르면 드로어에서 봅니다</h3><ul class="ndl">'+items+'</ul>';body.scrollTop=0}
+// ② 기사 보기: 띄워도 되는 언론사는 드로어 안에 원문, 막아 둔 곳은 새 창 안내
+function showArticle(url,outlet,title){d.classList.add('wide');
+const back=cur?'<button type="button" class="ndback">← 같은 사건 기사 목록</button>':'';
+const head='<div class="ndah">'+back+'<div class="ndat"><b class="ndo">'+esc(outlet)+'</b>'+esc(title)+'</div><a class="ndnew" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">새 창으로 ↗</a></div>';
+body.innerHTML=head+(canFrame(url)?'<iframe class="ndframe" src="'+esc(url)+'" referrerpolicy="no-referrer" loading="eager" title="'+esc(outlet)+' 기사"></iframe>'
+:'<div class="ndno"><p>'+esc(outlet||'이 언론사')+'는 다른 사이트 안에서 기사를 띄우지 못하게 막아 두었습니다.</p><a class="ndgo" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">원문을 새 창으로 보기 →</a></div>');body.scrollTop=0}
+document.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.button===1)return;  // 새 탭 열기는 그대로
+const chip=e.target.closest('.lead .outlets a, .story .outlets a');
+if(chip){e.preventDefault();cur=chip.closest('article');kick.textContent=chip.closest('.pg[role=tabpanel]')?.dataset.c||'';showArticle(chip.href,chip.textContent,chip.title||'');open();return}
+const a=e.target.closest('.lead h2 a, .story h3 a, .lead a.ph, .story a.th');if(!a)return;const art=a.closest('article');if(!art)return;e.preventDefault();showList(art);open()});
+const close=()=>{d.classList.remove('in');setTimeout(()=>{d.close();body.innerHTML=''},180)};
 document.getElementById('ndx').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});
 d.addEventListener('cancel',e=>{e.preventDefault();close()});
-body.addEventListener('click',e=>{const b=e.target.closest('.ndsr');if(!b)return;const q=b.dataset.q.replace(/[\\[\\]'"‘’“”…·,()]/g,' ').split(/\\s+/).filter(w=>w.length>1).slice(0,2).join(' ');
+body.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey)return;
+const it=e.target.closest('.ndl a, .ndgo[data-i]');if(it&&cur){e.preventDefault();const i=+it.dataset.i;const x=i>=0?cur.querySelectorAll('.outlets a')[i]:null;
+showArticle(it.href,x?x.textContent:'대표 기사',x?(x.title||''):(cur.querySelector('h2 a, h3 a')?.textContent||''));return}
+if(e.target.closest('.ndback')&&cur){showList(cur);return}
+const b=e.target.closest('.ndsr');if(!b)return;const q=b.dataset.q.replace(/[\\[\\]'"‘’“”…·,()]/g,' ').split(/\\s+/).filter(w=>w.length>1).slice(0,2).join(' ');
 close();setTimeout(()=>{const s=document.getElementById('sopen');if(s){s.click();const i=document.getElementById('sq');i.value=q;i.dispatchEvent(new Event('input'))}},220)})})();
 (function(){const z=document.getElementById('gzoom');if(!z)return;const zi=document.getElementById('gzi');
 // 더 큰 그림 후보: 연합 _P1→_P4(원본), 기사 CMS 썸네일(/thumbnail/…_v150.jpg)→원본(/photo/….jpg, .png). 다 안 되면 원래 그림
@@ -2600,7 +2614,7 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None, visual=None, photo=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None, visual=None, photo=None, frame_ok=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
@@ -2678,7 +2692,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
 <body data-built="{esc(now.isoformat())}"><div class="w">
 <div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button>{"" if only else '<a class="pill srcpill" href="sources.html">출처</a>' + SEARCH_BTN}</span></div>
 <header class="titlerow"><h1 class="brand"><a class="home" href="index.html#home" title="첫 화면으로">{LOGO_SVG}<span>{esc(brand)}</span></a></h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
-<nav class="nav" role="tablist">{tabs}</nav>{"" if only else SEARCH_DIALOG + ZOOM_DIALOG + NEWS_DRAWER}
+<nav class="nav" role="tablist">{tabs}</nav>{"" if only else SEARCH_DIALOG + ZOOM_DIALOG + NEWS_DRAWER + '<script type="application/json" id="frameok">' + json.dumps(frame_ok or []) + '</script>'}
 {ticker}
 {render_brief(trends, pages, now, only or "전체")}
 <div class="cols"><main>{"".join(body)}{gpanel}</main><aside class="side">{side}</aside></div>
@@ -2959,6 +2973,63 @@ def build_search(data, now, out_dir, persist=True):
     return len(out["r"])
 
 
+# ── 드로어 안 원문 보기: 언론사별로 다른 사이트 안(iframe)에 띄워도 되는지 확인 ──
+# X-Frame-Options(DENY/SAMEORIGIN)나 CSP frame-ancestors가 있으면 막힌 것. 언론사 주소(도메인)마다 한 번 확인하고 7일 뒤 다시.
+FRAME_CACHE = os.path.join(HERE, "history", "frame_ok.json")
+
+
+def _frame_allowed(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html"})
+    with urllib.request.urlopen(req, timeout=12) as r:
+        h = {k.lower(): v for k, v in r.headers.items()}
+        r.read(2048)
+    xfo = (h.get("x-frame-options") or "").lower()
+    if "deny" in xfo or "sameorigin" in xfo:
+        return False
+    csp = (h.get("content-security-policy") or "").lower()
+    m = re.search(r"frame-ancestors([^;]*)", csp)
+    if m and "*" not in m.group(1).split():
+        return False
+    return True
+
+
+def frame_check(pages, now, max_new=40):
+    """→ 띄워도 되는 언론사 도메인 목록"""
+    try:
+        cache = json.load(open(FRAME_CACHE, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    sample = {}
+    for p in (pages or {}).values():
+        for c in p.get("clusters", []):
+            for l in c.get("links", []):
+                u = l.get("url") or ""
+                if not u.startswith("https://") or GN_RX.search(u):  # http 페이지는 https 사이트 안에 못 띄운다
+                    continue
+                d = urllib.parse.urlsplit(u).netloc.lower()
+                sample.setdefault(d, u)
+    lo = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+    todo = [d for d in sample if (cache.get(d) or {}).get("t", "") < lo][:max_new]
+
+    def work(d):
+        try:
+            if not robots_allows(sample[d]):
+                return d, False
+            return d, _frame_allowed(sample[d])
+        except Exception:
+            return d, None
+    with ThreadPoolExecutor(8) as ex:
+        for d, ok in ex.map(work, todo):
+            if ok is not None:
+                cache[d] = {"ok": ok, "t": now.strftime("%Y-%m-%d")}
+    try:
+        os.makedirs(os.path.dirname(FRAME_CACHE), exist_ok=True)
+        json.dump(cache, open(FRAME_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return sorted(d for d, v in cache.items() if v.get("ok"))
+
+
 def save_history(data, now, keep_days=7):
     hd = os.path.join(HERE, "history")
     os.makedirs(hd, exist_ok=True)
@@ -2991,7 +3062,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"), visual=d.get("visual"), photo=d.get("photo"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"), visual=d.get("visual"), photo=d.get("photo"), frame_ok=d.get("frame_ok"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -3137,10 +3208,12 @@ def main():
         n_todo, n_img = enrich_graphics(graphic["others"])
         pstatus.append({"name": "그래픽 원문 사진", "ok": True, "count": n_img, "error": "" if n_img else f"{n_todo}건 중 0"})
 
+    frame_ok = [] if args.demo else frame_check(pages, now)
+    pstatus.append({"name": "드로어 원문 보기 가능 언론사", "ok": True, "count": len(frame_ok), "error": ""})
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual, photo=photo)
+                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual, photo=photo, frame_ok=frame_ok)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -3155,7 +3228,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "visual": visual, "photo": photo, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "visual": visual, "photo": photo, "frame_ok": frame_ok, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     try:
