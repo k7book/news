@@ -2017,12 +2017,37 @@ def demo_data(now):
 
 
 # ---------------- HTML ----------------
+def themeize(css):
+    """다크 색 블록을 두 벌로: 시스템이 다크이고 사용자가 라이트를 안 골랐을 때 + 사용자가 다크를 골랐을 때."""
+    key = "@media (prefers-color-scheme:dark){"
+    out, i = [], 0
+    while True:
+        j = css.find(key, i)
+        if j < 0:
+            out.append(css[i:]); break
+        out.append(css[i:j]); k = j + len(key); depth = 1; m = k
+        while depth:
+            depth += {"{": 1, "}": -1}.get(css[m], 0); m += 1
+        body = css[k:m - 1]
+        def pref(b, p):
+            res = []
+            for sel, decl in re.findall(r"([^{}]+)\{([^{}]*)\}", b):
+                sels = [x.strip() for x in sel.split(",")]
+                sels = [(p + x[5:]) if x.startswith(":root") else (p + " " + x) for x in sels]
+                res.append(",".join(sels) + "{" + decl + "}")
+            return "".join(res)
+        out.append(key + pref(body, ":root:not([data-theme=light])") + "}" + pref(body, ":root[data-theme=dark]"))
+        i = m
+    return "".join(out)
+
+
 CSS = """
-:root{--ink:#1c1c1e;--ink-soft:#55524a;--ink-body:#2b2926;--paper:#f6f5f1;--paper-2:#efede7;--paper-3:#fffefb;
---rule:#d8d4c8;--rule-dot:#b8b2a0;--muted:#77735f;--dim:#a9a496;--red:#e0523c;--teal:#0f766e;--teal-tint:#e3f3f0;
+:root{--ink:#1d1a15;--ink-soft:#4f483b;--ink-body:#2c2820;--paper:#f1ebdd;--paper-2:#e7dfcc;--paper-3:#f7f2e6;
+--rule:#cfc5ae;--rule-dot:#b0a487;--muted:#6c634e;--dim:#a0967d;--red:#c0392b;--teal:#0f665f;--teal-tint:#dcebe2;
 --sans:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;--brand:"Noto Serif KR","Batang",serif}
 @media (prefers-color-scheme:dark){:root{--ink:#ececf1;--ink-soft:#c9c9d2;--ink-body:#d9d9e0;--paper:#101014;--paper-2:#16161c;--paper-3:#1b1b22;
 --rule:#33333d;--rule-dot:#4a4a55;--muted:#8e8e98;--dim:#6e6e78;--red:#f0705c;--teal:#5eead4;--teal-tint:#123a36}}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]) .lead h2,:root:not([data-theme=dark]) .story h3,:root:not([data-theme=dark]) .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root:not([data-theme=dark]) body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root:not([data-theme=dark]) .titlerow{border-bottom:3px double var(--ink)}}:root[data-theme=light] .lead h2,:root[data-theme=light] .story h3,:root[data-theme=light] .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root[data-theme=light] body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root[data-theme=light] .titlerow{border-bottom:3px double var(--ink)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);word-break:keep-all;overflow-wrap:anywhere}
 a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:3px}
@@ -2145,7 +2170,7 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--rule);font-si
 LOGO_SVG = ('<svg class="mark" viewBox="0 0 104 88" aria-hidden="true">'
             '<rect x="0" y="0" width="44" height="44" fill="currentColor"/><polygon points="22,44 44,44 30,88 8,88" fill="currentColor"/>'
             '<rect x="60" y="0" width="44" height="44" fill="var(--red)"/><polygon points="82,44 104,44 90,88 68,88" fill="var(--red)"/></svg>')
-FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Serif+KR:wght@900&display=swap">'
+FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Serif+KR:wght@700;900&display=swap">'
 
 
 NEWS_DRAWER = ('<dialog id="ndrawer" aria-label="뉴스 자세히"><div class="ndh"><span class="ndk" id="ndk"></span>'
@@ -2156,6 +2181,14 @@ ZOOM_DIALOG = ('<dialog id="gzoom" aria-label="그림 크게 보기"><button typ
                '<div class="gzm"><span id="gzm"></span> <a id="gzl" target="_blank" rel="noopener noreferrer">원문 보기 →</a></div></div></dialog>')
 SEARCH_ICON = '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>'
 SEARCH_ICON_SM = SEARCH_ICON.replace('width="19" height="19"', 'width="14" height="14"')
+THEME_JS = """<script>(function(){const b=document.getElementById('thm');if(!b)return;const r=document.documentElement,mq=matchMedia('(prefers-color-scheme: dark)');
+const cur=()=>r.dataset.theme||(mq.matches?'dark':'light');
+const paint=()=>{const d=cur()==='dark';b.textContent=d?'☀ 라이트':'☾ 다크';b.title=d?'신문지 색 라이트 모드로 바꾸기':'다크 모드로 바꾸기';
+const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#101014':'#f1ebdd'};
+b.onclick=()=>{const n=cur()==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}paint()};
+mq.addEventListener&&mq.addEventListener('change',paint);paint()})()</script>"""
+
+
 SEARCH_BTN = f'<button type="button" class="pill sbtn" id="sopen" aria-label="기사 검색" title="기사 검색 ( / )">{SEARCH_ICON_SM}<span>검색</span></button>'
 SEARCH_DIALOG = (
     '<dialog id="smodal" aria-label="기사 검색"><div class="shd">' + SEARCH_ICON
@@ -2689,16 +2722,16 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
     st = "".join(f'<li class="{"" if s["ok"] else "bad"}">{esc(s["name"])}: {"%d건" % s["count"] if s["ok"] else esc(s["error"])}</li>' for s in status)
     date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
     return f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>try{{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}}catch(e){{}}</script>
 <meta name="robots" content="noindex,nofollow"><title>{esc(title or brand)}</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 {FONT_LINK}
-<style>{CSS}</style></head>
+<style>{themeize(CSS)}</style></head>
 <body data-built="{esc(now.isoformat())}"><div class="w">
-<div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button>{"" if only else '<a class="pill srcpill" href="sources.html">출처</a>' + SEARCH_BTN}</span></div>
+<div class="dateline"><span>{date} · <span id="age"></span></span><span class="dl-r"><button class="pill rf" id="rf" type="button" title="새 데이터가 있으면 바로 다시 불러옵니다">↻ 새로고침</button><button class="pill" id="st" type="button">수집 {ok}/{len(status)}</button>{"" if only else '<a class="pill srcpill" href="sources.html">출처</a>' + SEARCH_BTN}<button class="pill thm" id="thm" type="button">테마</button></span></div>{THEME_JS}
 <header class="titlerow"><h1 class="brand"><a class="home" href="index.html#home" title="첫 화면으로">{LOGO_SVG}<span>{esc(brand)}</span></a></h1><p class="motto">{esc(motto or f"여러 언론사가 함께 다룬 순서 · 최근 {hours}시간")}</p></header>
 <nav class="nav" role="tablist">{tabs}</nav>{"" if only else SEARCH_DIALOG + ZOOM_DIALOG + NEWS_DRAWER + '<script type="application/json" id="frameok">' + json.dumps(frame_ok or []) + '</script>'}
 {ticker}
@@ -2804,13 +2837,13 @@ td.na,span.na{color:var(--dim)}td.sum{color:var(--muted);font-variant-numeric:ta
 """
     date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
     return f"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>try{{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}}catch(e){{}}</script>
 <meta name="robots" content="noindex,nofollow"><title>뉴스 출처 · 지금 뜨는 뉴스</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#1c1c1e">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 {FONT_LINK}
-<style>{css}</style></head><body><div class="w">
+<style>{themeize(css)}</style></head><body><div class="w">
 <div class="dateline"><span>{date}</span><a class="pill" href="index.html">← 첫 화면</a></div>
 <header class="titlerow"><h1 class="brand" style="font-size:clamp(32px,5.5vw,48px)"><a class="home" href="index.html#home" title="첫 화면으로">{LOGO_SVG}<span>뉴스 출처</span></a></h1><p class="motto">어느 신문사에서 무엇을 가져오는지</p></header>
 <div class="doc">
