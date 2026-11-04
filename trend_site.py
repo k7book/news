@@ -2042,12 +2042,12 @@ def themeize(css):
 
 
 CSS = """
-:root{--ink:#1d1a15;--ink-soft:#4f483b;--ink-body:#2c2820;--paper:#f1ebdd;--paper-2:#e7dfcc;--paper-3:#f7f2e6;
---rule:#cfc5ae;--rule-dot:#b0a487;--muted:#6c634e;--dim:#a0967d;--red:#c0392b;--teal:#0f665f;--teal-tint:#dcebe2;
+:root{--ink:#14110c;--ink-soft:#39332a;--ink-body:#1f1b14;--paper:#f7f3ea;--paper-2:#ede6d6;--paper-3:#fcfaf4;
+--rule:#cdc3ac;--rule-dot:#a99d82;--muted:#544c3c;--dim:#7a705a;--red:#b02e20;--teal:#0b5a53;--teal-tint:#dcebe2;
 --sans:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;--brand:"Noto Serif KR","Batang",serif}
 @media (prefers-color-scheme:dark){:root{--ink:#ececf1;--ink-soft:#c9c9d2;--ink-body:#d9d9e0;--paper:#101014;--paper-2:#16161c;--paper-3:#1b1b22;
 --rule:#33333d;--rule-dot:#4a4a55;--muted:#8e8e98;--dim:#6e6e78;--red:#f0705c;--teal:#5eead4;--teal-tint:#123a36}}
-@media (prefers-color-scheme:light){:root:not([data-theme=dark]) .lead h2,:root:not([data-theme=dark]) .story h3,:root:not([data-theme=dark]) .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root:not([data-theme=dark]) body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root:not([data-theme=dark]) .titlerow{border-bottom:3px double var(--ink)}}:root[data-theme=light] .lead h2,:root[data-theme=light] .story h3,:root[data-theme=light] .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root[data-theme=light] body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root[data-theme=light] .titlerow{border-bottom:3px double var(--ink)}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]) .lead h2,:root:not([data-theme=dark]) .story h3,:root:not([data-theme=dark]) .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root:not([data-theme=dark]) body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root:not([data-theme=dark]) .titlerow{border-bottom:3px double var(--ink)}}:root[data-theme=light] .lead h2,:root[data-theme=light] .story h3,:root[data-theme=light] .ndt{font-family:"Noto Serif KR",var(--sans);font-weight:700;letter-spacing:-.01em}:root[data-theme=light] body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .18 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}:root[data-theme=light] .titlerow{border-bottom:3px double var(--ink)}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 var(--sans);word-break:keep-all;overflow-wrap:anywhere}
 a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:3px}
@@ -2184,7 +2184,7 @@ SEARCH_ICON_SM = SEARCH_ICON.replace('width="19" height="19"', 'width="14" heigh
 THEME_JS = """<script>(function(){const b=document.getElementById('thm');if(!b)return;const r=document.documentElement,mq=matchMedia('(prefers-color-scheme: dark)');
 const cur=()=>r.dataset.theme||(mq.matches?'dark':'light');
 const paint=()=>{const d=cur()==='dark';b.textContent=d?'☀ 라이트':'☾ 다크';b.title=d?'신문지 색 라이트 모드로 바꾸기':'다크 모드로 바꾸기';
-const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#101014':'#f1ebdd'};
+const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#101014':'#f7f3ea'};
 b.onclick=()=>{const n=cur()==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}paint()};
 mq.addEventListener&&mq.addEventListener('change',paint);paint()})()</script>"""
 
