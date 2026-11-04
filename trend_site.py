@@ -1547,7 +1547,7 @@ _NOT_NAME = {"경제", "사회", "정치", "국제", "문화", "연예", "스포
 _BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스$|^헤드라인")
 
 
-def http_post(url, form, timeout=TIMEOUT):
+def http_post(url, form, timeout=30):
     req = urllib.request.Request(url, data=urllib.parse.urlencode(form).encode(), headers={
         "User-Agent": UA, "Accept": "*/*", "Accept-Language": "ko,en",
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest"})
