@@ -1541,10 +1541,10 @@ def render_visual_side():
 #  KBS 뉴스9   : 방송 목록이 /api 로만 오는데 robots가 /api 차단 → 싣지 않음
 BCAST_TAB = "메인뉴스"
 BCAST_CACHE = os.path.join(HERE, "history", "broadcast.json")
-BCAST_VER = 2  # 가져오는 방식을 고치면 올린다 → 저장된 것도 다시 받음
+BCAST_VER = 3  # 가져오는 방식을 고치면 올린다 → 저장된 것도 다시 받음
 BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
 _NOT_NAME = {"경제", "사회", "정치", "국제", "문화", "연예", "스포츠", "취재", "영상", "사진", "기자", "전문", "담당", "소속", "현장", "앵커", "이메일", "제보"}
-_BTAG = re.compile(r"클로징|예고|오프닝|다시보기|\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스|헤드라인")
+_BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스$|^헤드라인")
 
 
 def http_post(url, form, timeout=TIMEOUT):
