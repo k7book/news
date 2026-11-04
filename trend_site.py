@@ -2042,7 +2042,7 @@ def themeize(css):
 
 
 CSS = """
-:root{--ink:#14110c;--ink-soft:#39332a;--ink-body:#1f1b14;--paper:#f7f3ea;--paper-2:#ede6d6;--paper-3:#fcfaf4;
+:root{--ink:#14110c;--ink-soft:#39332a;--ink-body:#1f1b14;--paper:#ede6d7;--paper-2:#e3dbc9;--paper-3:#f6f1e6;
 --rule:#cdc3ac;--rule-dot:#a99d82;--muted:#544c3c;--dim:#7a705a;--red:#b02e20;--teal:#0b5a53;--teal-tint:#dcebe2;
 --sans:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;--brand:"Noto Serif KR","Batang",serif}
 @media (prefers-color-scheme:dark){:root{--ink:#ececf1;--ink-soft:#c9c9d2;--ink-body:#d9d9e0;--paper:#101014;--paper-2:#16161c;--paper-3:#1b1b22;
@@ -2184,7 +2184,7 @@ SEARCH_ICON_SM = SEARCH_ICON.replace('width="19" height="19"', 'width="14" heigh
 THEME_JS = """<script>(function(){const b=document.getElementById('thm');if(!b)return;const r=document.documentElement,mq=matchMedia('(prefers-color-scheme: dark)');
 const cur=()=>r.dataset.theme||(mq.matches?'dark':'light');
 const paint=()=>{const d=cur()==='dark';b.textContent=d?'☀ 라이트':'☾ 다크';b.title=d?'신문지 색 라이트 모드로 바꾸기':'다크 모드로 바꾸기';
-const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#101014':'#f7f3ea'};
+const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#101014':'#ede6d7'};
 b.onclick=()=>{const n=cur()==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}paint()};
 mq.addEventListener&&mq.addEventListener('change',paint);paint()})()</script>"""
 
