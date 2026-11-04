@@ -1541,7 +1541,9 @@ def render_visual_side():
 #  KBS 뉴스9   : 방송 목록이 /api 로만 오는데 robots가 /api 차단 → 싣지 않음
 BCAST_TAB = "메인뉴스"
 BCAST_CACHE = os.path.join(HERE, "history", "broadcast.json")
+BCAST_VER = 2  # 가져오는 방식을 고치면 올린다 → 저장된 것도 다시 받음
 BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
+_NOT_NAME = {"경제", "사회", "정치", "국제", "문화", "연예", "스포츠", "취재", "영상", "사진", "기자", "전문", "담당", "소속", "현장", "앵커", "이메일", "제보"}
 _BTAG = re.compile(r"클로징|예고|오프닝|다시보기|\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스|헤드라인")
 
 
@@ -1587,7 +1589,7 @@ def _bc_sbs(day):
                 img = img or el.get("url")
         nid = re.search(r"news_id=N?(\d+)", u)
         out.append({"t": t, "u": u, "rep": _rep(it.findtext("author")), "img": img, "_k": int(nid.group(1)) if nid else 0})
-    return sorted(out, key=lambda x: x["_k"])
+    return out  # RSS 순서 = 방송 순서(기사 번호는 미리 써 둔 기사가 앞설 수 있어 쓰지 않음)
 
 
 def _bc_mbn(day):
@@ -1607,7 +1609,9 @@ def _bc_mbn(day):
     for x in out[:4]:  # 첫 기사는 목록에 기자 이름이 없다 → 기사 화면에서
         if not x["rep"]:
             try:
-                x["rep"] = _rep(re.search(r"[가-힣]{2,4}\s*기자", _strip_tags(http_get(x["u"]).decode("utf-8", "ignore"))).group(0))
+                v = http_get(x["u"]).decode("utf-8", "ignore")
+                names = [n for n in re.findall(r"([가-힣]{2,4})\s*기자", v) if n not in _NOT_NAME]
+                x["rep"] = names[0] if names else ""
             except Exception:
                 pass
     return out
@@ -1663,7 +1667,8 @@ def _bc_channela(day):
         if a.get("SVC_START_DATE") != day:
             continue
         body = _strip_tags(a.get("PUB_HTML") or "")
-        m = re.search(r"([가-힣]{2,4})\s*기자(?:입니다|가 보도합니다|가 전합니다)", body) or re.search(r"채널A 뉴스\s*([가-힣]{2,4})입니다", body)
+        m = (re.search(r"([가-힣]{2,4})\s*(?:기자|특파원)(?:입니다|가 보도합니다|가 전합니다|의 보도입니다|가 취재했습니다)", body)
+             or re.search(r"채널\s?A\s?뉴스\s*([가-힣]{2,4})입니다", body) or re.search(r"([가-힣]{2,4})\s*(?:기자|특파원)", body))
         out.append({"t": html.unescape(a.get("TITLE") or "").strip(), "u": f"https://ichannela.com/news/detail/{a['PUBLISH_ID']}.do",
                     "rep": m.group(1) if m else "", "img": ("https://image.ichannela.com" + a["IMG_PATH"]) if a.get("IMG_PATH") else None})
     return out
@@ -1701,6 +1706,8 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
             if not callable(fn):
                 continue
             cur = slot.get(key) or {}
+            if cur.get("v") != BCAST_VER:
+                cur = {}
             if len(cur.get("items") or []) >= 4 or cur.get("tries", 0) >= max_tries:
                 continue
             err = ""
@@ -1716,6 +1723,7 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
             except Exception as e:
                 err = f"{type(e).__name__}: {str(e)[:60]}"
             cur["tries"] = cur.get("tries", 0) + 1
+            cur["v"] = BCAST_VER
             slot[key] = cur
             if day == days[-1]:
                 status.append({"name": f"메인뉴스 TOP4 {name} {prog}", "ok": bool(cur.get("items")), "count": len(cur.get("items") or []),
