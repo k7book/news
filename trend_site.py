@@ -1537,9 +1537,10 @@ def render_visual_side():
 #  TV조선 뉴스9: 전체기사 RSS(/site/data/rss/rss.xml). 뉴스9 기사는 '뉴스 9 예고'와 '뉴스 9 클로징' 사이에 번호를 2씩 건너 미리 잡아 둔다
 #                (방송 목록 API는 /svc/ 아래라 robots 차단 → 쓰지 않음)
 #  채널A 뉴스A : 프로그램 기사 목록(/news/template/getProgramCateNews.do, robots에 '*' 제한 없음)
-#  MBC 뉴스데스크: robots.txt가 모든 수집기 차단(User-agent: * Disallow: /) → 싣지 않음
-#  KBS 뉴스9   : 방송 목록이 /api 로만 오는데 robots가 /api 차단 → 싣지 않음
-BCAST_TAB = "메인뉴스"
+#  MBC 뉴스데스크: robots.txt가 모든 수집기 차단(User-agent: * Disallow: /). 2026-11-05 사용자 결정으로 예외:
+#                하루 한 번 다시보기 목록 한 쪽만 받아 첫 4건 제목·기자·썸네일만 보여 줌
+#  KBS 뉴스9   : 방송 목록이 /api 로만 오고 robots가 /api 차단. 같은 사용자 결정으로 예외(목록 API 한 번, 4건만)
+BCAST_TAB = "TV"
 BCAST_CACHE = os.path.join(HERE, "history", "broadcast.json")
 BCAST_VER = 3  # 가져오는 방식을 고치면 올린다 → 저장된 것도 다시 받음
 BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
@@ -1674,16 +1675,49 @@ def _bc_channela(day):
     return out
 
 
+def _bc_mbc(day):
+    url = f"https://imnews.imbc.com/replay/{day[:4]}/nwdesk/"
+    body = http_get(url).decode("utf-8", "ignore")
+    out = []
+    for li in re.findall(r'<li class="item">(.*?)</li>', body, re.S):
+        a = re.search(r'href="(https://imnews\.imbc\.com/replay/\d{4}/nwdesk/article/[^"]+)"', li)
+        t = re.search(r'class="tit[^"]*">(.*?)</span>', li, re.S)
+        if not a or not t:
+            continue
+        im = re.search(r'<img src="([^"]+)"', li)
+        img = ("https:" + im.group(1)) if im and im.group(1).startswith("//") else (im.group(1) if im else None)
+        if img and f"/{day[:4]}/{day[4:6]}/{day[6:]}/" not in img:  # 목록은 가장 최근 방송 → 그날 것만
+            continue
+        rp = re.search(r'class="sub2"><span>([^<]*)</span>', li)
+        out.append({"t": _strip_tags(t.group(1)), "u": a.group(1), "rep": _rep(rp.group(1)) if rp else "", "img": img})
+    return out
+
+
+def _bc_kbs(day):
+    url = (f"https://news.kbs.co.kr/api/getNewsList?currentPageNo=1&rowsPerPage=12&exceptPhotoYn=Y&broadCode=0001&broadDate={day}"
+           "&needReporterInfo=Y&orderBy=broadDate_desc%2CbroadOrder_asc")
+    j = json.loads(http_get(url))
+    out = []
+    for a in j.get("data") or []:
+        if a.get("broadDate") != day:
+            continue
+        rp = a.get("reporterName") or ""
+        out.append({"t": html.unescape(a.get("newsTitle") or "").strip(), "u": f"https://news.kbs.co.kr/news/pc/view/view.do?ncd={a['newsCode']}",
+                    "rep": "" if rp == "KBS" else _rep(rp), "img": ("https://news.kbs.co.kr" + a["imgUrl"]) if a.get("imgUrl") else None})
+    return out
+
+
 # (키, 방송사, 프로그램, 방송 보기 주소, 가져오기 함수 / None=수집 불가 사유)
 BROADCASTERS = [
-    ("mbc", "MBC", "뉴스데스크", "https://imnews.imbc.com/replay/nwdesk/", "robots.txt가 모든 자동 수집을 막아 둠"),
+    ("mbc", "MBC", "뉴스데스크", "https://imnews.imbc.com/replay/nwdesk/", _bc_mbc),
     ("sbs", "SBS", "8 뉴스", "https://news.sbs.co.kr/", _bc_sbs),
-    ("kbs", "KBS", "뉴스 9", "https://news.kbs.co.kr/news/pc/program/program.do?bcd=0001", "방송 목록 주소(/api)를 robots.txt가 막아 둠"),
+    ("kbs", "KBS", "뉴스 9", "https://news.kbs.co.kr/news/pc/program/program.do?bcd=0001", _bc_kbs),
     ("mbn", "MBN", "뉴스7", "https://www.mbn.co.kr/vod/programMain/552", _bc_mbn),
     ("jtbc", "JTBC", "뉴스룸", "https://news.jtbc.co.kr/program/NG10000002", _bc_jtbc),
     ("tvchosun", "TV CHOSUN", "뉴스9", "https://broadcast.tvchosun.com/news/newspan/ch19.cstv", _bc_tvchosun),
     ("channela", "채널A", "뉴스A", "https://ichannela.com/news/template/program_news.do?pgmCode=000500", _bc_channela),
 ]
+_BC_ROBOTS_EXEMPT = {"mbc", "kbs"}  # 사용자 결정(2026-11-05): 하루 한 번, 목록 한 번, 4건만
 _BC_URL = {"sbs": "https://news.sbs.co.kr/news/ReplayRssFeed.do", "mbn": "https://www.mbn.co.kr/lib/module/getProgramReviewList_A.v3.php",
            "jtbc": "https://news-api.jtbc.co.kr/v1/get/contents/program/articles", "tvchosun": "https://news.tvchosun.com/site/data/rss/rss.xml",
            "channela": "https://ichannela.com/news/template/getProgramCateNews.do"}
@@ -1712,7 +1746,7 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
                 continue
             err = ""
             try:
-                if not robots_allows(_BC_URL[key]):
+                if key not in _BC_ROBOTS_EXEMPT and not robots_allows(_BC_URL[key]):
                     raise RuntimeError("robots.txt 차단")
                 rows = [r for r in fn(day) if r.get("t") and not _BTAG.search(r["t"])]
                 for r in rows:
@@ -1726,7 +1760,7 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
             cur["v"] = BCAST_VER
             slot[key] = cur
             if day == days[-1]:
-                status.append({"name": f"메인뉴스 TOP4 {name} {prog}", "ok": bool(cur.get("items")), "count": len(cur.get("items") or []),
+                status.append({"name": f"TV 메인뉴스 {name} {prog}", "ok": bool(cur.get("items")), "count": len(cur.get("items") or []),
                                "error": err or ("" if cur.get("items") else f"{day[4:6]}.{day[6:]} 방송 아직 없음")})
     lo = (now - timedelta(days=keep_days)).strftime("%Y%m%d")
     cache = {d: v for d, v in cache.items() if d >= lo}
@@ -1780,7 +1814,7 @@ def render_broadcast(cache):
             f'<p class="bclead">각 방송사 메인 뉴스의 첫 번째~네 번째 기사 제목과 기자입니다. 방송사마다 무엇을 중요하게 보고 어떤 시각으로 다루는지 비교해 볼 수 있습니다. 순서는 지상파 먼저, 회사명 가나다순입니다.</p>'
             f'<div class="bcbar"><div class="bcdays" role="group" aria-label="방송 날짜">{"".join(pills)}</div><button type="button" class="pill bccopy">글로 복사</button></div>'
             f'{"".join(secs)}'
-            f'<p class="note">밤 10시부터 그날 방송을 받습니다(그 전에는 전날 방송). 기사 제목·사진 저작권은 각 방송사에 있습니다. MBC·KBS는 사이트가 자동 수집을 막아 두어 싣지 않았습니다.</p>'
+            f'<p class="note">밤 10시부터 그날 방송을 받습니다(그 전에는 전날 방송). 기사 제목·사진 저작권은 각 방송사에 있습니다. MBC·KBS는 하루 한 번 목록만 받아 첫 4건을 보여 줍니다.</p>'
             f'<script>(function(){{const r=document.currentScript.closest(\'.bcast\');r.querySelectorAll(\'.bcdays button\').forEach(b=>b.onclick=()=>{{r.querySelectorAll(\'.bcdays button\').forEach(x=>x.classList.toggle(\'on\',x===b));r.querySelectorAll(\'.bcday\').forEach(s=>s.hidden=s.dataset.d!==b.dataset.d)}});'
             f'r.querySelector(\'.bccopy\').onclick=async e=>{{const t=r.querySelector(\'.bcday:not([hidden]) .bctxt\').value;try{{await navigator.clipboard.writeText(t);e.target.textContent=\'복사했습니다\'}}catch(x){{e.target.textContent=\'복사 실패\'}}setTimeout(()=>e.target.textContent=\'글로 복사\',1600)}}}})()</script>'
             f'</section></div>')
@@ -2346,7 +2380,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .lead .ph{aspect-ratio:4/3;overflow:hidden;background:var(--paper-2);border:1px solid var(--rule)}
 .lead .ph img{width:100%;height:100%;object-fit:contain;display:block}
 @media(max-width:700px){.lead.has-img{grid-template-columns:1fr}.lead .ph{order:-1}}
-.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:118px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 129px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}.bci{width:132px}.bcr{margin-left:143px}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:156px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 167px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
 .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px;margin-top:14px}
 @media(max-width:700px){.pgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid a{display:block;text-decoration:none}.pgrid a:hover .pt{text-decoration:underline}
