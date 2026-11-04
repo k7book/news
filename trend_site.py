@@ -1529,6 +1529,255 @@ def render_visual_side():
 # ── 포토 탭: 연합뉴스 화보(https://www.yna.co.kr/gallery/) ──
 # 2026-11-01 확인: robots.txt는 User-agent * Allow:/ (화보 목록·/view/IPT… 허용). 목록에 화보 12개씩, 화보마다 사진 10여 장.
 # 목록 1~2쪽에서 화보를 모으고, 새 화보만 한 번 열어 사진 주소(원래 비율, _P4 = 가로 1200)를 history/photo.json에 보관한다.
+# ---------------- 방송사 메인뉴스 TOP 4 ----------------
+# 2026-11-05 점검(robots.txt·공개 목록):
+#  SBS 8뉴스   : 공식 RSS(ReplayRssFeed.do, robots가 사이트맵으로 안내) — 분류 '8뉴스', 순서=기사 번호
+#  MBN 뉴스7   : 프로그램 다시보기 목록(/lib/module/getProgramReviewList_A.v3.php, robots에 '*' 제한 없음)
+#  JTBC 뉴스룸 : news-api.jtbc.co.kr 프로그램 기사 목록(robots: 전부 허용) — 목록 순서=방송 순서
+#  TV조선 뉴스9: 전체기사 RSS(/site/data/rss/rss.xml). 뉴스9 기사는 '뉴스 9 예고'와 '뉴스 9 클로징' 사이에 번호를 2씩 건너 미리 잡아 둔다
+#                (방송 목록 API는 /svc/ 아래라 robots 차단 → 쓰지 않음)
+#  채널A 뉴스A : 프로그램 기사 목록(/news/template/getProgramCateNews.do, robots에 '*' 제한 없음)
+#  MBC 뉴스데스크: robots.txt가 모든 수집기 차단(User-agent: * Disallow: /) → 싣지 않음
+#  KBS 뉴스9   : 방송 목록이 /api 로만 오는데 robots가 /api 차단 → 싣지 않음
+BCAST_TAB = "메인뉴스"
+BCAST_CACHE = os.path.join(HERE, "history", "broadcast.json")
+BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
+_BTAG = re.compile(r"클로징|예고|오프닝|다시보기|\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스|헤드라인")
+
+
+def http_post(url, form, timeout=TIMEOUT):
+    req = urllib.request.Request(url, data=urllib.parse.urlencode(form).encode(), headers={
+        "User-Agent": UA, "Accept": "*/*", "Accept-Language": "ko,en",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def _xml(body):
+    try:
+        return ET.fromstring(body)
+    except ET.ParseError:
+        body = re.sub(rb"[\x00-\x08\x0b\x0c\x0e-\x1f]", b"", body)
+        return ET.fromstring(re.sub(rb"&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)", b"&amp;", body))
+
+
+def _rep(s):
+    """'김현우 기자', '(김현우 기자)', '박규원 ' → '김현우'"""
+    s = html.unescape(s or "").strip()
+    m = re.search(r"([가-힣]{2,5})\s*(?:기자|특파원|기상캐스터)", s)
+    return m.group(1) if m else (s if re.fullmatch(r"[가-힣]{2,5}(?:,\s*[가-힣]{2,5})*", s) else "")
+
+
+def _bc_sbs(day):
+    url = "https://news.sbs.co.kr/news/ReplayRssFeed.do"
+    root = _xml(http_get(url))
+    out = []
+    for it in root.iter("item"):
+        cats = [c.text or "" for c in it.findall("category")]
+        if not any(c.strip() == "8뉴스" for c in cats):
+            continue
+        d = parse_date(it.findtext("pubDate"))
+        if not d or d.strftime("%Y%m%d") != day:
+            continue
+        t = html.unescape((it.findtext("title") or "").strip())
+        u = (it.findtext("link") or "").strip()
+        img = None
+        for el in it:
+            if el.tag.endswith("thumbnail") or el.tag == "enclosure":
+                img = img or el.get("url")
+        nid = re.search(r"news_id=N?(\d+)", u)
+        out.append({"t": t, "u": u, "rep": _rep(it.findtext("author")), "img": img, "_k": int(nid.group(1)) if nid else 0})
+    return sorted(out, key=lambda x: x["_k"])
+
+
+def _bc_mbn(day):
+    url = "https://www.mbn.co.kr/lib/module/getProgramReviewList_A.v3.php"
+    body = http_post(url, {"progCode": "552", "menuCode": "2636", "currentDate": day, "page": "1"}).decode("utf-8", "ignore")
+    out = []
+    for li in re.findall(r"<li>(.*?)</li>", body, re.S):
+        m = re.search(r'href="(/vod/programView/(\d+))"[^>]*class="tlt"[^>]*>(.*?)</a>', li, re.S)
+        if not m:
+            continue
+        im = re.search(r'<img src="([^"]+)"', li)
+        rp = re.search(r'class="name" style="right[^"]*">([^<]*)<', li)
+        out.append({"t": _strip_tags(m.group(3)), "u": "https://www.mbn.co.kr" + m.group(1), "rep": _rep(rp.group(1)) if rp else "",
+                    "img": ("https:" + im.group(1)) if im and im.group(1).startswith("//") else (im.group(1) if im else None), "_k": int(m.group(2))})
+    out = [x for x in out if f"/{day[:4]}/{day[4:6]}/{day[6:]}/" in (x["img"] or "") or not x["img"]]
+    out = [x for x in out if not _BTAG.search(x["t"])]
+    for x in out[:4]:  # 첫 기사는 목록에 기자 이름이 없다 → 기사 화면에서
+        if not x["rep"]:
+            try:
+                x["rep"] = _rep(re.search(r"[가-힣]{2,4}\s*기자", _strip_tags(http_get(x["u"]).decode("utf-8", "ignore"))).group(0))
+            except Exception:
+                pass
+    return out
+
+
+def _bc_jtbc(day):
+    url = f"https://news-api.jtbc.co.kr/v1/get/contents/program/articles?pageNo=1&pageSize=12&programIdx=NG10000002&searchDate={day}"
+    j = json.loads(http_get(url))
+    out = []
+    for a in (j.get("data") or {}).get("list") or []:
+        if not (a.get("publicationDate") or "").replace("-", "").startswith(day):
+            continue
+        out.append({"t": html.unescape(a.get("articleTitle") or "").strip(), "u": "https://news.jtbc.co.kr/article/" + a["articleIdx"],
+                    "rep": (a.get("journalistName") or "").strip(), "img": a.get("articleThumbnailImgUrl")})
+    return out
+
+
+def _bc_tvchosun(day):
+    url = "https://news.tvchosun.com/site/data/rss/rss.xml"
+    root = _xml(http_get(url))
+    rows = {}
+    for it in root.iter("item"):
+        u = (it.findtext("link") or "").strip()
+        m = re.search(r"/(\d{13})\.html", u)
+        if not m or not m.group(1).startswith(day):
+            continue
+        img = (it.find("enclosure").get("url") if it.find("enclosure") is not None else None)
+        d = parse_date(it.findtext("pubDate"))
+        rows[int(m.group(1))] = {"t": html.unescape((it.findtext("title") or "").strip()), "u": u, "rep": _rep(it.findtext("author")),
+                                 "_late": d is None or d.strftime("%H%M") >= "2030",
+                                 "img": img or f"https://img.tvchosun.com/sitedata/image/{day[:6]}/{day[6:]}/{m.group(1)}_thumb.jpg"}
+    md = f"{int(day[4:6])}월 {int(day[6:])}일"
+    close = [k for k, v in rows.items() if "클로징" in v["t"] and "뉴스 9" in v["t"].replace("뉴스9", "뉴스 9") and md in v["t"]]
+    pre = [k for k, v in rows.items() if "예고" in v["t"] and "뉴스 9" in v["t"].replace("뉴스9", "뉴스 9") and md in v["t"]]
+    if not close:
+        return []
+    c = max(close)
+    lo = max(pre) if pre else None
+    ids, k = [], c
+    while k in rows and (lo is None or k > lo) and rows[k]["_late"]:  # 클로징부터 2씩 거슬러 올라가며 뉴스9 번호 묶음(방송 전 20:30 이전 기사는 제외)
+        ids.append(k)
+        k -= 2
+    if lo is None and len(ids) < 8:
+        return []
+    return [{kk: vv for kk, vv in rows[k].items() if kk != "_late"} for k in sorted(ids)]
+
+
+def _bc_channela(day):
+    url = "https://ichannela.com/news/template/getProgramCateNews.do"
+    j = json.loads(http_post(url, {"selectedDate": day, "catecode": "000500", "pgmCode": "000500", "pageNum": "1", "search": "", "isSetNowDate": "true"}))
+    out = []
+    for a in j.get("programNewsList") or []:
+        if a.get("SVC_START_DATE") != day:
+            continue
+        body = _strip_tags(a.get("PUB_HTML") or "")
+        m = re.search(r"([가-힣]{2,4})\s*기자(?:입니다|가 보도합니다|가 전합니다)", body) or re.search(r"채널A 뉴스\s*([가-힣]{2,4})입니다", body)
+        out.append({"t": html.unescape(a.get("TITLE") or "").strip(), "u": f"https://ichannela.com/news/detail/{a['PUBLISH_ID']}.do",
+                    "rep": m.group(1) if m else "", "img": ("https://image.ichannela.com" + a["IMG_PATH"]) if a.get("IMG_PATH") else None})
+    return out
+
+
+# (키, 방송사, 프로그램, 방송 보기 주소, 가져오기 함수 / None=수집 불가 사유)
+BROADCASTERS = [
+    ("mbc", "MBC", "뉴스데스크", "https://imnews.imbc.com/replay/nwdesk/", "robots.txt가 모든 자동 수집을 막아 둠"),
+    ("sbs", "SBS", "8 뉴스", "https://news.sbs.co.kr/", _bc_sbs),
+    ("kbs", "KBS", "뉴스 9", "https://news.kbs.co.kr/news/pc/program/program.do?bcd=0001", "방송 목록 주소(/api)를 robots.txt가 막아 둠"),
+    ("mbn", "MBN", "뉴스7", "https://www.mbn.co.kr/vod/programMain/552", _bc_mbn),
+    ("jtbc", "JTBC", "뉴스룸", "https://news.jtbc.co.kr/program/NG10000002", _bc_jtbc),
+    ("tvchosun", "TV CHOSUN", "뉴스9", "https://broadcast.tvchosun.com/news/newspan/ch19.cstv", _bc_tvchosun),
+    ("channela", "채널A", "뉴스A", "https://ichannela.com/news/template/program_news.do?pgmCode=000500", _bc_channela),
+]
+_BC_URL = {"sbs": "https://news.sbs.co.kr/news/ReplayRssFeed.do", "mbn": "https://www.mbn.co.kr/lib/module/getProgramReviewList_A.v3.php",
+           "jtbc": "https://news-api.jtbc.co.kr/v1/get/contents/program/articles", "tvchosun": "https://news.tvchosun.com/site/data/rss/rss.xml",
+           "channela": "https://ichannela.com/news/template/getProgramCateNews.do"}
+
+
+def fetch_broadcast(now, keep_days=14, max_tries=12):
+    """→ (cache, status). cache = {'YYYYMMDD': {key: {'items': [...], 'tries': n}}}.
+    22시 전에는 전날 방송, 22시부터 그날 방송을 받는다. 다 받은 방송사는 다시 받지 않고, 못 받은 곳은 다음 시간에 다시."""
+    try:
+        cache = json.load(open(BCAST_CACHE, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    days = [(now - timedelta(days=1)).strftime("%Y%m%d")]
+    if now.hour >= BCAST_HOUR:
+        days.append(now.strftime("%Y%m%d"))
+    status = []
+    for day in days:
+        slot = cache.setdefault(day, {})
+        for key, name, prog, _, fn in BROADCASTERS:
+            if not callable(fn):
+                continue
+            cur = slot.get(key) or {}
+            if len(cur.get("items") or []) >= 4 or cur.get("tries", 0) >= max_tries:
+                continue
+            err = ""
+            try:
+                if not robots_allows(_BC_URL[key]):
+                    raise RuntimeError("robots.txt 차단")
+                rows = [r for r in fn(day) if r.get("t") and not _BTAG.search(r["t"])]
+                for r in rows:
+                    r.pop("_k", None)
+                if rows:
+                    cur["items"] = rows[:4]
+                    cur["at"] = now.isoformat()
+            except Exception as e:
+                err = f"{type(e).__name__}: {str(e)[:60]}"
+            cur["tries"] = cur.get("tries", 0) + 1
+            slot[key] = cur
+            if day == days[-1]:
+                status.append({"name": f"메인뉴스 TOP4 {name} {prog}", "ok": bool(cur.get("items")), "count": len(cur.get("items") or []),
+                               "error": err or ("" if cur.get("items") else f"{day[4:6]}.{day[6:]} 방송 아직 없음")})
+    lo = (now - timedelta(days=keep_days)).strftime("%Y%m%d")
+    cache = {d: v for d, v in cache.items() if d >= lo}
+    try:
+        os.makedirs(os.path.dirname(BCAST_CACHE), exist_ok=True)
+        json.dump(cache, open(BCAST_CACHE, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return cache, status
+
+
+_WD = "월화수목금토일"
+
+
+def render_broadcast(cache):
+    """방송 TOP4 탭: 날짜를 고르면 그날 각 방송사 메인뉴스 첫~네 번째 기사(썸네일·제목·기자)."""
+    days = sorted([d for d, v in (cache or {}).items() if any((v.get(k) or {}).get("items") for k, *_ in BROADCASTERS)], reverse=True)[:7]
+    if not days:
+        return ""
+    pills, secs = [], []
+    for i, day in enumerate(days):
+        dt = datetime.strptime(day, "%Y%m%d")
+        lab = f"{dt.month}.{dt.day}({_WD[dt.weekday()]})"
+        pills.append(f'<button type="button" data-d="{day}"{" class=on" if i == 0 else ""}>{lab}</button>')
+        cards, txt = [], [f"방송사 메인뉴스 TOP 4 - {day[2:]} (메인뉴스 {day[2:]})", "",
+                          "각 방송사 메인 뉴스의 첫 번째 ~ 네 번째 기사 제목과 기자를 정리했습니다.",
+                          "각 방송사 뉴스가 무엇을 중요하게 생각하는지,", "어떤 시각으로 바라보는지 비교해볼 수 있습니다.", ""]
+        n_ok = 0
+        for key, name, prog, purl, fn in BROADCASTERS:
+            items = ((cache[day].get(key) or {}).get("items")) or []
+            head = (f'<header class="bch"><b class="bcn">{esc(name)}</b><span class="bcp">{esc(prog)}</span>'
+                    f'<a class="bcgo" href="{esc(purl)}" target="_blank" rel="noopener noreferrer">방송 보기</a></header>')
+            if items:
+                n_ok += 1
+                txt += [f"□ {name} {prog}"] + [f'{x["t"]}' + (f' - {x["rep"]}' if x.get("rep") else "") for x in items] + [""]
+                lis = "".join(
+                    f'<li><a href="{esc(x["u"])}" target="_blank" rel="noopener noreferrer"><span class="bci">'
+                    + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
+                    + f'<b>{j}</b></span><span class="bct">{esc(x["t"])}</span></a>'
+                    + (f'<span class="bcr">{esc(x["rep"])} 기자</span>' if x.get("rep") else "") + '</li>'
+                    for j, x in enumerate(items, 1))
+                cards.append(f'<section class="bcard2">{head}<ol class="bcl">{lis}</ol></section>')
+            else:
+                why = fn if isinstance(fn, str) else "이날 방송 목록을 아직 받지 못했습니다"
+                cards.append(f'<section class="bcard2 bcoff">{head}<p class="bcno">{esc(why)}.</p></section>')
+        txt[6:6] = [f"{n_ok}개 방송사를 정리했으며, 순서는 회사명 가나다 순입니다. (지상파 먼저)", ""]
+        secs.append(f'<div class="bcday" data-d="{day}"{"" if i == 0 else " hidden"}><div class="bcgrid">{"".join(cards)}</div>'
+                    f'<textarea class="bctxt" hidden>{esc(chr(10).join(txt).rstrip())}</textarea></div>')
+    return (f'<div class="pg" data-c="{BCAST_TAB}" role="tabpanel"><section class="bcast" style="margin-top:0">'
+            f'<div class="shead" style="padding-top:12px"><h2>방송사 메인뉴스 TOP 4</h2><span class="en">MAIN NEWS · 저녁 메인뉴스 첫~네 번째 기사</span></div>'
+            f'<p class="bclead">각 방송사 메인 뉴스의 첫 번째~네 번째 기사 제목과 기자입니다. 방송사마다 무엇을 중요하게 보고 어떤 시각으로 다루는지 비교해 볼 수 있습니다. 순서는 지상파 먼저, 회사명 가나다순입니다.</p>'
+            f'<div class="bcbar"><div class="bcdays" role="group" aria-label="방송 날짜">{"".join(pills)}</div><button type="button" class="pill bccopy">글로 복사</button></div>'
+            f'{"".join(secs)}'
+            f'<p class="note">밤 10시부터 그날 방송을 받습니다(그 전에는 전날 방송). 기사 제목·사진 저작권은 각 방송사에 있습니다. MBC·KBS는 사이트가 자동 수집을 막아 두어 싣지 않았습니다.</p>'
+            f'<script>(function(){{const r=document.currentScript.closest(\'.bcast\');r.querySelectorAll(\'.bcdays button\').forEach(b=>b.onclick=()=>{{r.querySelectorAll(\'.bcdays button\').forEach(x=>x.classList.toggle(\'on\',x===b));r.querySelectorAll(\'.bcday\').forEach(s=>s.hidden=s.dataset.d!==b.dataset.d)}});'
+            f'r.querySelector(\'.bccopy\').onclick=async e=>{{const t=r.querySelector(\'.bcday:not([hidden]) .bctxt\').value;try{{await navigator.clipboard.writeText(t);e.target.textContent=\'복사했습니다\'}}catch(x){{e.target.textContent=\'복사 실패\'}}setTimeout(()=>e.target.textContent=\'글로 복사\',1600)}}}})()</script>'
+            f'</section></div>')
+
+
 PHOTO_TAB = "포토"
 YNA_GALLERY = "https://www.yna.co.kr/gallery/index"
 PHOTO_CACHE = os.path.join(HERE, "history", "photo.json")
@@ -2062,7 +2311,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .shelf2{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 14px;margin-top:6px}@media(max-width:600px){.shelf2{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}.bcard{display:flex;flex-direction:column;gap:3px;min-width:0}.bopen{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;border-radius:4px}.bopen:hover .bnm{text-decoration:underline}.bopen:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.bcov{display:block;aspect-ratio:2/3;background:var(--paper-2);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.18)}.bcov img{width:100%;height:100%;object-fit:contain;display:block}.bph{display:flex;align-items:center;justify-content:center;height:100%;padding:10px;box-sizing:border-box;text-align:center;font:400 15px/1.35 "Do Hyeon",var(--sans);color:var(--ink-soft);background:var(--paper-2)}.bnm{font-size:14px;font-weight:700;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bau{font-size:11.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bsrc{font-size:11px;color:var(--muted);line-height:1.35}.bsrc.hot{color:var(--red);font-weight:700}.bcard .bki{display:flex;align-items:center;gap:2px;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}.bcard .cpy,#bmodal .cpy{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 3px;border-radius:4px;color:var(--muted)}.bcard .cpy:hover,#bmodal .cpy:hover{color:var(--ink);background:var(--paper-2)}.bcard .cpd,#bmodal .cpd{display:none;font-size:10.5px;color:var(--teal);font-weight:700}.bcard .cpy.done .cpd,#bmodal .cpy.done .cpd{display:inline}#bmodal{border:0;padding:22px 22px 18px;width:min(640px,92vw);max-height:86vh;overflow:auto;border-radius:10px;background:var(--paper-3);color:var(--ink);box-shadow:0 12px 40px rgba(0,0,0,.35)}#bmodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#bmodal{width:100vw;max-width:100vw;margin:auto 0 0;max-height:88vh;border-radius:14px 14px 0 0;padding:18px 16px 22px;animation:bup .22s ease-out}}@keyframes bup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}.bdh{display:flex;gap:16px;align-items:flex-start;position:relative}.bdc{flex:none;width:120px}.bdc img{width:100%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.2)}.bdi{flex:1;min-width:0}.bdi h3{margin:0 0 6px;font-size:19px;line-height:1.35}.bdi .bkm{font-size:13px;color:var(--ink-soft);line-height:1.5}.bdi .bki{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);margin-top:4px}.bbtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.bbtn{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;color:var(--ink);background:var(--paper)}.bbtn:hover{border-color:var(--ink)}.bclose{all:unset;cursor:pointer;position:sticky;float:right;top:0;margin:-10px -8px 0 8px;font-size:18px;color:var(--muted);padding:6px 10px;z-index:2}.bclose:hover{color:var(--ink)}#bmodal h4{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:var(--muted)}.barts{list-style:none;margin:0;padding:0}.barts li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14px;line-height:1.5}.barts li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.oc0{--c:#1d4ed8;--cb:#dbeafe}.oc1{--c:#b91c1c;--cb:#fee2e2}.oc2{--c:#047857;--cb:#d1fae5}.oc3{--c:#7c3aed;--cb:#ede9fe}.oc4{--c:#b45309;--cb:#fef3c7}.oc5{--c:#be185d;--cb:#fce7f3}.oc6{--c:#0e7490;--cb:#cffafe}.oc7{--c:#4d7c0f;--cb:#ecfccb}@media (prefers-color-scheme:dark){.oc0{--c:#93c5fd;--cb:#1e3a8a66}.oc1{--c:#fca5a5;--cb:#7f1d1d66}.oc2{--c:#6ee7b7;--cb:#064e3b66}.oc3{--c:#c4b5fd;--cb:#4c1d9566}.oc4{--c:#fcd34d;--cb:#78350f66}.oc5{--c:#f9a8d4;--cb:#83184366}.oc6{--c:#67e8f9;--cb:#164e6366}.oc7{--c:#bef264;--cb:#36531466}}.barts li .o{margin-left:6px;font-size:11.5px;color:var(--muted)}.barts li p{margin:3px 0 0;font-size:13px;color:var(--ink-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.blink{all:unset;cursor:pointer;color:var(--ink);font-weight:600}.blink:hover{text-decoration:underline}.blink.sm{font-size:12px;color:var(--teal);font-weight:700}@media(max-width:600px){.bdc{width:88px}.bdi h3{font-size:17px}}.pcity .ppress-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px;margin-top:10px}.ppress h3{font-size:14px;margin:10px 0 4px;color:var(--ink)}.ppress h3 span{font-weight:400;color:var(--muted);font-size:12px}.ppress h3 a{font-weight:400;font-size:12px;color:var(--teal);margin-left:4px}.ppress ol{margin:0;padding-left:22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)}.ppress li{padding:2px 0}.dlist .dth{flex:none;width:168px;height:108px;background:var(--paper-2);display:block;border-radius:3px;overflow:hidden}.dlist .dth img{width:100%;height:100%;object-fit:cover;display:block}@media(max-width:600px){.dlist .dth{width:104px;height:72px}}.dlist .pm.top{margin:0 0 4px}.dlist b.ot,.dside b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:6px;vertical-align:1px;color:var(--c);background:var(--cb)}.dlist li[hidden]{display:none}.dside li{display:flex;align-items:baseline;gap:2px}.dside li .o{margin-left:auto}.blist .bth{width:100px!important;height:140px!important}@media(max-width:600px){.blist .bth{width:80px!important;height:112px!important}}
 .brand .mark{height:.74em;width:auto;flex:none;transform:translateY(-.04em)}
 .motto{margin:6px 0 0;font-size:12px;letter-spacing:.2em;color:var(--muted)}
-.nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 30px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
+.nav{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 26px;padding:14px 0 12px;border-bottom:1px solid var(--ink);position:sticky;top:0;background:var(--paper);z-index:3}
 .nav button{all:unset;cursor:pointer;font-size:16px;color:var(--ink-soft);padding:2px 1px 5px;border-bottom:2px solid transparent}
 .nav button{white-space:nowrap}
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
@@ -2089,7 +2338,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .lead .ph{aspect-ratio:4/3;overflow:hidden;background:var(--paper-2);border:1px solid var(--rule)}
 .lead .ph img{width:100%;height:100%;object-fit:contain;display:block}
 @media(max-width:700px){.lead.has-img{grid-template-columns:1fr}.lead .ph{order:-1}}
-.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}
+.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:118px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 129px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
 .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px;margin-top:14px}
 @media(max-width:700px){.pgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid a{display:block;text-decoration:none}.pgrid a:hover .pt{text-decoration:underline}
@@ -2655,18 +2904,20 @@ def render_portals(portals):
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
-                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None, visual=None, photo=None, frame_ok=None):
+                brand="지금 뜨는 뉴스", motto=None, title=None, books=None, book_info=None, deep=None, paju_city=None, visual=None, photo=None, frame_ok=None, bcast=None):
     ok = sum(1 for s in status if s["ok"])
     if only:  # 단독 페이지 (예: 주식 → stock.html)
         pages = {only: pages[only]}
-        graphic, portals, interactive, books, deep, visual, photo = None, {}, None, None, None, None, None
+        graphic, portals, interactive, books, deep, visual, photo, bcast = None, {}, None, None, None, None, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    gpanel = render_deep(deep or [], now) + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_photo(photo or []) + render_interactive(interactive or [])
+    bpanel = render_broadcast(bcast)
+    gpanel = render_deep(deep or [], now) + bpanel + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_photo(photo or []) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
     tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
                    for c in CATEGORIES if c in pages)
     if gpanel:
         tabs += f'<button role="tab" data-c="{DEEP_TAB}" class="gtab">{DEEP_TAB}</button>' if deep else ""
+        tabs += f'<button role="tab" data-c="{BCAST_TAB}">{BCAST_TAB}</button>' if bpanel else ""
         tabs += f'<button role="tab" data-c="{VISUAL_TAB}"{"" if deep else " class=gtab"}>{VISUAL_TAB}</button>' if visual else ""
         tabs += f'<button role="tab" data-c="{BOOK_TAB}"{"" if deep or visual else " class=gtab"}>{BOOK_TAB}</button>' if books else ""
         tabs += ('<button role="tab" data-c="그래픽">그래픽</button>' if books else '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>') if graphic else ""
@@ -2678,7 +2929,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         pass  # 출처는 맨 위 날짜 줄(검색 옆)로 옮김
     def tr_of(c):
         return pages[c].get("trends") if pages[c].get("trends") is not None else trends
-    tick_keys = list(pages) + ([DEEP_TAB] if deep else []) + ([VISUAL_TAB] if visual else []) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + ([PHOTO_TAB] if photo else []) + (["인터랙티브"] if interactive else [])
+    tick_keys = list(pages) + ([DEEP_TAB] if deep else []) + ([BCAST_TAB] if bpanel else []) + ([VISUAL_TAB] if visual else []) + ([BOOK_TAB] if books else []) + (["그래픽"] if graphic else []) + ([PHOTO_TAB] if photo else []) + (["인터랙티브"] if interactive else [])
     def tk(c):
         src = tr_of(c if c in pages else next(iter(pages)))
         kws = [t["keyword"] for t in src]
@@ -3103,7 +3354,7 @@ def main():
                          keywords=[k for k in p["keywords"] if not str(k[0]).isdigit()]) for c, p in d["pages"].items()}
         outlets = d.get("outlets") or len({l["outlet"] for p in pages.values() for c in p["clusters"] for l in c["links"]})
         page = render_page(pages, d["trends"], d.get("portals", {}), d["feeds"], built, d["articles"], d.get("hours", 36), outlets, d.get("graphic"),
-                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"), visual=d.get("visual"), photo=d.get("photo"), frame_ok=d.get("frame_ok"))
+                           interactive=d.get("interactive"), books=d.get("books"), book_info=d.get("book_info"), deep=d.get("deep"), paju_city=d.get("paju_city"), visual=d.get("visual"), photo=d.get("photo"), frame_ok=d.get("frame_ok"), bcast=d.get("bcast"))
         with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
             f.write(page)
         with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -3129,6 +3380,7 @@ def main():
         book_info = {}
         deep = []
         photo = []
+        bcast = {}
         visual = [{"title": "Sample: The World's Biggest Economies", "url": "https://www.visualcapitalist.com/", "outlet": "Visual Capitalist",
                    "img": None, "date": now.isoformat(), "cats": ["Economy"]}]
         paju_city = {"focus": [{"title": "파주시, 샘플 주요뉴스", "url": "https://www.paju.go.kr/news/index.do", "img": None,
@@ -3191,6 +3443,8 @@ def main():
         pstatus += cstatus
         photo, phstatus = fetch_photo(now)
         pstatus += phstatus
+        bcast, bcstatus = fetch_broadcast(now)
+        pstatus += bcstatus
         visual, vstatus = fetch_visual(now)
         pstatus += vstatus
         deep, dstatus = fetch_deep(now)
@@ -3254,7 +3508,7 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
     page = render_page(pages, trends, portals, allstatus, now, len(items), args.hours, len({a['outlet'] for a in items}), graphic,
-                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual, photo=photo, frame_ok=frame_ok)
+                       interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual, photo=photo, frame_ok=frame_ok, bcast=bcast)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
@@ -3269,7 +3523,7 @@ def main():
             "trends": trends,
             "pages": {c: dict(p, clusters=[dict(x, latest=x["latest"].isoformat(), first=x["first"].isoformat()) for x in p["clusters"]])
                       for c, p in pages.items()},
-            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "visual": visual, "photo": photo, "frame_ok": frame_ok, "feeds": allstatus}
+            "portals": portals, "graphic": graphic, "interactive": inter, "books": books, "book_info": book_info, "deep": deep, "paju_city": paju_city, "visual": visual, "photo": photo, "frame_ok": frame_ok, "bcast": bcast, "feeds": allstatus}
     with open(os.path.join(args.out, "data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     try:
