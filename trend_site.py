@@ -1380,7 +1380,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 4]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 5]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
     anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
     if now < anchor:
@@ -1451,7 +1451,7 @@ def fetch_visual(now, days=30, limit=60):
     for x in got:
         if x["title"] and re.match(r"https?://", x["url"] or "") and x["date"]:
             old = by.get(x["url"]) or {}
-            for k in ("full", "full_tried"):  # 전에 찾은 원본 그림은 남긴다
+            for k in ("full", "full_tried", "img", "real"):  # 전에 찾은 원본 그림은 남긴다
                 if old.get(k):
                     x[k] = old[k]
             by[x["url"]] = x
@@ -1464,6 +1464,28 @@ def fetch_visual(now, days=30, limit=60):
             n_full += bool(x["full"])
         except Exception:
             pass  # 접속 실패는 다음 날 다시
+    # Voronoi: 이용약관상 자동 수집 금지지만 사용자 결정(2026-11-05)으로 썸네일만 예외.
+    # robots.txt는 전부 허용. 기사 화면의 og:image 안 원본 차트 그림(cdn.voronoiapp.com) 주소만 하루 한 번, 새 글만 받는다.
+    vtodo = [x for x in by.values() if x["outlet"] == "Voronoi" and not x.get("img") and x.get("full_tried") != now.strftime("%Y-%m-%d")][:25]
+    n_v = 0
+    for x in vtodo:
+        x["full_tried"] = now.strftime("%Y-%m-%d")
+        try:
+            real = x.get("real") or gn_decode(x.get("gn") or x["url"]) or ""
+            if "voronoiapp.com" not in real or not robots_allows(real):
+                continue
+            x["real"] = real
+            v = http_get(real).decode("utf-8", "ignore")
+            m = re.search(r'property="og:image"\s+content="([^"]+)"', v) or re.search(r'content="([^"]+)"\s+property="og:image"', v)
+            if m:
+                og = html.unescape(m.group(1))
+                inner = re.search(r"[?&]url=(https://cdn\.voronoiapp\.com/[^&]+)", og)
+                x["img"] = x["full"] = inner.group(1) if inner else og
+                n_v += 1
+        except Exception:
+            pass
+    if vtodo:
+        status.append({"name": "Voronoi 썸네일(원문 대표 그림)", "ok": True, "count": n_v, "error": "" if n_v else f"{len(vtodo)}건 중 0"})
     if todo:
         status.append({"name": "Visual Capitalist 원본 그림", "ok": True, "count": n_full, "error": "" if n_full else f"{len(todo)}건 중 0"})
     lo = (now - timedelta(days=days)).isoformat()
@@ -1513,9 +1535,9 @@ def render_visual(rows):
     return (f'<div class="pg" data-c="{VISUAL_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>오늘의 차트</h2><span class="en">DATA VISUAL · 최근 30일 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="vf" role="group" aria-label="출처">{chips}</div><div class="vmas" id="vg">{"".join(card(x) for x in pics)}</div><nav class="pager" id="vpg" aria-label="쪽 넘기기"></nav>'
-            + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>Voronoi · McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
+            + (f'<h3 class="pday" id="vlh">차트 제목 모음 <span>McKinsey · IMF</span></h3><ul class="slist vlist" id="vl">{"".join(line(x) for x in plain)}</ul>' if plain else "")
             + f'<p class="note">그림을 누르면 크게 볼 수 있고, 제목을 누르면 원문으로 갑니다. 매일 아침 8시에 한 번 받습니다. Visual Capitalist·Our World in Data는 공식 피드로 그림까지, '
-            f'Voronoi·McKinsey(Chart of the Week)·IMF(블로그)는 이용약관·접속 차단 때문에 사이트에 직접 접속하지 않고 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
+            f'Voronoi는 구글뉴스로 찾은 글의 대표 그림만 하루 한 번 받아 보여 주고, McKinsey(Chart of the Week)·IMF(블로그)는 그림 사용 불가·접속 차단 때문에 구글뉴스 검색으로 제목과 링크만 보여 줍니다. '
             f'그림은 원문에서 보세요. Visual Capitalist 그래픽은 Visual Capitalist, Our World in Data 차트는 CC BY 조건으로 출처를 밝혀 소개하며, 제목은 원문(영어) 그대로입니다.</p>'
             f'</section></div>')
 
