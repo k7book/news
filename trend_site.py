@@ -1003,7 +1003,7 @@ def render_books(rows, now, info=None):
     if not rows:
         return ""
     info = info or {}
-    bl = book_titles(rows, info=info)
+    bl = book_titles(rows, top=150, info=info)  # 묶음 기사에서 한 권씩 뽑아 60권을 넘는다
     linked = {}  # 기사 번호 → 책 번호
     for k, e in enumerate(bl):
         for n in e["arts"]:
