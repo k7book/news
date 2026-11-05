@@ -557,11 +557,22 @@ BOOK_FEEDS = [  # (언론사, RSS, 거르는 방법: None=전부 / "title"=제�
     ("한겨레", "https://www.hani.co.kr/rss/culture/", "/arti/culture/book/"),
     ("경향신문", "https://www.khan.co.kr/rss/rssdata/culture_news.xml", "title"),
     ("연합뉴스", "https://www.yna.co.kr/rss/culture.xml", "title"),
-    ("독서신문", "https://www.readersnews.com/rss/allArticle.xml", "kw"),  # 전체 기사 RSS라 일반 문화 기사가 섞임 → 책 낱말 있는 것만
+    ("독서신문", "https://www.readersnews.com/rss/allArticle.xml", "sinkan"),  # 전체 기사 RSS → [신간] 책 소개만(출판계 소식은 뺌, 2026-11-06)
 ]
 BOOK_KW_RX = re.compile(r"책|도서|출판|작가|저자|지음|펴냄|옮김|번역|『|《|문학|서점|도서관|신간|소설|시집|에세이|그림책|북페스티벌|독서")
 BOOK_SEARCH = ["intitle:신간 when:3d", "intitle:새책 when:7d", "intitle:책꽂이 when:7d"]
-BOOK_SEARCH_OUTLETS = {"중앙일보", "한국일보", "문화일보", "서울신문", "국민일보", "세계일보", "매일경제", "한국경제", "서울경제",
+# 신문사마다 책 코너 이름이 달라 '신간·새책' 검색에 안 걸리는 곳: 신문사별 구글뉴스 검색 (코너 이름은 2026-11-06 확인)
+BOOK_SEARCH_SITE = [  # (언론사, 검색어, 제목에 있어야 할 코너 이름)
+    ("중앙일보", 'site:joongang.co.kr (intitle:BOOK OR intitle:책꽂이) when:7d', r"\[BOOK\]|\[책꽂이\]"),
+    ("한국일보", 'site:hankookilbo.com (intitle:"새 책" OR intitle:"책과 세상") when:7d', r"\[새 책\]|\[책과 세상\]"),
+    ("문화일보", 'site:munhwa.com (intitle:북리뷰 OR intitle:"이 책" OR intitle:"어린이 책") when:7d', r"\[(?:북리뷰|이 책|어린이 책)\]"),
+    ("서울경제", 'site:sedaily.com intitle:북스 when:7d', r"\[북스&\]"),
+    ("세계일보", 'site:segye.com intitle:"새로 나온 책" when:7d', r"\[새로 나온 책\]"),
+    ("국민일보", 'site:kmib.co.kr intitle:"새로 나온 책" when:7d', r"\[새로 나온 책\]"),
+    ("시사IN", 'site:sisain.co.kr intitle:"새로 나온 책" when:7d', r"\[새로 나온 책\]"),
+    ("뉴시스", 'site:newsis.com intitle:신간 when:7d', r"\[?신간\]?"),
+]
+BOOK_SEARCH_OUTLETS = {"시사IN", "중앙일보", "한국일보", "문화일보", "서울신문", "국민일보", "세계일보", "매일경제", "한국경제", "서울경제",
                        "뉴시스", "뉴스1", "파이낸셜뉴스", "이데일리", "머니투데이", "헤럴드경제", "아시아경제", "연합뉴스", "경향신문",
                        "조선일보", "동아일보", "한겨레", "독서신문", "KBS", "MBC", "SBS", "JTBC", "YTN", "노컷뉴스", "오마이뉴스"}
 BOOK_HOME = {"동아일보": "https://www.donga.com/news/Section/Books", "조선일보": "https://www.chosun.com/culture-life/book/",
@@ -571,13 +582,16 @@ BOOK_HOME = {"동아일보": "https://www.donga.com/news/Section/Books", "조선
              "문화일보": "https://www.munhwa.com/culture/book", "서울신문": "https://www.seoul.co.kr/newsList/life/publication-literature/",
              "국민일보": "https://www.kmib.co.kr/list/737", "매일경제": "https://www.mk.co.kr/news/culture/book",
              "서울경제": "https://www.sedaily.com/culture/publishing", "뉴시스": "https://www.newsis.com/culture/list?cid=10700&scid=10704",
-             "뉴스1": "https://www.news1.kr/life-culture/book"}
+             "뉴스1": "https://www.news1.kr/life-culture/book", "세계일보": "https://www.segye.com/newsList/0101060700000",
+             "시사IN": "https://www.sisain.co.kr/news/articleList.html?sc_section_code=S1N4"}
 
 
 def fetch_books(now, days=7, limit=150):
     """신문사 책 코너 → (rows, status)"""
     feeds = [{"outlet": o, "category": BOOK_TAB, "url": u, "_how": how} for o, u, how in BOOK_FEEDS]
     feeds += [{"outlet": "구글뉴스", "category": BOOK_TAB, "url": gnews_search(q), "by_source": True, "_how": "search"} for q in BOOK_SEARCH]
+    feeds += [{"outlet": "구글뉴스", "category": BOOK_TAB, "url": gnews_search(q), "by_source": True, "_how": "site", "_want": o, "_rx": rx}
+              for o, q, rx in BOOK_SEARCH_SITE]
     with ThreadPoolExecutor(6) as ex:
         results = list(ex.map(fetch_feed, feeds))
     rows, status, seen = [], [], set()
@@ -598,9 +612,13 @@ def fetch_books(now, days=7, limit=150):
                 continue
             if how == "search" and a["outlet"] not in BOOK_SEARCH_OUTLETS:
                 continue
+            if how == "site" and (a["outlet"] != feed["_want"] or not re.search(feed["_rx"], t)):
+                continue
+            if how == "sinkan" and not re.search(r"\[신간\]", t):
+                continue
             if how == "kw" and not BOOK_KW_RX.search(t + " " + (a.get("desc") or "")):
                 continue
-            if how not in (None, "title", "search", "kw") and how not in a["url"]:
+            if how not in (None, "title", "search", "kw", "site", "sinkan") and how not in a["url"]:
                 continue
             if re.search(r"\[\d+화\]", t) or len(re.sub(r"\[[^\]]*\]|\W", "", t)) < 2:  # 연재소설, '[책꽂이]'처럼 제목이 빈 것
                 continue
@@ -613,7 +631,7 @@ def fetch_books(now, days=7, limit=150):
             if desc and re.sub(r"\W", "", desc)[:30] == re.sub(r"\W", "", t)[:30]:  # 제목을 되풀이만 하는 요약은 버린다
                 desc = ""
             rows.append({"title": t, "url": a["url"], "outlet": a["outlet"], "img": a.get("img"), "date": a["date"].isoformat(), "desc": desc})
-        name = f'{feed["outlet"]}·책' if how != "search" else f"구글뉴스 신간 검색({urllib.parse.unquote_plus(feed['url'].split('q=')[1].split('&')[0])})"
+        name = f'{feed["_want"]}·책 코너(구글뉴스)' if how == "site" else f'{feed["outlet"]}·책' if how != "search" else f"구글뉴스 신간 검색({urllib.parse.unquote_plus(feed['url'].split('q=')[1].split('&')[0])})"
         status.append({"name": name, "ok": err is None and n > 0, "count": n, "error": err or ("0건" if not n else "")})
     rows.sort(key=lambda x: x["date"], reverse=True)
     return rows[:limit], status
@@ -627,7 +645,7 @@ _BK = [
     re.compile(r"●\s*([^(●=]{2,40}?)\s*\([^)]*지음[^)]*\)"),
     re.compile(r"(?:저서|책|신간|신작|소설|장편|단편집|에세이|그림책|시집|회고록|평전|산문집|번역서)\s*[‘'“\"]([^’'”\"]{2,40})[’'”\"]"),
 ]
-_BK_TAG = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|새로 나왔어요)\]")
+_BK_TAG = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|새 책|책꽂이|새로 나왔어요|새로 나온 책|이 주의 새 책)\]")
 _BK_END = re.compile(r"(다|요|나|까|죠|…|\?|!|\.)$")
 _BK_NOT = re.compile(r"(문학상|노벨상|부커상|베스트셀러)$")
 
@@ -641,13 +659,17 @@ def book_titles_of(x):
                 continue
             out.append(m.group(1))
     if _BK_TAG.search(t):  # [새책] 평행우주 / 미래 식량을 설계하라 外 [신간]
-        rest = re.sub(r"\s*(?:외|外)\s*$", "", _BK_TAG.sub("", t).strip())
-        if len(rest) <= 20 and "," not in rest and not _BK_END.search(rest):
+        raw = _BK_TAG.sub("", t).strip()
+        rest = re.sub(r"\s*(?:외|外)\s*$", "", raw)
+        if len(rest) <= 24 and "," not in rest and (rest != raw or not _BK_END.search(rest)):  # '… 外'면 '~다'로 끝나도 책 제목
             out.append(rest.strip("‘’'\""))
     if re.search(r"신간|새책", t):  # …'트렌드 리터러시' / …'착한 아이는…'[신간]
         m = re.search(r"[‘'“\"]([^’'”\"]{2,40})[’'”\"]\s*(?:\[(?:신간|새책)\])?\s*$", t)
         if m:
             out.append(m.group(1))
+    m = re.match(r"^([^\[\]]{2,40}?)\s*(?:外|외|등)\s*\[(?:북스&|이 책|책꽂이|새로 나온 책|이주의 책)\]$", t)  # 구룡성채, 검은 성의 비밀 外 [북스&]
+    if m:
+        out.append(m.group(1).strip("‘’'\""))
     m = re.match(r"^\[[^\]]+\]\s*[‘']([^’']{2,40})[’']\s*(?:외|外)", t)  # [북카페] ‘왜 다시 아시아인가’ 외
     if m:
         out.append(m.group(1))
@@ -672,7 +694,7 @@ def book_titles_of(x):
 #  연합뉴스 [신간] "▲ 제목 = 저자 지음."   경향 [새책] 外 "제목 / 저자 지음 | 출판사 | 쪽"   "●제목(저자 지음/출판사)"
 # 결과는 history/book_multi.json에 기사 주소별로 보관(같은 기사는 다시 읽지 않음). 예스24에서 찾은 책만 서가에 오른다.
 BOOK_MULTI = os.path.join(HERE, "history", "book_multi2.json")
-_BKM_SCAN = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|북카페|새로 나온 책|새로 나왔어요|출판|이 주의 책|책)\]|(?:외|外)\s*$|신간")
+_BKM_SCAN = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|새 책|책꽂이|북카페|새로 나온 책|새로 나왔어요|출판|이 ?주의 (?:새 )?책|책|북스&|이 책)\]|(?:외|外|등)\s*(?:\[[^\]]+\])?\s*$|신간")
 _BKM_RX = [
     re.compile(r"▲\s*([^=\n▲]{2,40}?)\s*=\s*[^\n▲]{0,80}?(?:지음|씀|엮음|옮김|그림|외\s*\d*명?)"),
     re.compile(r"●\s*([^(●\n]{2,40}?)\s*\(([^)\n]*?(?:지음|엮음|씀|옮김)[^)\n]*)\)"),
