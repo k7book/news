@@ -694,6 +694,7 @@ def book_titles_of(x):
 #  연합뉴스 [신간] "▲ 제목 = 저자 지음."   경향 [새책] 外 "제목 / 저자 지음 | 출판사 | 쪽"   "●제목(저자 지음/출판사)"
 # 결과는 history/book_multi.json에 기사 주소별로 보관(같은 기사는 다시 읽지 않음). 예스24에서 찾은 책만 서가에 오른다.
 BOOK_MULTI = os.path.join(HERE, "history", "book_multi3.json")
+BKM_ERR = []
 _BKM_SCAN = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|새 책|책꽂이|북카페|새로 나온 책|새로 나왔어요|출판|이 ?주의 (?:새 )?책|책|북스&|이 책)\]|(?:외|外|등)\s*(?:\[[^\]]+\])?\s*$|신간")
 _BKM_RX = [
     re.compile(r"▲\s*([^=\n▲]{2,40}?)\s*=\s*[^\n▲]{0,80}?(?:지음|씀|엮음|옮김|그림|외\s*\d*명?)"),
@@ -755,11 +756,15 @@ def enrich_multi_books(rows, max_new=40, workers=6):
             if not url or not robots_allows(url):
                 return r["url"], []
             return r["url"], books_in_body(http_get(url).decode("utf-8", "ignore"))
-        except Exception:
-            return r["url"], None
+        except Exception as e:
+            return r["url"], f"{urllib.parse.urlsplit(r['url']).netloc.replace('www.', '')} {type(e).__name__}{getattr(e, 'code', '')}"
+    global BKM_ERR
+    BKM_ERR = []
     with ThreadPoolExecutor(workers) as ex:
         for key, got in ex.map(work, new):
-            if got is not None:
+            if isinstance(got, str):
+                BKM_ERR.append(got)
+            else:
                 cache[key] = got
     n = 0
     for r in todo:
@@ -3610,7 +3615,7 @@ def main():
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
         n_mread, n_mbooks = enrich_multi_books(books)
-        pstatus.append({"name": "책책책 묶음 기사 본문(책 한 권씩)", "ok": True, "count": n_mbooks, "error": ""})
+        pstatus.append({"name": "책책책 묶음 기사 본문(책 한 권씩)", "ok": True, "count": n_mbooks, "error": ", ".join(sorted(set(BKM_ERR)))[:120]})
         book_info = enrich_book_titles(books, max_new=80)
         pstatus.append({"name": "책 정보(예스24 검색)", "ok": bool(book_info), "count": len(book_info), "error": "" if book_info else "0권"})
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
