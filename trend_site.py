@@ -671,7 +671,7 @@ def book_titles_of(x):
 # 한 기사에 여러 권을 소개하는 묶음 기사([신간]·[새책] 外·책꽂이·북카페 등): 원문 본문에서 책을 한 권씩 뽑는다.
 #  연합뉴스 [신간] "▲ 제목 = 저자 지음."   경향 [새책] 外 "제목 / 저자 지음 | 출판사 | 쪽"   "●제목(저자 지음/출판사)"
 # 결과는 history/book_multi.json에 기사 주소별로 보관(같은 기사는 다시 읽지 않음). 예스24에서 찾은 책만 서가에 오른다.
-BOOK_MULTI = os.path.join(HERE, "history", "book_multi.json")
+BOOK_MULTI = os.path.join(HERE, "history", "book_multi2.json")
 _BKM_SCAN = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|북카페|새로 나온 책|새로 나왔어요|출판|이 주의 책|책)\]|(?:외|外)\s*$|신간")
 _BKM_RX = [
     re.compile(r"▲\s*([^=\n▲]{2,40}?)\s*=\s*[^\n▲]{0,80}?(?:지음|씀|엮음|옮김|그림|외\s*\d*명?)"),
@@ -694,10 +694,13 @@ def books_in_body(body):
     for rx in _BKM_RX:
         out += [m.group(1).strip() for m in rx.finditer(text)]
     prev = ""
-    for l in lines:  # '제목' 다음 줄이 '저자 지음 | 출판사 | …쪽'
+    for l in lines:
         if not l:
             continue
-        if re.match(r"^[^|]{1,60}?(?:지음|엮음|씀)(?:\s*·[^|]*)?\s*\|", l) and 2 <= len(prev) <= 40 and "|" not in prev and not re.search(r"[.?!。]$", prev):
+        ok_prev = 2 <= len(prev) <= 40 and "|" not in prev and not re.search(r"[.?!。:]$", prev)
+        # '제목' 다음 줄이 '저자 지음 | 출판사 | …쪽'(경향 책과 삶) 또는 소개글 끝이 '저자 지음. 출판사. 가격'(경향 새책)
+        if ok_prev and (re.match(r"^[^|]{1,60}?(?:지음|엮음|씀)(?:\s*·[^|]*)?\s*\|", l)
+                        or (len(l) > len(prev) and re.search(r"(?:지음|엮음|씀|옮김)\s*[.,].{0,80}\d[\d,만]*원\s*$", l))):
             out.append(prev)
         prev = l
     res, seen = [], set()
@@ -878,7 +881,7 @@ def enrich_book_titles(rows, max_new=40, workers=4):
         cache = json.load(open(BOOK_INFO, encoding="utf-8"))
     except Exception:
         cache = {}
-    titles = [e["title"] for e in book_titles(rows)]
+    titles = [e["title"] for e in book_titles(rows, top=300)]  # 묶음 기사에서 한 권씩 뽑아 책이 많아졌다
     today = datetime.now(KST).strftime("%Y-%m-%d")
     new = [t for t in titles if _bk_key(t) not in cache
            or (not cache[_bk_key(t)].get("name") and cache[_bk_key(t)].get("_t", "") < today)][:max_new]  # 못 찾은 책은 하루 한 번 다시
