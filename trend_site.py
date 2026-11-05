@@ -651,6 +651,7 @@ def book_titles_of(x):
     m = re.match(r"^\[[^\]]+\]\s*[‘']([^’']{2,40})[’']\s*(?:외|外)", t)  # [북카페] ‘왜 다시 아시아인가’ 외
     if m:
         out.append(m.group(1))
+    out += x.get("books_in") or []  # 묶음 기사 본문에서 뽑은 책(한 권씩)
     # (2026-10-30 삭제) 한겨레 서평 '[.txt]' 제목 속 따옴표 낱말 규칙: '억울함'·'오리'처럼 책 제목이 아닌 경우가 대부분이었다.
     res, seen = [], set()
     for b in out:
@@ -665,6 +666,84 @@ def book_titles_of(x):
     # 한 기사에서 '왕의 탈출'과 '왕의 탈출 : 아관파천'이 함께 나오면 더 긴(부제까지 있는) 쪽만
     keys = [re.sub(r"\W", "", b).lower() for b in res]
     return [b for b, k in zip(res, keys) if not any(o != k and o.startswith(k) for o in keys)]
+
+
+# 한 기사에 여러 권을 소개하는 묶음 기사([신간]·[새책] 外·책꽂이·북카페 등): 원문 본문에서 책을 한 권씩 뽑는다.
+#  연합뉴스 [신간] "▲ 제목 = 저자 지음."   경향 [새책] 外 "제목 / 저자 지음 | 출판사 | 쪽"   "●제목(저자 지음/출판사)"
+# 결과는 history/book_multi.json에 기사 주소별로 보관(같은 기사는 다시 읽지 않음). 예스24에서 찾은 책만 서가에 오른다.
+BOOK_MULTI = os.path.join(HERE, "history", "book_multi.json")
+_BKM_SCAN = re.compile(r"\[(?:\d+자\s*)?(?:신간|새책|책꽂이|북카페|새로 나온 책|새로 나왔어요|출판|이 주의 책|책)\]|(?:외|外)\s*$|신간")
+_BKM_RX = [
+    re.compile(r"▲\s*([^=\n▲]{2,40}?)\s*=\s*[^\n▲]{0,80}?(?:지음|씀|엮음|옮김|그림|외\s*\d*명?)"),
+    re.compile(r"●\s*([^(●\n]{2,40}?)\s*\(([^)\n]*?(?:지음|엮음|씀|옮김)[^)\n]*)\)"),
+]
+
+
+def _page_lines(body):
+    body = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", body)
+    body = re.sub(r"(?i)<br\s*/?>|</(?:p|div|li|h\d|tr|dd|dt)>", "\n", body)
+    txt = html.unescape(re.sub(r"<[^>]+>", " ", body))
+    return [re.sub(r"[ \t ]+", " ", l).strip() for l in txt.split("\n")]
+
+
+def books_in_body(body):
+    """기사 원문 HTML → 소개된 책 제목들(최대 8)"""
+    lines = _page_lines(body)
+    text = "\n".join(lines)
+    out = []
+    for rx in _BKM_RX:
+        out += [m.group(1).strip() for m in rx.finditer(text)]
+    prev = ""
+    for l in lines:  # '제목' 다음 줄이 '저자 지음 | 출판사 | …쪽'
+        if not l:
+            continue
+        if re.match(r"^[^|]{1,60}?(?:지음|엮음|씀)(?:\s*·[^|]*)?\s*\|", l) and 2 <= len(prev) <= 40 and "|" not in prev and not re.search(r"[.?!。]$", prev):
+            out.append(prev)
+        prev = l
+    res, seen = [], set()
+    for b in out:
+        b = re.sub(r"\s+", " ", b).strip(" ‘’'\"·,")
+        k = re.sub(r"\W", "", b)
+        if 2 <= len(b) <= 40 and k and k not in seen and not re.search(r"[…]|기자|사진|제공|=", b):
+            seen.add(k)
+            res.append(b)
+    return res[:8]
+
+
+def enrich_multi_books(rows, max_new=40, workers=6):
+    """묶음 책 기사마다 본문에서 뽑은 책 → row['books_in']. 돌려주는 값: (새로 읽은 기사 수, 뽑은 책 수)"""
+    try:
+        cache = json.load(open(BOOK_MULTI, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    todo = [r for r in rows if _BKM_SCAN.search(r["title"])]
+    new = [r for r in todo if r["url"] not in cache][:max_new]
+
+    def work(r):
+        try:
+            url = gn_decode(r["url"]) if GN_RX.search(r["url"]) else r["url"]
+            if not url or not robots_allows(url):
+                return r["url"], []
+            return r["url"], books_in_body(http_get(url).decode("utf-8", "ignore"))
+        except Exception:
+            return r["url"], None
+    with ThreadPoolExecutor(workers) as ex:
+        for key, got in ex.map(work, new):
+            if got is not None:
+                cache[key] = got
+    n = 0
+    for r in todo:
+        if cache.get(r["url"]):
+            r["books_in"] = cache[r["url"]]
+            n += len(r["books_in"])
+    try:
+        keep = {r["url"]: cache[r["url"]] for r in rows if r["url"] in cache}
+        keep.update({k: v for k, v in cache.items() if k not in keep and len(keep) < 600})
+        os.makedirs(os.path.dirname(BOOK_MULTI), exist_ok=True)
+        json.dump(keep, open(BOOK_MULTI, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return len(new), n
 
 
 def book_titles(rows, top=60, info=None, only_found=True):
@@ -3500,7 +3579,9 @@ def main():
         books, bstatus = fetch_books(now)
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
-        book_info = enrich_book_titles(books)
+        n_mread, n_mbooks = enrich_multi_books(books)
+        pstatus.append({"name": "책책책 묶음 기사 본문(책 한 권씩)", "ok": True, "count": n_mbooks, "error": ""})
+        book_info = enrich_book_titles(books, max_new=80)
         pstatus.append({"name": "책 정보(예스24 검색)", "ok": bool(book_info), "count": len(book_info), "error": "" if book_info else "0권"})
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
         paju_city, cstatus = fetch_paju_city()
