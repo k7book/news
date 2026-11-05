@@ -781,6 +781,57 @@ def enrich_multi_books(rows, max_new=40, workers=6):
     return len(new), n
 
 
+# ── 최근 30일 책 기사 보관 + pajubook(파주도서관 사이트) '신문사 추천 책'에 넘겨줄 books.json ──
+# 2026-11-06: pajubook 수집기(신문추천책_수집.py)는 이 목록을 받아 파주시 도서관 소장 여부만 붙인다(수집 규칙은 이 파일 한 곳에서만 고친다).
+# 처음 30일 치는 pajubook이 모아 둔 기사(data/book_seed.json)로 채웠다.
+BOOK_ARCHIVE = os.path.join(HERE, "history", "book_archive.json")
+BOOK_SEED = os.path.join(HERE, "data", "book_seed.json")
+
+
+def book_archive(rows, now, days=30):
+    """이번에 받은 책 기사(rows) + 저장해 둔 30일 치 → 최근 30일 책 기사(같은 기사는 하나로, 새것이 위로)"""
+    old = []
+    for path in (BOOK_ARCHIVE, BOOK_SEED):
+        try:
+            old += json.load(open(path, encoding="utf-8"))
+        except Exception:
+            pass
+    key = lambda x: (x.get("outlet"), re.sub(r"\W", "", x.get("title") or "")[:40])
+    seen, out = set(), []
+    for x in list(rows) + old:  # 이번에 받은 것(같은 객체)을 먼저 → 묶음 책·소개글이 rows 쪽에도 붙는다
+        k = key(x)
+        if k in seen or x.get("url") in seen or not x.get("date"):
+            continue
+        seen.add(k)
+        seen.add(x.get("url"))
+        if x.get("outlet") == "독서신문" and not re.search(r"\[신간\]", x.get("title") or ""):
+            continue
+        out.append(x)
+    lo = (now - timedelta(days=days)).isoformat()
+    out = sorted((x for x in out if x["date"] >= lo), key=lambda x: x["date"], reverse=True)
+    try:
+        os.makedirs(os.path.dirname(BOOK_ARCHIVE), exist_ok=True)
+        json.dump([{k: x.get(k) for k in ("title", "url", "outlet", "img", "date", "desc") if x.get(k)} for x in out],
+                  open(BOOK_ARCHIVE, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return out
+
+
+def books_export(arch, info, now, days=30):
+    """pajubook '신문사 추천 책'용: 기사 목록 + 서점에서 찾은 책(서지·소개 신문·기사 번호)"""
+    books = []
+    for e in book_titles(arch, top=500, info=info):
+        i = info.get(_bk_key(e["title"])) or {}
+        books.append({"title": e["title"], "name": i.get("name", ""), "author": i.get("author", ""), "pub": i.get("pub", ""),
+                      "date": i.get("date", ""), "cover": i.get("cover", ""), "url": i.get("url", ""), "isbn": i.get("isbn", ""),
+                      "outlets": e["outlets"], "arts": sorted(e["arts"]), "last": e["date"]})
+    arts = [{"title": x["title"], "url": x["url"], "outlet": x["outlet"], "img": x.get("img") or "", "date": x["date"],
+             "desc": x.get("desc") or ""} for x in arch]
+    return {"generated": now.strftime("%Y-%m-%d %H:%M"), "days": days, "source": "https://news.rajin.live/books.json",
+            "articles": arts, "books": books}
+
+
 def book_titles(rows, top=60, info=None, only_found=True):
     """소개된 책 목록: 여러 언론사가 다룬 책이 위로, 같으면 최근 것이 위로. arts = 그 책을 다룬 기사 번호(rows 안)
     info(서점 정보)를 주면 제목 표기가 달라도 ISBN(없으면 서점 주소)이 같은 책은 한 권으로 합친다."""
@@ -913,7 +964,7 @@ def enrich_book_titles(rows, max_new=40, workers=4):
         cache = json.load(open(BOOK_INFO, encoding="utf-8"))
     except Exception:
         cache = {}
-    titles = [e["title"] for e in book_titles(rows, top=300)]  # 묶음 기사에서 한 권씩 뽑아 책이 많아졌다
+    titles = [e["title"] for e in book_titles(rows, top=800)]  # 묶음 기사에서 한 권씩 뽑아 책이 많아졌다
     today = datetime.now(KST).strftime("%Y-%m-%d")
     new = [t for t in titles if _bk_key(t) not in cache
            or (not cache[_bk_key(t)].get("name") and cache[_bk_key(t)].get("_t", "") < today)][:max_new]  # 못 찾은 책은 하루 한 번 다시
@@ -3558,6 +3609,7 @@ def main():
         book_info = {}
         deep = []
         photo = []
+        books_json = None
         bcast = {}
         visual = [{"title": "Sample: The World's Biggest Economies", "url": "https://www.visualcapitalist.com/", "outlet": "Visual Capitalist",
                    "img": None, "date": now.isoformat(), "cats": ["Economy"]}]
@@ -3614,9 +3666,14 @@ def main():
         books, bstatus = fetch_books(now)
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
-        n_mread, n_mbooks = enrich_multi_books(books)
+        arch = book_archive(books, now)
+        enrich_books(arch, max_new=40)
+        n_mread, n_mbooks = enrich_multi_books(arch)
         pstatus.append({"name": "책책책 묶음 기사 본문(책 한 권씩)", "ok": True, "count": n_mbooks, "error": ", ".join(sorted(set(BKM_ERR)))[:120]})
-        book_info = enrich_book_titles(books, max_new=80)
+        book_info = enrich_book_titles(arch, max_new=80)
+        books_json = books_export(arch, book_info, now)
+        pstatus.append({"name": "pajubook용 30일 책 목록(books.json)", "ok": bool(books_json["books"]), "count": len(books_json["books"]),
+                        "error": f"기사 {len(arch)}건"})
         pstatus.append({"name": "책 정보(예스24 검색)", "ok": bool(book_info), "count": len(book_info), "error": "" if book_info else "0권"})
         pstatus.append({"name": "책책책 원문 소개글", "ok": True, "count": n_desc, "error": "" if n_desc or not n_todo else f"{n_todo}건 중 0"})
         paju_city, cstatus = fetch_paju_city()
@@ -3691,6 +3748,9 @@ def main():
                        interactive=inter, books=books, book_info=book_info, deep=deep, paju_city=paju_city, visual=visual, photo=photo, frame_ok=frame_ok, bcast=bcast)
     with open(os.path.join(args.out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
+    if books_json:
+        with open(os.path.join(args.out, "books.json"), "w", encoding="utf-8") as f:
+            json.dump(books_json, f, ensure_ascii=False)
     with open(os.path.join(args.out, "sources.html"), "w", encoding="utf-8") as f:
         f.write(render_sources(load_feeds(), allstatus, now))
     if "주식" in pages:
