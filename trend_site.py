@@ -1545,7 +1545,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 6]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 7]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
     anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
     if now < anchor:
