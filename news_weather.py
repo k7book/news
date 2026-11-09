@@ -312,6 +312,19 @@ def build(out_dir):
             m1 = ((now_kst().replace(day=1) + timedelta(days=62)).replace(day=1) - timedelta(days=1)).strftime("%Y%m%d")
             names = {x["title"].replace(" ", "") for x in fest["items"]}
             add = [x for x in ex if x.get("end", "") >= m0 and x.get("start", "") <= m1 and x["title"].replace(" ", "") not in names]
+            for x in add:   # 직접 적은 포스터는 남의 서버가 외부 연결을 막을 수 있어 사이트에 복사해 둔다
+                if x.get("img", "").startswith("https://"):
+                    try:
+                        import hashlib
+                        nm = "fest_" + hashlib.md5(x["img"].encode()).hexdigest()[:12] + os.path.splitext(x["img"].split("?")[0])[1][:5]
+                        req = urllib.request.Request(x["img"], headers={"User-Agent": "Mozilla/5.0", "Referer": x.get("url") or x["img"]})
+                        with urllib.request.urlopen(req, timeout=20) as r:
+                            data = r.read()
+                        if len(data) > 2000:
+                            open(os.path.join(out_dir, nm), "wb").write(data)
+                            x["img"] = nm
+                    except Exception as e:
+                        print("포스터 복사 실패:", x["title"], e)
             if add:
                 today = now_kst().strftime("%Y%m%d")
                 fest["items"] = sorted(fest["items"] + add, key=lambda x: (x["end"] < today, x["start"]))
@@ -322,12 +335,26 @@ def build(out_dir):
         def _k(t):
             t = _re.sub(r"&[a-z]+;|\[[^\]]*\]|\([^)]*\)", "", t.lower())
             return _re.sub(r"(19|20)\d{2}|제\d+회|[^0-9a-z가-힣]", "", t)
-        uniq, seen = [], set()
+        def _lcs(a, b):   # 가장 긴 공통 글자 줄 길이
+            best = 0
+            for i in range(len(a)):
+                for j in range(i + best + 1, len(a) + 1):
+                    if a[i:j] in b:
+                        best = j - i
+                    else:
+                        break
+            return best
+        uniq = []
         for x in fest["items"]:
             k = _k(x["title"])
-            if k and k in seen:
-                continue
-            seen.add(k); uniq.append(x)
+            dup = False
+            for y in uniq:
+                ky = _k(y["title"])
+                over = x["start"] <= y.get("end", y["start"]) and y["start"] <= x.get("end", x["start"])
+                if k and (k == ky or (over and _lcs(k, ky) >= 7)):   # 이름이 같거나, 기간이 겹치며 7글자 넘게 같은 이름(예: 쏙쏙들이페스티벌)
+                    dup = True; break
+            if not dup:
+                uniq.append(x)
         fest["items"] = uniq
         with open(os.path.join(out_dir, "paju_fest.json"), "w", encoding="utf-8") as f:
             json.dump(fest, f, ensure_ascii=False, separators=(",", ":"))

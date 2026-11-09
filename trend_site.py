@@ -3417,7 +3417,7 @@ function draw(){M.innerHTML="";var L=F.filter(function(f){return cur==="all"||(c
  if(!L.length){M.appendChild(ce("p","note","해당하는 행사가 없어요."));return}
  var n=M.clientWidth>=900?4:M.clientWidth>=640?3:M.clientWidth>=420?2:1,cols=[];for(var k=0;k<n;k++){cols.push(ce("div","fcol"));M.appendChild(cols[k])}
  L.forEach(function(f,i){var s=st(f),a=ce("a","fcard "+s);a.href=/^https:\/\//.test(f.url||"")?f.url:"https://search.naver.com/search.naver?query="+encodeURIComponent(un(f.title));a.target="_blank";a.rel="noopener";
-  var ph=ce("div","fph");if(f.img){var im=ce("img");im.src=f.img;im.alt="";im.loading="lazy";im.onerror=function(){ph.classList.add("noimg");ph.textContent=un(f.title)};ph.appendChild(im)}else{ph.classList.add("noimg");ph.textContent=un(f.title)}
+  var ph=ce("div","fph");if(f.img){var im=ce("img");im.referrerPolicy="no-referrer";im.src=f.img;im.alt="";im.loading="lazy";im.onload=function(){if(im.naturalWidth<10)im.onerror()};im.onerror=function(){ph.classList.add("noimg");ph.textContent=un(f.title)};ph.appendChild(im)}else{ph.classList.add("noimg");ph.textContent=un(f.title)}
   a.appendChild(ph);var b=ce("div","fbd"),tg=ce("div","ftg");tg.appendChild(ce("span","fst "+s,{on:"진행중",soon:"예정",end:"끝남"}[s]));if(f.kind)tg.appendChild(ce("span","fkd",un(f.kind)));
   b.appendChild(tg);b.appendChild(ce("b","ftt",un(f.title)));if(f.addr)b.appendChild(ce("span","fpl",un(f.addr)));b.appendChild(ce("span","fdt",d(f.start)+(f.end&&f.end!==f.start?" ~ "+d(f.end):"")));
   a.appendChild(b);cols[i%n].appendChild(a)})}
