@@ -174,7 +174,8 @@ def festivals(key):
     if not rows and errs:
         raise RuntimeError(errs[-1])
     out = []
-    m0, m1 = month0.strftime("%Y%m%d"), (nxt - timedelta(days=1)).strftime("%Y%m%d")
+    nxt2 = (nxt + timedelta(days=32)).replace(day=1)   # 이번 달 + 다음 달까지
+    m0, m1 = month0.strftime("%Y%m%d"), (nxt2 - timedelta(days=1)).strftime("%Y%m%d")
     for r in rows:
         s_, e_ = str(r.get("eventstartdate") or ""), str(r.get("eventenddate") or r.get("eventstartdate") or "")
         if not s_ or e_ < m0 or s_ > m1:
@@ -184,14 +185,14 @@ def festivals(key):
                     "tel": r.get("tel", "")})
     today = now.strftime("%Y%m%d")
     out.sort(key=lambda x: (x["end"] < today, x["start"]))
-    return {"month": now.month, "items": out[:30]}
+    return {"month": now.month, "month2": nxt.month, "items": out[:60]}
 
 
 def culture(key):
     """파주 공연·전시 (한국문화정보원 한눈에보는문화정보 cultureinfo/area2, XML). 이번 달에 열리는 것."""
     now = now_kst()
     month0 = now.replace(day=1)
-    m1 = ((month0 + timedelta(days=32)).replace(day=1) - timedelta(days=1)).strftime("%Y%m%d")
+    m1 = ((((month0 + timedelta(days=32)).replace(day=1)) + timedelta(days=32)).replace(day=1) - timedelta(days=1)).strftime("%Y%m%d")   # 다음 달 말까지
     out, page = [], 1
     while page <= 5:
         q = urllib.parse.urlencode({"serviceKey": key, "PageNo": page, "numOfrows": 100, "sido": "경기", "gugun": "파주시",
@@ -291,7 +292,7 @@ def build(out_dir):
             json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
         print(f"날씨: {'열쇠 없음' if d['need_key'] else '받음'} · 오류 {list(d['errors']) or '없음'} · {time.time() - t0:.1f}초")
         key = os.environ.get("DATA_GO_KR_KEY", "").strip()
-        fest = {"month": now_kst().month, "items": [], "need_key": not key}
+        fest = {"month": now_kst().month, "month2": (now_kst().replace(day=1) + timedelta(days=32)).month, "items": [], "need_key": not key}
         if key:
             try:
                 fest.update(festivals(key))
@@ -301,10 +302,21 @@ def build(out_dir):
                 seen = {x["title"] for x in fest["items"]}
                 more = [x for x in culture(key) if x["title"] not in seen]
                 today = now_kst().strftime("%Y%m%d")
-                fest["items"] = sorted(fest["items"] + more, key=lambda x: (x["end"] < today, x["start"]))[:40]
+                fest["items"] = sorted(fest["items"] + more, key=lambda x: (x["end"] < today, x["start"]))[:80]
                 fest["culture"] = len(more)
             except Exception as e:
                 fest["culture_error"] = str(e)[:200]
+        try:                           # 직접 적은 행사 (paju_fest_extra.json) — 두 API에 없는 것 보충
+            ex = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "paju_fest_extra.json"), encoding="utf-8")).get("items", [])
+            m0 = now_kst().replace(day=1).strftime("%Y%m%d")
+            m1 = ((now_kst().replace(day=1) + timedelta(days=62)).replace(day=1) - timedelta(days=1)).strftime("%Y%m%d")
+            names = {x["title"].replace(" ", "") for x in fest["items"]}
+            add = [x for x in ex if x.get("end", "") >= m0 and x.get("start", "") <= m1 and x["title"].replace(" ", "") not in names]
+            if add:
+                today = now_kst().strftime("%Y%m%d")
+                fest["items"] = sorted(fest["items"] + add, key=lambda x: (x["end"] < today, x["start"]))
+        except Exception as e:
+            print("직접 적은 행사 읽기 실패:", e)
         with open(os.path.join(out_dir, "paju_fest.json"), "w", encoding="utf-8") as f:
             json.dump(fest, f, ensure_ascii=False, separators=(",", ":"))
         print(f"파주 축제·행사: {len(fest['items'])}건 (공연·전시 {fest.get('culture', 0)}){' · 축제 오류 ' + fest['error'] if fest.get('error') else ''}{' · 공연전시 오류 ' + fest['culture_error'] if fest.get('culture_error') else ''}")

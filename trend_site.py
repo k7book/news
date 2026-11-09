@@ -2771,7 +2771,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .ffl{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 16px}.ffl button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:4px 13px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer}.ffl button.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
 .fmas{display:flex;gap:16px;align-items:flex-start}.fcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:16px}
-.fcard{display:block;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--paper-3);color:var(--ink);text-decoration:none;transition:transform .15s,box-shadow .15s}.fcard:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18)}.fcard:hover .ftt{text-decoration:underline}.fcard.end .fbd{opacity:.6}
+.fcard{display:block;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:var(--paper-3);color:var(--ink);text-decoration:none;transition:transform .15s,box-shadow .15s}.fcard:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18)}.fcard:hover .ftt{text-decoration:underline}
 .fph{background:var(--paper-2)}.fph img{display:block;width:100%;height:auto}.fph.noimg{display:flex;align-items:center;justify-content:center;min-height:150px;padding:18px;text-align:center;font-weight:800;font-size:17px;line-height:1.4;color:var(--ink-soft);background:linear-gradient(135deg,var(--teal-tint),var(--paper-2))}
 .fbd{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px}.ftg{display:flex;gap:5px;flex-wrap:wrap}.fst,.fkd{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--paper-2);color:var(--muted)}.fst.on{background:var(--teal-tint);color:var(--teal)}
 .fcard .lk{display:none}.ftt{font-size:15px;line-height:1.4}.fpl,.fdt{font-size:12.5px;color:var(--muted)}
@@ -3412,7 +3412,8 @@ function ce(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cl
 function d(s){return s?(+s.slice(4,6))+"."+(+s.slice(6,8)):""}
 var t=new Date(),T=""+t.getFullYear()+String(t.getMonth()+1).padStart(2,"0")+String(t.getDate()).padStart(2,"0");
 function st(f){return f.end<T?"end":f.start>T?"soon":"on"}
-function draw(){M.innerHTML="";var L=F.filter(function(f){return cur==="all"||st(f)===cur});
+function inM(f,m){var y=t.getFullYear()+(m<t.getMonth()+1?1:0),a=""+y+String(m).padStart(2,"0")+"01",b=""+y+String(m).padStart(2,"0")+"31";return f.start<=b&&(f.end||f.start)>=a}
+function draw(){M.innerHTML="";var L=F.filter(function(f){return cur==="all"||(cur[0]==="m"?inM(f,+cur.slice(1)):st(f)===cur)});
  if(!L.length){M.appendChild(ce("p","note","해당하는 행사가 없어요."));return}
  var n=M.clientWidth>=900?4:M.clientWidth>=640?3:M.clientWidth>=420?2:1,cols=[];for(var k=0;k<n;k++){cols.push(ce("div","fcol"));M.appendChild(cols[k])}
  L.forEach(function(f,i){var s=st(f),a=ce("a","fcard "+s);a.href="https://search.naver.com/search.naver?query="+encodeURIComponent(un(f.title));a.target="_blank";a.rel="noopener";
@@ -3424,7 +3425,8 @@ document.getElementById("fg_f").onclick=function(e){var b=e.target.closest("butt
 var w=0;new ResizeObserver(function(){if(M.clientWidth&&M.clientWidth!==w){w=M.clientWidth;if(F.length)draw()}}).observe(M);
 fetch("paju_fest.json",{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){var o={on:0,soon:1,end:2};
  F=(j.items||[]).slice().sort(function(a,b){return o[st(a)]-o[st(b)]||(a.start<b.start?-1:1)});
- document.getElementById("fg_h").textContent="파주시 "+j.month+"월 축제·전시 "+F.length+"건";draw()}).catch(function(){M.innerHTML='<p class="note">행사 자료를 불러오지 못했어요.</p>'})})();</script>"""
+ var fb=document.getElementById("fg_f"),on=fb.querySelector("[data-f=on]");[j.month,j.month2].forEach(function(m){if(!m)return;var b=ce("button",null,m+"월");b.type="button";b.dataset.f="m"+m;fb.insertBefore(b,on)});
+ document.getElementById("fg_h").textContent="파주시 "+j.month+(j.month2?"·"+j.month2:"")+"월 축제·전시 "+F.length+"건";draw()}).catch(function(){M.innerHTML='<p class="note">행사 자료를 불러오지 못했어요.</p>'})})();</script>"""
 
 
 def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, graphic=None, only=None, interactive=None,
