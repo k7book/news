@@ -1321,10 +1321,20 @@ def render_books(rows, now, info=None):
 
 
 def render_interactive(rows):
-    """인터랙티브 탭: 위에 언론사 버튼, 아래에 바둑판(최신순)"""
+    """인터랙티브 탭: 위에 언론사 버튼, 아래에 Masonry(발행일 최신순)"""
     if not rows:
         return ""
-    rows = sorted(rows, key=lambda x: x.get("date") or "", reverse=True)
+
+    def skey(x):  # 발행일 순서: 날짜를 아는 것 → 연도만 아는 것(그해 첫날로) → 날짜를 모르는 것은 맨 뒤
+        dl = x.get("dl")
+        if dl is None:
+            return x.get("date") or ""
+        if re.match(r"\d{4}\.\d\d\.\d\d$", dl):
+            return dl.replace(".", "-")
+        if re.match(r"\d{4}(\.\d\d)?$", dl):
+            return dl.replace(".", "-") + ("-01" if len(dl) > 4 else "-01-01")
+        return ""
+    rows = sorted(rows, key=skey, reverse=True)
 
     def when(x):
         if "dl" in x:
@@ -1343,7 +1353,7 @@ def render_interactive(rows):
     return (f'<div class="pg" data-c="인터랙티브" role="tabpanel"><section class="photos" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>인터랙티브</h2><span class="en">INTERACTIVE · {len(rows)}건</span></div>'
             f'<div class="ofilter" id="if" role="group" aria-label="언론사">{chips}</div>'
-            f'<p class="note" style="margin:4px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
+            f'<p class="note" style="margin:4px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 발행일 최신순이며, 연도만 알 수 있는 것은 그해 맨 끝에, 날짜를 알 수 없는 것은 맨 뒤에 둡니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
             f'<div class="vmas" id="ig">{cells}</div>'
             f'<p class="note">{more}</p></section></div>')
 
