@@ -574,7 +574,7 @@ def fetch_daum_interactive(now=None):
         seen[url] = first
         ym = re.search(r"/(20\d\d)/|/[A-Z](\d\d)\d{4}/", url)
         dl = ("20" + ym.group(2) if ym.group(2) else ym.group(1)) if ym else ""
-        out.append({"title": re.sub(r"\s+", " ", _jstr(m.group(4))).strip(), "url": url, "img": _jstr(m.group(1)) or None,
+        out.append({"title": re.sub(r"\s+", " ", _jstr(m.group(4))).strip(), "url": url, "img": ("https://img1.daumcdn.net/thumb/R600x0/?fname=" + urllib.parse.quote(_jstr(m.group(1)), safe="")) if m.group(1) else None,  # 원본 2500px → 600px
                     "outlet": _jstr(m.group(3)), "date": first, "dl": dl, "desc": _jstr(m.group(2))[:120]})
     try:
         os.makedirs(os.path.dirname(DAUM_INTER_SEEN), exist_ok=True)
