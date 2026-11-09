@@ -217,6 +217,46 @@ def culture(key):
     return out
 
 
+# 전국 주요 도시 (이름, 위도, 경도) — 지도 위 위치에도 씀
+CITIES = [("서울", 37.5665, 126.9780), ("인천", 37.4563, 126.7052), ("파주", 37.7183, 126.7580), ("수원", 37.2636, 127.0286), ("춘천", 37.8813, 127.7298),
+          ("강릉", 37.7519, 128.8761), ("청주", 36.6424, 127.4890), ("대전", 36.3504, 127.3845), ("전주", 35.8242, 127.1480), ("광주", 35.1595, 126.8526),
+          ("대구", 35.8714, 128.6014), ("울산", 35.5384, 129.3114), ("부산", 35.1796, 129.0756), ("제주", 33.4996, 126.5312), ("안동", 36.5684, 128.7294), ("목포", 34.8118, 126.3922)]
+
+
+def nation(key):
+    """전국 날씨: 도시마다 초단기실황(기온) + 초단기예보(하늘)"""
+    out = []
+
+    def one(name, lat, lon):
+        nx, ny = grid(lat, lon)
+        try:
+            n = ncst(key, nx, ny)
+            u = ultra(key, nx, ny)
+            k = sorted(u)[0] if u else None
+            out.append({"name": name, "lat": lat, "lon": lon, "t": n.get("T1H"), "rn": n.get("RN1"), "pty": n.get("PTY"),
+                        "sky": (u[k].get("SKY") if k else None), "upty": (u[k].get("PTY") if k else None)})
+        except Exception as e:
+            out.append({"name": name, "lat": lat, "lon": lon, "err": str(e)[:80]})
+
+    ths = [threading.Thread(target=one, args=c, daemon=True) for c in CITIES]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join(40)
+    order = [c[0] for c in CITIES]
+    return sorted(out, key=lambda x: order.index(x["name"]))
+
+
+def past(key, days=7):
+    """지난 날씨: 기상청 종관기상관측(ASOS) 일자료 — 파주와 가장 가까운 문산(99) 관측소. 어제까지."""
+    now = now_kst()
+    end, start = now - timedelta(days=1), now - timedelta(days=days)
+    it = items(get("http://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList",
+                   {"serviceKey": key, "pageNo": 1, "numOfRows": 31, "dataType": "JSON", "dataCd": "ASOS", "dateCd": "DAY",
+                    "startDt": start.strftime("%Y%m%d"), "endDt": end.strftime("%Y%m%d"), "stnIds": "99"}))
+    return [{k: r.get(k) for k in ("tm", "avgTa", "minTa", "maxTa", "sumRn", "avgRhm", "avgWs", "sumSsHr", "ddMes", "iscs")} for r in it]
+
+
 def collect():
     key = os.environ.get("DATA_GO_KR_KEY", "").strip()
     nx, ny = grid(LOC["lat"], LOC["lon"])
@@ -225,7 +265,7 @@ def collect():
     jobs = {"news": news}
     if key:
         jobs.update(ncst=lambda: ncst(key, nx, ny), ultra=lambda: ultra(key, nx, ny), vilage=lambda: vilage(key, nx, ny),
-                    mid=lambda: mid(key), air=lambda: air(key), uv=lambda: uv(key))
+                    mid=lambda: mid(key), air=lambda: air(key), uv=lambda: uv(key), nation=lambda: nation(key), past=lambda: past(key))
 
     def one(name, fn):
         try:

@@ -190,6 +190,21 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 .rdt{display:flex;gap:6px;font-size:14px;font-weight:700}.rdt i{font-style:normal}.rdt .mn{color:var(--cold)}.rdt .mx{color:var(--red)}
 .three .td{padding:14px}.three .tdh img{width:64px;height:64px}
 @media (max-width:1000px){.rest{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* 월출월몰 · 지난 날씨 · 전국 날씨 (11-09) */
+.moonrow{display:flex;align-items:center;gap:14px}.moon{width:72px;height:72px}.moonrow b{font-size:17px}
+.rs{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}.rs th{font-weight:400;color:var(--dim);font-size:12px;text-align:right;padding:2px 4px}.rs th:first-child{text-align:left}
+.rs td{padding:6px 4px;border-top:1px solid var(--rule);text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.rs td:first-child{text-align:left;font-weight:400;color:var(--muted)}
+.sunarc + .rs{margin-top:4px}
+.past{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.pd{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border-radius:8px;background:var(--paper-2)}
+.pdd{display:flex;flex-direction:column;align-items:center;line-height:1.2}.pdd b{font-size:14px}.pdd span{font-size:11px;color:var(--dim)}
+.pbar{display:flex;flex-direction:column;align-items:center;gap:2px}.pbar .mx{color:var(--red);font-weight:700;font-size:13px}.pbar .mn{color:var(--cold);font-weight:700;font-size:13px}
+.pv{position:relative;width:8px;height:70px;border-radius:9px;background:var(--paper-3)}.pv i{position:absolute;left:0;right:0;border-radius:9px;background:linear-gradient(180deg,var(--red),var(--gold),var(--cold))}
+.prn{font-size:11px;color:var(--dim)}.prn.hi{color:var(--cold);font-weight:700}.pex{font-size:10px;color:var(--dim);text-align:center}
+.nmap{position:relative;height:540px;border-radius:10px;background:radial-gradient(ellipse at 45% 45%,var(--paper-2),var(--paper-3) 70%);overflow:hidden}
+.nc{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:var(--paper-3);border:1px solid var(--rule);border-radius:999px;padding:2px 10px 2px 4px;box-shadow:0 2px 6px rgba(0,0,0,.07);white-space:nowrap}
+.nc img{width:30px;height:30px;margin:-2px -2px}.nc b{font-size:12px;color:var(--muted);font-weight:600}.nc span{font-size:15px;font-weight:800}
+.nc.me{border-color:var(--red);box-shadow:0 0 0 2px color-mix(in srgb,var(--red) 25%,transparent)}.nc.me b{color:var(--red)}
 </style></head>
 <body><div class="w">
 <!--WX_HEADER-->
@@ -233,6 +248,25 @@ function sun(lat, lon, d){ const r = Math.PI / 180, day = Math.floor((d - new Da
 const dlab = (ymd, base) => { const d = new Date(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8));
   const diff = Math.round((d - new Date(base.getFullYear(), base.getMonth(), base.getDate())) / 864e5);
   return {d, rel: diff === 0 ? "오늘" : diff === 1 ? "내일" : diff === 2 ? "모레" : DAYS[d.getDay()], md: `${d.getMonth() + 1}.${pad(d.getDate())}`}; };
+// 달 위치·뜨고 짐·위상 (SunCalc 계산법을 줄여 옮김)
+const MOON = (() => { const rad = Math.PI / 180, e = rad * 23.4397, toDays = d => d.valueOf() / 864e5 - .5 + 2440588 - 2451545;
+  const ra = (l, b) => Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l)), dec = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+  const sid = (d, lw) => rad * (280.16 + 360.9856235 * d) - lw;
+  const alt = (H, phi, dc) => Math.asin(Math.sin(phi) * Math.sin(dc) + Math.cos(phi) * Math.cos(dc) * Math.cos(H));
+  const coords = d => { const L = rad * (218.316 + 13.176396 * d), M = rad * (134.963 + 13.064993 * d), F = rad * (93.272 + 13.229350 * d);
+    const l = L + rad * 6.289 * Math.sin(M), b = rad * 5.128 * Math.sin(F), dt = 385001 - 20905 * Math.cos(M); return {ra: ra(l, b), dec: dec(l, b), dist: dt}; };
+  const sunC = d => { const M = rad * (357.5291 + .98560028 * d), C = rad * (1.9148 * Math.sin(M) + .02 * Math.sin(2 * M) + .0003 * Math.sin(3 * M)), L = M + C + rad * 102.9372 + Math.PI; return {ra: ra(L, 0), dec: dec(L, 0)}; };
+  const pos = (date, lat, lng) => { const lw = rad * -lng, phi = rad * lat, d = toDays(date), c = coords(d), H = sid(d, lw) - c.ra; let h = alt(H, phi, c.dec); h += rad * .017 / Math.tan(h + rad * 10.26 / (h + rad * 5.10)); return h; };
+  const illum = date => { const d = toDays(date), s = sunC(d), m = coords(d), sd = 149598000;
+    const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra)), inc = Math.atan2(sd * Math.sin(phi), m.dist - sd * Math.cos(phi));
+    const ang = Math.atan2(Math.cos(s.dec) * Math.sin(s.ra - m.ra), Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra));
+    return {fraction: (1 + Math.cos(inc)) / 2, phase: .5 + .5 * inc * (ang < 0 ? -1 : 1) / Math.PI}; };
+  const riseSet = (day, lat, lng) => { const t0 = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime(), h0 = .133 * rad; let prev = pos(new Date(t0), lat, lng) - h0, rise = null, set = null;
+    for(let m = 10; m <= 1440; m += 10){ const t = t0 + m * 6e4, cur = pos(new Date(t), lat, lng) - h0;
+      if(prev < 0 && cur >= 0 && !rise) rise = new Date(t - 6e5 * cur / (cur - prev)); if(prev >= 0 && cur < 0 && !set) set = new Date(t - 6e5 * cur / (cur - prev)); prev = cur; }
+    return {rise, set}; };
+  return {illum, riseSet}; })();
+const moonName = mi => mi.fraction >= .96 ? "보름달" : mi.fraction <= .04 ? "삭 (새달)" : mi.phase < .216 ? "초승달" : mi.phase < .284 ? "상현달" : mi.phase < .466 ? "차오르는 달" : mi.phase < .534 ? "보름달" : mi.phase < .716 ? "기우는 달" : mi.phase < .784 ? "하현달" : "그믐달";
 const SVG = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const IXI = {
   "자외선": SVG('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
@@ -373,7 +407,36 @@ function render(D){
     ${frac == null ? "" : `<path d="M${cx - R} ${cy} A${R} ${R} 0 0 1 ${sx.toFixed(1)} ${sy.toFixed(1)}" fill="none" stroke="var(--gold)" stroke-width="4" stroke-linecap="round"/><circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="9" fill="#ffcd00"/>`}<line x1="6" y1="${cy}" x2="174" y2="${cy}" stroke="var(--rule)"/></svg>
     <div class="sunt num"><span>일출 <b>${S.rise}</b></span><span>일몰 <b>${S.set}</b></span></div></div></section>`;
 
-  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${newsCard}</aside></div>`;
+  // ⑧ 월출 · 월몰
+  const tmw = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12);
+  const t2 = d => d ? pad(d.getHours()) + ":" + pad(d.getMinutes()) : "—";
+  const mT = MOON.riseSet(now, loc.lat, loc.lon), mN = MOON.riseSet(tmw, loc.lat, loc.lon), mi = MOON.illum(now), ph = mi.phase;
+  const mr = 30, mc = 36, kk = Math.cos(2 * Math.PI * ph), rx = Math.abs(kk) * mr, wax = ph < .5, sw = wax ? (kk > 0 ? 0 : 1) : (kk > 0 ? 1 : 0);
+  const lit = (ph < .02 || ph > .98) ? "" : `<path d="M${mc} ${mc - mr} A${mr} ${mr} 0 0 ${wax ? 1 : 0} ${mc} ${mc + mr} A${rx.toFixed(2)} ${mr} 0 0 ${sw} ${mc} ${mc - mr}Z" fill="#f4ecd0"/>`;
+  const moonCard = `<section class="wcard"><div class="h2row"><h2>월출 · 월몰</h2><span class="hint">밝은 부분 ${Math.round(mi.fraction * 100)}% · 월령 ${(ph * 29.53).toFixed(1)}일</span></div>
+    <div class="moonrow"><svg viewBox="0 0 72 72" class="moon"><circle cx="${mc}" cy="${mc}" r="${mr}" fill="#5b5b60"/>${lit}<circle cx="26" cy="28" r="4" fill="#000" opacity=".12"/><circle cx="45" cy="44" r="6" fill="#000" opacity=".1"/></svg><div><b>${moonName(mi)}</b></div></div>
+    <table class="rs"><tr><th></th><th>월출</th><th>월몰</th></tr><tr><td>오늘</td><td>${t2(mT.rise)}</td><td>${t2(mT.set)}</td></tr><tr><td>내일</td><td>${t2(mN.rise)}</td><td>${t2(mN.set)}</td></tr></table></section>`;
+
+  // ⑨ 지난 7일 (문산 관측소)
+  const P = (D.past || []).slice(-7);
+  let pastCard = "";
+  if(P.length){ const allT = P.flatMap(r => [+r.minTa, +r.maxTa]).filter(v => !isNaN(v)), lo2 = Math.min(...allT), hi2 = Math.max(...allT), r2 = Math.max(1, hi2 - lo2);
+    pastCard = `<section class="wcard"><div class="h2row"><h2>지난 날씨</h2><span class="hint">최근 7일 · 기상청 문산 관측소(파주)</span></div><div class="past">${P.map(r => { const d = new Date(r.tm), rn = parseFloat(r.sumRn) || 0;
+      const top = (hi2 - +r.maxTa) / r2 * 100, bot = (+r.minTa - lo2) / r2 * 100;
+      return `<div class="pd"><div class="pdd"><b>${DAYS[d.getDay()]}</b><span>${d.getMonth() + 1}.${pad(d.getDate())}</span></div>
+        <div class="pbar"><span class="mx num">${Math.round(+r.maxTa)}°</span><div class="pv"><i style="top:${top}%;bottom:${bot}%"></i></div><span class="mn num">${Math.round(+r.minTa)}°</span></div>
+        <div class="prn${rn ? " hi" : ""}">${rn ? "☂ " + rn + "mm" : "비 없음"}</div><div class="pex">평균 ${r.avgTa}° · 습도 ${Math.round(+r.avgRhm)}%</div></div>`; }).join("")}</div></section>`; }
+
+  // ⑩ 전국 날씨 (위경도로 자리 잡은 지도식 배치, 붙어 있는 도시는 조금씩 비켜 놓음)
+  const NOFF = {"파주": [-30, -34], "서울": [48, -4], "인천": [-46, 30], "수원": [34, 40], "청주": [40, -22], "대전": [-16, 24], "안동": [10, -24], "대구": [-20, 22], "울산": [34, -8], "부산": [-14, 26], "춘천": [10, -10], "전주": [-10, 0]};
+  const NC = (D.nation || []).filter(c => c.t != null);
+  let nationCard = "";
+  if(NC.length){ const X = lon => (lon - 125.95) / (129.75 - 125.95) * 100, Y = lat => (38.75 - lat) / (38.75 - 33.05) * 100;
+    nationCard = `<section class="wcard"><div class="h2row"><h2>전국 날씨</h2><span class="hint">기상청 초단기실황 · 주요 도시</span></div><div class="nmap">${NC.map(c => { const sk2 = sky(c.sky, +c.pty || +c.upty);
+      const o = NOFF[c.name] || [0, 0];
+      return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div></section>`; }
+
+  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}${pastCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>`;
   body.innerHTML = html;
   body.querySelectorAll("[data-ht]").forEach(b => b.onclick = () => { HT = b.dataset.ht; const x = body.querySelector(".hscroll").scrollLeft; render(window.__D); body.querySelector(".hscroll").scrollLeft = x; });
   const hs = body.querySelector(".hscroll"); if(hs) hs.addEventListener("wheel", e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ hs.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
