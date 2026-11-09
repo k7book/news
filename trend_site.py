@@ -614,7 +614,7 @@ def _daum_items(seg):
     return [x for x in out if x["title"] and x["url"].startswith("http")]
 
 
-# 맥락·탐사: 다음뉴스 홈 '시사 매거진'(주·월간 시사전문지)·'라이프 매거진'(문화·생활 전문지) 최신 글. 홈에 6건씩만 실려 매시간 받아 7일 모은다.
+# 깊이 읽기: 다음뉴스 홈 '시사 매거진'(주·월간 시사전문지)·'라이프 매거진'(문화·생활 전문지) 최신 글. 홈에 6건씩만 실려 매시간 받아 7일 모은다.
 DAUM_MAG = os.path.join(HERE, "history", "daum_mag.json")
 DAUM_MAG_GROUPS = [("시사 매거진", "[뉴스홈] 시사매거진", "주·월간 시사전문지"), ("라이프 매거진", "[뉴스홈] 라이프매거진", "문화·생활 전문지")]
 
@@ -634,7 +634,7 @@ def fetch_daum_magazines(now, days=7):
             if x.get("img"):  # 원본은 커서 400px로
                 x["img"] = "https://img1.daumcdn.net/thumb/R400x0/?fname=" + urllib.parse.quote(x["img"], safe="")
         new += rows
-        status.append({"name": f"맥락·탐사 {grp}(다음뉴스)", "ok": bool(rows), "count": len(rows), "error": err or ("" if rows else "목록을 찾지 못함")})
+        status.append({"name": f"깊이 읽기 {grp}(다음뉴스)", "ok": bool(rows), "count": len(rows), "error": err or ("" if rows else "목록을 찾지 못함")})
     lo = (now - timedelta(days=days)).isoformat()
     seen, out = set(), []
     for x in new + old:
@@ -1466,7 +1466,7 @@ def og_meta(url):
 
 def enrich_books(rows, workers=6, max_new=60, path=None, need_img=False):
     """요약이 없는 책 기사: (구글뉴스면 원문 주소로 풀고) 원문의 소개글·대표 사진을 붙인다. 결과는 history/book_meta.json에 캐시.
-    path·need_img: 맥락·탐사 탭처럼 다른 캐시 파일을 쓰거나, 사진이 없는 글도 원문 대표 사진으로 채울 때."""
+    path·need_img: 깊이 읽기 탭처럼 다른 캐시 파일을 쓰거나, 사진이 없는 글도 원문 대표 사진으로 채울 때."""
     path = path or BOOK_META
     try:
         cache = json.load(open(path, encoding="utf-8"))
@@ -1511,9 +1511,9 @@ def enrich_books(rows, workers=6, max_new=60, path=None, need_img=False):
     return len(todo), n
 
 
-# ── 맥락·탐사 탭: 해설·탐사 중심 독립 매체의 최근 1주 글 ──
+# ── 깊이 읽기 탭: 해설·탐사 중심 독립 매체의 최근 1주 글 ──
 # 2026-10-25 확인: 모두 RSS 제공, robots.txt 허용. 본문 전체가 RSS에 들어 있는 곳도 있지만 제목·요약 앞부분·링크·사진 주소만 쓴다.
-DEEP_TAB = "맥락·탐사"
+DEEP_TAB = "깊이 읽기"
 DEEP_FEEDS = [("슬로우뉴스", "https://slownews.kr/feed", "https://slownews.kr"),
               ("뉴스타파", "https://newstapa.org/rss", "https://newstapa.org"),
               ("셜록", "https://www.neosherlock.com/feed", "https://www.neosherlock.com"),
@@ -1526,7 +1526,7 @@ DEEP_DESC = {"슬로우뉴스": "맥락과 통찰, 해법", "뉴스타파": "비
 
 
 def fetch_deep(now, days=7, per_outlet=25):
-    """맥락·탐사 매체 RSS → (rows, status). 매체마다 최근 7일, 최대 25건."""
+    """깊이 읽기 매체 RSS → (rows, status). 매체마다 최근 7일, 최대 25건."""
     feeds = [{"outlet": o, "category": DEEP_TAB, "url": u} for o, u, _ in DEEP_FEEDS]
     with ThreadPoolExecutor(6) as ex:
         results = list(ex.map(fetch_feed, feeds))
@@ -1547,7 +1547,7 @@ def fetch_deep(now, days=7, per_outlet=25):
             if desc and re.sub(r"\W", "", desc)[:30] == re.sub(r"\W", "", t)[:30]:
                 desc = ""
             rows.append({"title": t, "url": a["url"], "outlet": a["outlet"], "img": a.get("img"), "date": a["date"].isoformat(), "desc": desc})
-        status.append({"name": f'{feed["outlet"]}(맥락·탐사)', "ok": err is None and n > 0, "count": n, "error": err or ("최근 1주 0건" if not n else "")})
+        status.append({"name": f'{feed["outlet"]}(깊이 읽기)', "ok": err is None and n > 0, "count": n, "error": err or ("최근 1주 0건" if not n else "")})
     rows.sort(key=lambda x: x["date"], reverse=True)
     return rows, status
 
@@ -1556,12 +1556,12 @@ DEEP_COLOR = {"슬로우뉴스": 0, "뉴스타파": 1, "셜록": 2, "시사IN": 
 
 
 def deep_color(k):
-    """맥락·탐사 매체(또는 매거진 묶음)마다 겹치지 않는 색 번호 0~7"""
+    """깊이 읽기 매체(또는 매거진 묶음)마다 겹치지 않는 색 번호 0~7"""
     return DEEP_COLOR.get(k, outlet_color(k))
 
 
 def render_deep(rows, now):
-    """맥락·탐사 탭 본문: 매체 버튼 + 글 목록(사진·제목·요약·매체·날짜)"""
+    """깊이 읽기 탭 본문: 매체 버튼 + 글 목록(사진·제목·요약·매체·날짜)"""
     if not rows:
         return ""
     cnt = Counter(x.get("grp") or x["outlet"] for x in rows)
@@ -1577,7 +1577,7 @@ def render_deep(rows, now):
                 f'{d.month}.{d.day} ({WEEK[d.weekday()]})</div><div class="bt">{link(x["url"], x["title"])}</div>'
                 + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>")
     return (f'<div class="pg" data-c="{DEEP_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
-            f'<div class="shead" style="padding-top:12px"><h2>맥락·탐사</h2><span class="en">IN DEPTH · 최근 1주 {len(rows)}건</span></div>'
+            f'<div class="shead" style="padding-top:12px"><h2>깊이 읽기</h2><span class="en">IN DEPTH · 최근 1주 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="dcat" role="group" aria-label="매체">{chips}</div>'
             f'<ul class="blist dlist" id="dl">{"".join(row(x) for x in rows)}</ul>'
             f'<p class="note">속보보다 맥락·해설·탐사에 힘쓰는 독립 매체들과 주·월간 시사지·라이프 전문지의 최근 1주 글입니다. 제목과 요약 앞부분만 보여 주며, 글은 원문에서 읽습니다.</p>'
@@ -1585,7 +1585,7 @@ def render_deep(rows, now):
 
 
 def render_deep_side(rows):
-    """맥락·탐사 탭 오른쪽 칸: 매체 소개와 이번 주 글 수, 바로 가기"""
+    """깊이 읽기 탭 오른쪽 칸: 매체 소개와 이번 주 글 수, 바로 가기"""
     cnt = Counter(x["outlet"] for x in rows or [])
     gc = Counter(x.get("grp") for x in rows or [] if x.get("grp"))
     lis = "".join(f'<li><b class="ot oc{deep_color(o)}">{esc(o)}</b> {link(h, DEEP_DESC.get(o, ""))}<span class="o">{cnt.get(o, 0)}건</span></li>'
@@ -2929,6 +2929,7 @@ function navFade(){if(nav)nav.classList.toggle('more',nav.scrollLeft+nav.clientW
 if(nav){nav.addEventListener('scroll',navFade,{passive:true});addEventListener('resize',navFade)}
 tabs.forEach(b=>b.onclick=()=>show(b.dataset.c));
 let c='전체';try{c=localStorage.getItem('trend_tab')||'전체'}catch(e){}
+c=({'맥락·탐사':'깊이 읽기','주식':'경제'})[c]||c;
 if(location.hash==='#home'){c='전체';try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
 document.querySelectorAll('a.home').forEach(a=>a.addEventListener('click',e=>{if(!tabs.length||![...tabs].some(b=>b.dataset.c==='전체'))return;
 e.preventDefault();const sm=document.getElementById('smodal');if(sm&&sm.open)sm.close();show('전체');scrollTo({top:0,behavior:'smooth'})}));
@@ -3723,7 +3724,7 @@ def load_feeds():
 
 
 # ── 검색: 최근 15일 기사 목록(site/search.json) ──
-# 매시간 지금 화면의 기사(사건 묶음 링크·책·맥락·탐사·파주시청)를 history/search_index.json에 모아 두고 15일이 지난 것은 뺀다.
+# 매시간 지금 화면의 기사(사건 묶음 링크·책·깊이 읽기·파주시청)를 history/search_index.json에 모아 두고 15일이 지난 것은 뺀다.
 # 처음 한 번은 history/의 시간별 기록(최대 7일)으로 채운다. 날짜는 그 기사가 처음 보인 시각과 사건 묶음 최근 시각 중 이른 쪽.
 SEARCH_INDEX = os.path.join(HERE, "history", "search_index.json")
 SEARCH_DAYS = 15
@@ -3737,7 +3738,7 @@ def _search_rows(d):
     def add(url, title, outlet, date, tab):
         if not url or not title or not date:
             return
-        tab = "경제" if tab in ("주식", ECON_ONLY) else tab  # 2026-11-09 주식 탭을 경제에 합침
+        tab = "경제" if tab in ("주식", ECON_ONLY) else DEEP_TAB if tab == "맥락" + "·탐사" else tab  # 주식→경제(11-09), 맥락·탐사→깊이 읽기(11-10)
         r = out.get(url)
         if r:
             if date < r[2]:
@@ -3779,6 +3780,8 @@ def build_search(data, now, out_dir, persist=True):
             for r in idx.values():  # 주식 탭을 경제에 합침(2026-11-09)
                 if len(r) > 3 and r[3] == "주식":
                     r[3] = "경제"
+                if len(r) > 3 and r[3] == "맥락" + "·탐사":  # 탭 이름 바뀜(2026-11-10)
+                    r[3] = DEEP_TAB
         except Exception:  # 처음: 시간별 기록으로 채우기
             hd = os.path.join(HERE, "history")
             for fn in sorted(os.listdir(hd)) if os.path.isdir(hd) else []:
@@ -4053,7 +4056,7 @@ def main():
         mags, mstatus = fetch_daum_magazines(now)
         pstatus += mstatus
         deep = sorted(deep + mags, key=lambda x: x["date"], reverse=True)
-        pstatus.append({"name": "맥락·탐사 원문 사진·소개글", "ok": True, "count": n_dimg, "error": ""})
+        pstatus.append({"name": "깊이 읽기 원문 사진·소개글", "ok": True, "count": n_dimg, "error": ""})
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
         ok_feeds = sum(1 for s in status if s["ok"])
