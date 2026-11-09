@@ -265,7 +265,7 @@ def collect():
     jobs = {"news": news}
     if key:
         jobs.update(ncst=lambda: ncst(key, nx, ny), ultra=lambda: ultra(key, nx, ny), vilage=lambda: vilage(key, nx, ny),
-                    mid=lambda: mid(key), air=lambda: air(key), uv=lambda: uv(key), nation=lambda: nation(key), past=lambda: past(key))
+                    mid=lambda: mid(key), air=lambda: air(key), uv=lambda: uv(key), nation=lambda: nation(key), past=lambda: past(key, 15))
 
     def one(name, fn):
         try:
