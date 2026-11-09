@@ -22,6 +22,7 @@ KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
 TIMEOUT = 15
 CATEGORIES = ["전체", "정치", "경제", "주식", "사회", "스포츠", "연예", "파주"]
+ECON_ONLY = "_경제일반"  # 경제 탭 안 작은 탭용(메인 메뉴에는 안 나옴)
 # 관심 분야 탭: 구글뉴스 검색으로 모은 기사 + 수집한 모든 기사 중 제목에 해당 낱말이 있는 것.
 # 다룬 곳이 적어서 한 언론사만 쓴 기사도 보여 준다. 이 탭에서만 쓰는 기사는 전체·주식 탭에 넣지 않는다.
 NICHE = {
@@ -3436,8 +3437,11 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         pages = {only: pages[only]}
         graphic, portals, interactive, books, deep, visual, photo, bcast = None, {}, None, None, None, None, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
-    else:  # 2026-11-09: 메인 사이트는 주식 탭을 경제 탭에 합쳤다(주식 기사도 경제에). 주식 단독 페이지(stock.html)는 그대로
-        pages = {k: v for k, v in pages.items() if k != "주식"}
+    else:  # 2026-11-09: 메인 사이트는 주식 탭을 경제 탭에 합쳤다. 경제 탭 안에 '전체 | 경제 | 증시' 작은 탭. 주식 단독 페이지(stock.html)는 그대로
+        econ_sub = {"econ": pages.get(ECON_ONLY), "stock": pages.get("주식")}
+        pages = {k: v for k, v in pages.items() if k not in ("주식", ECON_ONLY)}
+    if only:
+        econ_sub = {}
     bpanel = render_broadcast(bcast)
     gpanel = render_deep(deep or [], now) + bpanel + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_photo(photo or []) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
@@ -3474,11 +3478,21 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
             f'<button type="button" class="tk" data-k="{esc(k)}" title="‘{esc(k)}’ 기사 검색">{esc(k)}</button>' for k in uniq[:12]) + "</span>")
     ticker = '<div class="ticker"><span class="tag">급상승</span>' + "".join(tk(c) for c in tick_keys) + "</div>"
     body = []
+
+    def page_main(p, c, label, kwlab):
+        return (f'{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
+                f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(kwlab)}</h2>'
+                f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section>')
     for c, p in pages.items():
         label = "오늘의 사건" if c == "전체" else ("증시" if c == "주식" else c)
-        main = (f'{render_clusters(p["clusters"], now, label, render_photos(p, c))}{render_timeline(p, now, c)}'
-                f'<section class="shelf"><div class="shead"><h2>언론사 {2 if c in NICHE else 3}곳 이상이 쓴 낱말{"" if c == "전체" else " · " + esc(c)}</h2>'
-                f'<span class="en">KEYWORDS</span></div>{render_keywords(p["keywords"])}</section>')
+        main = page_main(p, c, label, c)
+        if c == "경제" and econ_sub.get("econ") and econ_sub.get("stock"):  # 경제 탭: 전체 | 경제 | 증시
+            main = ('<div class="subtabs" role="tablist" aria-label="경제 기사 보기"><button type="button" role="tab" class="on" aria-selected="true" data-v="all">전체</button>'
+                    '<button type="button" role="tab" aria-selected="false" data-v="econ">경제</button>'
+                    '<button type="button" role="tab" aria-selected="false" data-v="stock">증시</button></div>'
+                    f'<div class="subv" data-v="all">{main}</div>'
+                    f'<div class="subv" data-v="econ" hidden>{page_main(econ_sub["econ"], "경제", "경제", "경제(증시 빼고)")}</div>'
+                    f'<div class="subv" data-v="stock" hidden>{page_main(econ_sub["stock"], "주식", "증시", "증시")}</div>')
         city = render_paju_city(paju_city) if c == "파주" else ""
         if city:  # 파주 탭: 신문뉴스 | 파주뉴스(파주시청) 전환
             main = ('<div class="subtabs" role="tablist" aria-label="파주 소식 보기"><button type="button" role="tab" class="on" aria-selected="true" data-v="news">신문뉴스</button>'
@@ -3723,7 +3737,7 @@ def _search_rows(d):
     def add(url, title, outlet, date, tab):
         if not url or not title or not date:
             return
-        tab = "경제" if tab == "주식" else tab  # 2026-11-09 주식 탭을 경제에 합침
+        tab = "경제" if tab in ("주식", ECON_ONLY) else tab  # 2026-11-09 주식 탭을 경제에 합침
         r = out.get(url)
         if r:
             if date < r[2]:
@@ -4053,9 +4067,11 @@ def main():
     items = clean(items, args.hours, now)
     # 분야별 묶기: 전체 탭은 모든 기사, 분야 탭은 해당 분야 피드의 기사만
     pages, subs = {}, {}
-    for c in CATEGORIES:
+    for c in CATEGORIES + [ECON_ONLY]:
         niche_only = lambda a: a.get("cats", {a["category"]}) <= set(NICHE)  # 관심 탭 검색으로만 들어온 기사
-        if c == "전체":
+        if c == ECON_ONLY:  # 경제 탭 안의 '경제' 보기: 주식 기사를 뺀 경제 기사
+            sub = [a for a in items if "경제" in a.get("cats", {a["category"]}) and not is_stock(a) and not niche_only(a)]
+        elif c == "전체":
             sub = [a for a in items if not niche_only(a)]
         elif c == "주식":
             sub = [a for a in items if is_stock(a) and not niche_only(a)]
