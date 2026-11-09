@@ -569,8 +569,9 @@ def fetch_daum_interactive(now=None):
         got.add(url)
         first = seen.get(url) or (now - timedelta(seconds=n)).isoformat()  # 처음 본 날(같은 날이면 다음이 보여 준 순서)
         seen[url] = first
-        ym = re.search(r"/(20\d\d)/|/[A-Z](\d\d)\d{4}/", url)
-        dl = ("20" + ym.group(2) if ym.group(2) else ym.group(1)) if ym else ""
+        ym = re.search(r"/(20\d\d)/", url)
+        ymd = re.search(r"/[A-Z](\d\d)(\d\d)(\d\d)/", url)  # 노컷 story/S250715/ → 2025.07.15
+        dl = f"20{ymd.group(1)}.{ymd.group(2)}.{ymd.group(3)}" if ymd else (ym.group(1) if ym else "")
         out.append({"title": re.sub(r"\s+", " ", _jstr(m.group(4))).strip(), "url": url, "img": ("https://img1.daumcdn.net/thumb/R600x0/?fname=" + urllib.parse.quote(_jstr(m.group(1)), safe="")) if m.group(1) else None,  # 원본 2500px → 600px
                     "outlet": _jstr(m.group(3)), "date": first, "dl": dl, "desc": _jstr(m.group(2))[:120]})
     try:
@@ -681,6 +682,58 @@ def fetch_daum_photos(now, days=3):
                             "photos": [{"u": img}], "outlet": r.get("cpName") or "", "col": col, "src": "daum"})
     out.sort(key=lambda x: x["date"], reverse=True)
     return out, [{"name": "포토 사진으로 본 오늘(다음뉴스)", "ok": bool(out), "count": len(out), "error": f"연재 {len(cl)}개" if out else "사진 0장"}]
+
+
+# 인터랙티브 중 날짜를 모르는 것(연도만 알거나 아예 없는 것): 원문 페이지의 발행일 표시(meta·JSON-LD·<time>)를 한 번 찾아 기억한다.
+INTER_DATES = os.path.join(HERE, "history", "inter_dates.json")
+_PUB_RX = [re.compile(p, re.I) for p in (
+    r'<meta[^>]+(?:property|name|itemprop)=["\'](?:article:published_time|og:published_time|pubdate|publishdate|date|datePublished|article\.published|dc\.date)["\'][^>]+content=["\']([^"\']+)',
+    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name|itemprop)=["\'](?:article:published_time|og:published_time|pubdate|publishdate|date|datePublished)["\']',
+    r'"datePublished"\s*:\s*"([^"]+)"',
+    r'<time[^>]+datetime=["\']([^"\']+)',
+)]
+
+
+def inter_dates(rows, now, max_new=40):
+    """날짜가 연도뿐이거나 없는 인터랙티브에 원문 발행일을 붙인다(dl='YYYY.MM.DD'). 못 찾은 것은 30일 뒤 다시."""
+    try:
+        cache = json.load(open(INTER_DATES, encoding="utf-8"))
+    except Exception:
+        cache = {}
+    today = now.strftime("%Y-%m-%d")
+    need = [x for x in rows if "dl" in x and not re.match(r"\d{4}\.\d\d\.\d\d$", x.get("dl") or "")]
+    todo = [x for x in need if x["url"] not in cache or (not cache[x["url"]].get("d") and cache[x["url"]].get("t", "") < (now - timedelta(days=30)).strftime("%Y-%m-%d"))][:max_new]
+
+    def work(x):
+        try:
+            if not robots_allows(x["url"]):
+                return x["url"], {"t": today, "why": "robots"}
+            body = http_get(x["url"]).decode("utf-8", "ignore")[:300000]
+            for rx in _PUB_RX:
+                for m in rx.finditer(body):
+                    d = parse_date(m.group(1))
+                    if d and datetime(2010, 1, 1, tzinfo=KST) <= d <= now + timedelta(days=1):
+                        return x["url"], {"t": today, "d": d.isoformat()}
+            return x["url"], {"t": today}
+        except Exception as e:
+            return x["url"], {"t": today, "why": type(e).__name__}
+    with ThreadPoolExecutor(6) as ex:
+        for u, v in ex.map(work, todo):
+            cache[u] = v
+    n = 0
+    for x in need:
+        d = (cache.get(x["url"]) or {}).get("d")
+        if d:
+            dt = datetime.fromisoformat(d)
+            x["dl"] = dt.strftime("%Y.%m.%d")
+            x["date"] = d
+            n += 1
+    try:
+        os.makedirs(os.path.dirname(INTER_DATES), exist_ok=True)
+        json.dump(cache, open(INTER_DATES, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return len(need), n
 
 
 INTER_HOME = {"경향신문": KHAN_INTERACTIVE, "한국일보": HANKOOK_INTERACTIVE, "조선일보": CHOSUN_INTERACTIVE}
@@ -3828,6 +3881,8 @@ def main():
         drows = [x for x in drows if x["url"].rstrip("/") not in have]
         pstatus.append({"name": "다음뉴스 인터랙티브 모음", "ok": derr is None, "count": len(drows), "error": derr or ""})
         inter += drows
+        n_need, n_got = inter_dates(inter, now)
+        pstatus.append({"name": "인터랙티브 원문 발행일", "ok": True, "count": n_got, "error": f"날짜 모르는 {n_need}건 중" if n_need else ""})
         books, bstatus = fetch_books(now)
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
