@@ -3436,6 +3436,8 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         pages = {only: pages[only]}
         graphic, portals, interactive, books, deep, visual, photo, bcast = None, {}, None, None, None, None, None, None
         nitems = sum(c for _, c in pages[only].get("hourly", [])) or nitems
+    else:  # 2026-11-09: 메인 사이트는 주식 탭을 경제 탭에 합쳤다(주식 기사도 경제에). 주식 단독 페이지(stock.html)는 그대로
+        pages = {k: v for k, v in pages.items() if k != "주식"}
     bpanel = render_broadcast(bcast)
     gpanel = render_deep(deep or [], now) + bpanel + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_photo(photo or []) + render_interactive(interactive or [])
     first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
@@ -3721,6 +3723,7 @@ def _search_rows(d):
     def add(url, title, outlet, date, tab):
         if not url or not title or not date:
             return
+        tab = "경제" if tab == "주식" else tab  # 2026-11-09 주식 탭을 경제에 합침
         r = out.get(url)
         if r:
             if date < r[2]:
@@ -3740,7 +3743,7 @@ def _search_rows(d):
     for x in d.get("deep") or []:
         add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), DEEP_TAB)
     for g in d.get("photo") or []:
-        add(g.get("url"), g.get("title"), "연합뉴스", g.get("date"), PHOTO_TAB)
+        add(g.get("url"), g.get("title"), g.get("outlet") or "연합뉴스", g.get("date"), PHOTO_TAB)
     for x in d.get("visual") or []:
         add(x.get("url"), x.get("title"), x.get("outlet"), x.get("date"), VISUAL_TAB)
     pc = d.get("paju_city") or {}
@@ -3759,6 +3762,9 @@ def build_search(data, now, out_dir, persist=True):
     if persist:
         try:
             idx = json.load(open(SEARCH_INDEX, encoding="utf-8"))
+            for r in idx.values():  # 주식 탭을 경제에 합침(2026-11-09)
+                if len(r) > 3 and r[3] == "주식":
+                    r[3] = "경제"
         except Exception:  # 처음: 시간별 기록으로 채우기
             hd = os.path.join(HERE, "history")
             for fn in sorted(os.listdir(hd)) if os.path.isdir(hd) else []:
@@ -4055,8 +4061,8 @@ def main():
             sub = [a for a in items if is_stock(a) and not niche_only(a)]
         elif c in NICHE:  # 그 탭 검색으로 온 기사 중 제목에 낱말이 있는 것 + 다른 피드 기사 중 제목에 낱말이 있는 것
             sub = [a for a in items if NICHE[c].search(a["title"])]
-        elif c == "경제":  # 주식 기사는 주식 탭으로만 (두 탭이 겹치지 않게)
-            sub = [a for a in items if "경제" in a.get("cats", {a["category"]}) and not is_stock(a)]
+        elif c == "경제":  # 2026-11-09: 주식 탭을 합쳐 경제 피드 기사 + 주식 기사(증권 피드·증시 낱말) 모두
+            sub = [a for a in items if ("경제" in a.get("cats", {a["category"]}) or is_stock(a)) and not niche_only(a)]
         else:
             sub = [a for a in items if c in a.get("cats", {a["category"]})]
         if not sub and c != "전체":
