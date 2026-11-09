@@ -2771,7 +2771,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .fest.empty{display:none!important}
 .fest .fest-card{border:1px solid var(--rule);border-radius:10px;padding:12px;background:var(--paper-3)}
-.fest .fest-img{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:3/4;background:var(--paper-2)}.fest .fest-img .bg{position:absolute;inset:-20px;background-size:cover;background-position:center;filter:blur(18px) brightness(.7)}.fest .fest-img img{position:relative;width:100%;height:100%;object-fit:contain;display:block}
+.fest{margin-bottom:34px}.fest .fest-img{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/5;background:var(--paper-2)}.fest .fest-img .bg{display:none}.fest .fest-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
 .fest .fest-noimg{height:100%;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;font-weight:800;font-size:20px;color:var(--ink-soft)}
 .fest .fest-tt{display:flex;align-items:center;gap:8px;margin-top:12px}.fest .fest-tt b{font-size:17px;line-height:1.35}
 .fest .fest-st{flex:none;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--teal-tint);color:var(--teal)}
