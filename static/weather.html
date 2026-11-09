@@ -301,6 +301,22 @@ const TIP = {"자외선": ["자외선 걱정 없어요", "외출 땐 모자를 �
   "감기": ["감기 걱정 적어요", "일교차 커요, 겉옷 챙기기", "감기 조심하세요"], "마스크": ["마스크 없이 괜찮아요", "민감하면 쓰세요", "마스크 꼭 쓰세요"]};
 const GI = {good: 0, ok: 1, bad: 2}, GN = {good: "좋음", ok: "보통", bad: "나쁨"};
 
+// 지난 날씨 차트: 카드 너비를 꽉 채우도록 칸 폭을 계산해 그림
+function drawPast(){
+  const box = document.querySelector("#pastc .pscroll"), P = window.__P || []; if(!box || !P.length) return;
+  const n2 = P.length, PW = Math.max(46, Math.floor(box.clientWidth / n2)), PH = 200, top = 26, bot = 26;
+  const allT = P.flatMap(r => [+r.minTa, +r.maxTa]), lo2 = Math.min(...allT), hi2 = Math.max(...allT), r2 = Math.max(1, hi2 - lo2);
+  const yy = v => top + (hi2 - v) / r2 * (PH - top - bot), xx = i => i * PW + PW / 2;
+  const mxL = P.map((r, i) => `${xx(i)},${yy(+r.maxTa).toFixed(1)}`).join(" "), mnL = P.map((r, i) => `${xx(i)},${yy(+r.minTa).toFixed(1)}`).join(" ");
+  const bars = P.map((r, i) => { const a = yy(+r.maxTa), b = yy(+r.minTa);
+    return `<rect x="${xx(i) - 4}" y="${a.toFixed(1)}" width="8" height="${Math.max(2, b - a).toFixed(1)}" rx="4" fill="url(#pg)"/><text x="${xx(i)}" y="${(a - 8).toFixed(1)}" text-anchor="middle" class="pmx">${Math.round(+r.maxTa)}°</text><text x="${xx(i)}" y="${(b + 16).toFixed(1)}" text-anchor="middle" class="pmn">${Math.round(+r.minTa)}°</text>`; }).join("");
+  const lab = P.map(r => { const d = new Date(r.tm), rn = parseFloat(r.sumRn) || 0;
+    return `<div class="pl${d.getDay() === 0 ? " sun" : d.getDay() === 6 ? " sat" : ""}"><b>${DAYS[d.getDay()]}</b><span>${d.getMonth() + 1}.${pad(d.getDate())}</span><em class="${rn ? "hi" : ""}">${rn ? "☂" + rn : "·"}</em></div>`; }).join("");
+  box.innerHTML = `<div style="width:${n2 * PW}px"><svg class="pchart" width="${n2 * PW}" height="${PH}"><defs><linearGradient id="pg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--red)"/><stop offset="1" stop-color="var(--cold)"/></linearGradient></defs>
+    <polyline points="${mxL}" fill="none" stroke="var(--red)" stroke-width="1.2" opacity=".7"/><polyline points="${mnL}" fill="none" stroke="var(--cold)" stroke-width="1.2" opacity=".7"/>${bars}</svg>
+    <div class="plabs" style="grid-template-columns:repeat(${n2},${PW}px)">${lab}</div></div>`;
+}
+addEventListener("resize", () => drawPast());
 // ── 네이버 날씨 배치 (11-09): 왼쪽 = 지금 날씨 · 오늘/내일/모레 · 시간별(탭) · 주간 / 오른쪽 = 미세먼지 · 생활지수 · 일출일몰 · 뉴스 ──
 let HT = "wx";   // 시간별 탭: wx 날씨 · rain 강수 · wind 바람 · hum 습도
 function render(D){
@@ -435,22 +451,10 @@ function render(D){
     <div class="moonrow"><svg viewBox="0 0 72 72" class="moon"><circle cx="${mc}" cy="${mc}" r="${mr}" fill="#5b5b60"/>${lit}<circle cx="26" cy="28" r="4" fill="#000" opacity=".12"/><circle cx="45" cy="44" r="6" fill="#000" opacity=".1"/></svg><div><b>${moonName(mi)}</b></div></div>
     <table class="rs"><tr><th></th><th>월출</th><th>월몰</th></tr><tr><td>오늘</td><td>${t2(mT.rise)}</td><td>${t2(mT.set)}</td></tr><tr><td>내일</td><td>${t2(mN.rise)}</td><td>${t2(mN.set)}</td></tr></table></section>`;
 
-  // ⑨ 지난 15일 (문산 관측소) — 막대(최저~최고) + 최고·최저를 잇는 얇은 선
+  // ⑨ 지난 15일 (문산 관측소) — 칸 폭은 그린 뒤 카드 너비에 맞춰 drawPast() 가 채움
   const P = (D.past || []).slice(-15).filter(r => r.maxTa !== "" && r.minTa !== "");
-  let pastCard = "";
-  if(P.length){
-    const allT = P.flatMap(r => [+r.minTa, +r.maxTa]), lo2 = Math.min(...allT), hi2 = Math.max(...allT), r2 = Math.max(1, hi2 - lo2);
-    const PW = 56, PH = 190, top = 26, bot = 26, n2 = P.length, yy = v => top + (hi2 - v) / r2 * (PH - top - bot), xx = i => i * PW + PW / 2;
-    const mxL = P.map((r, i) => `${xx(i)},${yy(+r.maxTa).toFixed(1)}`).join(" "), mnL = P.map((r, i) => `${xx(i)},${yy(+r.minTa).toFixed(1)}`).join(" ");
-    const bars = P.map((r, i) => { const a = yy(+r.maxTa), b = yy(+r.minTa);
-      return `<rect x="${xx(i) - 4}" y="${a.toFixed(1)}" width="8" height="${Math.max(2, b - a).toFixed(1)}" rx="4" fill="url(#pg)"/>
-        <text x="${xx(i)}" y="${(a - 8).toFixed(1)}" text-anchor="middle" class="pmx">${Math.round(+r.maxTa)}°</text><text x="${xx(i)}" y="${(b + 16).toFixed(1)}" text-anchor="middle" class="pmn">${Math.round(+r.minTa)}°</text>`; }).join("");
-    const svgP = `<svg class="pchart" width="${n2 * PW}" height="${PH}"><defs><linearGradient id="pg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--red)"/><stop offset="1" stop-color="var(--cold)"/></linearGradient></defs>
-      <polyline points="${mxL}" fill="none" stroke="var(--red)" stroke-width="1.2" opacity=".7"/><polyline points="${mnL}" fill="none" stroke="var(--cold)" stroke-width="1.2" opacity=".7"/>${bars}</svg>`;
-    const lab = P.map(r => { const d = new Date(r.tm), rn = parseFloat(r.sumRn) || 0;
-      return `<div class="pl${d.getDay() === 0 ? " sun" : d.getDay() === 6 ? " sat" : ""}"><b>${DAYS[d.getDay()]}</b><span>${d.getMonth() + 1}.${pad(d.getDate())}</span><em class="${rn ? "hi" : ""}">${rn ? "☂" + rn : "·"}</em></div>`; }).join("");
-    pastCard = `<section class="wcard"><div class="h2row"><h2>지난 날씨</h2><span class="hint">최근 ${n2}일 · 기상청 문산 관측소(파주) · ☂ 비 온 양(mm)</span></div>
-      <div class="pscroll"><div style="width:${n2 * PW}px">${svgP}<div class="plabs" style="grid-template-columns:repeat(${n2},${PW}px)">${lab}</div></div></div></section>`; }
+  const pastCard = P.length ? `<section class="wcard" id="pastc"><div class="h2row"><h2>지난 날씨</h2><span class="hint">최근 ${P.length}일 · 기상청 문산 관측소(파주) · ☂ 비 온 양(mm)</span></div><div class="pscroll"></div></section>` : "";
+  window.__P = P;
 
   // ⑩ 전국 날씨 (위경도로 자리 잡은 지도식 배치, 붙어 있는 도시는 조금씩 비켜 놓음)
   const NOFF = {"파주": [-30, -34], "서울": [48, -4], "인천": [-46, 30], "수원": [-34, 14], "청주": [36, -6], "대전": [-16, 24], "안동": [10, -24], "대구": [-20, 22], "울산": [34, -8], "부산": [-14, 26], "춘천": [10, -10], "전주": [-10, 0]};
@@ -463,6 +467,7 @@ function render(D){
 
   html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}${pastCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>`;
   body.innerHTML = html;
+  drawPast();
   body.querySelectorAll("[data-ht]").forEach(b => b.onclick = () => { HT = b.dataset.ht; const x = body.querySelector(".hscroll").scrollLeft; render(window.__D); body.querySelector(".hscroll").scrollLeft = x; });
   const hs = body.querySelector(".hscroll"); if(hs) hs.addEventListener("wheel", e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ hs.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
 }
