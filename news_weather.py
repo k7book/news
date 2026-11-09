@@ -205,7 +205,8 @@ def culture(key):
         its = root.findall(".//item")
         for it in its:
             g = lambda k: (it.findtext(k) or "").strip()
-            if "파주" not in g("sigungu") + g("place") + g("area") and g("sigungu"):
+            # 지역(시군구)이 비어 있는 건 다른 지역(부천·수원·양평 등) 행사가 섞여 들어와서 뺀다 — 파주가 확인되는 것만
+            if "파주" not in g("sigungu") + g("place") + g("area") + g("title"):
                 continue
             out.append({"title": g("title"), "addr": g("place"), "start": g("startDate").replace(".", "").replace("-", ""),
                         "end": g("endDate").replace(".", "").replace("-", ""), "img": g("thumbnail").replace("http://", "https://"),
