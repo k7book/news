@@ -63,26 +63,44 @@ def items(d):
     return it if isinstance(it, list) else ([it] if it else [])
 
 
-def ncst(key, nx, ny):
+def _try(fn, tries=4):
+    """기상청이 막 발표 시각엔 '03 NO_DATA'를 주므로 한 시간씩 앞으로 당겨 다시 받는다"""
     t = now_kst() - timedelta(minutes=45)
-    for back in (0, 1):
-        b = t - timedelta(hours=back)
-        it = items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtNcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 50, "dataType": "JSON",
-                                                                          "base_date": b.strftime("%Y%m%d"), "base_time": b.strftime("%H00"), "nx": nx, "ny": ny}))
-        if it:
-            out = {i["category"]: i["obsrValue"] for i in it}
-            out["at"] = it[0]["baseDate"] + it[0]["baseTime"]
-            return out
+    last = None
+    for back in range(tries):
+        try:
+            got = fn(t - timedelta(hours=back))
+            if got:
+                return got
+        except RuntimeError as e:
+            last = e
+            if "NO_DATA" not in str(e) and not str(e).startswith("03"):
+                raise
+    if last:
+        raise last
     return {}
 
 
+def ncst(key, nx, ny):
+    def one(b):
+        it = items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtNcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 50, "dataType": "JSON",
+                                                                          "base_date": b.strftime("%Y%m%d"), "base_time": b.strftime("%H00"), "nx": nx, "ny": ny}))
+        if not it:
+            return {}
+        out = {i["category"]: i["obsrValue"] for i in it}
+        out["at"] = it[0]["baseDate"] + it[0]["baseTime"]
+        return out
+    return _try(one)
+
+
 def ultra(key, nx, ny):
-    t = now_kst() - timedelta(minutes=45)
-    out = {}
-    for i in items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 200, "dataType": "JSON",
-                                                                         "base_date": t.strftime("%Y%m%d"), "base_time": t.strftime("%H30"), "nx": nx, "ny": ny})):
-        out.setdefault(i["fcstDate"] + i["fcstTime"], {})[i["category"]] = i["fcstValue"]
-    return out
+    def one(b):
+        out = {}
+        for i in items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 200, "dataType": "JSON",
+                                                                             "base_date": b.strftime("%Y%m%d"), "base_time": b.strftime("%H30"), "nx": nx, "ny": ny})):
+            out.setdefault(i["fcstDate"] + i["fcstTime"], {})[i["category"]] = i["fcstValue"]
+        return out
+    return _try(one)
 
 
 def vilage(key, nx, ny):
