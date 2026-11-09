@@ -1,0 +1,197 @@
+# -*- coding: utf-8 -*-
+"""날씨 탭 (weather.html): 파주 운정 동네 날씨 자료를 site/weather.json 으로 저장한다.
+
+- 기상청 초단기실황·초단기예보·단기예보·중기예보·자외선지수, 에어코리아(운정 측정소), 구글 뉴스 '날씨'
+- 열쇠: 환경변수 DATA_GO_KR_KEY (공공데이터포털 일반 인증키 Decoding). GitHub Actions 에서는 Secrets 의 DATA_GO_KR_KEY.
+  열쇠가 없으면 뉴스만 담고 화면에 '열쇠 없음'을 보여 준다.
+- 화면은 static/weather.html (weather.json 을 읽어 그림), 아이콘은 static/wx/ (Meteocons, MIT)
+- 표준 라이브러리만 사용. 내데스크(desk/weather.py)와 같은 자료 모양을 쓴다.
+"""
+import json, math, os, threading, time, urllib.parse, urllib.request, xml.etree.ElementTree as ET
+from datetime import datetime, timedelta, timezone
+
+KST = timezone(timedelta(hours=9))
+LOC = {"name": "파주시 운정1동", "lat": 37.7183, "lon": 126.7580, "air_station": "운정",
+       "mid_land": "11B00000", "mid_ta": "11B20305", "area_no": "4148000000"}
+KMA = "http://apis.data.go.kr/1360000"
+
+
+def now_kst():
+    return datetime.now(KST).replace(tzinfo=None)
+
+
+def grid(lat, lon):
+    """위경도 → 기상청 격자(nx, ny)"""
+    RE, GRID, SLAT1, SLAT2, OLON, OLAT, XO, YO = 6371.00877, 5.0, 30.0, 60.0, 126.0, 38.0, 43, 136
+    D = math.pi / 180.0
+    re_ = RE / GRID
+    sl1, sl2, olon, olat = SLAT1 * D, SLAT2 * D, OLON * D, OLAT * D
+    sn = math.log(math.cos(sl1) / math.cos(sl2)) / math.log(math.tan(math.pi * .25 + sl2 * .5) / math.tan(math.pi * .25 + sl1 * .5))
+    sf = (math.tan(math.pi * .25 + sl1 * .5) ** sn) * math.cos(sl1) / sn
+    ro = re_ * sf / (math.tan(math.pi * .25 + olat * .5) ** sn)
+    ra = re_ * sf / (math.tan(math.pi * .25 + lat * D * .5) ** sn)
+    th = lon * D - olon
+    th = (th + 2 * math.pi) % (2 * math.pi)
+    if th > math.pi:
+        th -= 2 * math.pi
+    th *= sn
+    return int(ra * math.sin(th) + XO + .5), int(ro - ra * math.cos(th) + YO + .5)
+
+
+def get(url, params, timeout=20):
+    req = urllib.request.Request(url + "?" + urllib.parse.urlencode(params), headers={"User-Agent": "news-weather/1.0", "Accept": "application/json,*/*"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        raw = r.read().decode("utf-8", "replace")
+    try:
+        return json.loads(raw)
+    except ValueError:
+        msg = raw[:200]
+        try:
+            root = ET.fromstring(raw)
+            msg = " ".join(x.text or "" for x in root.iter() if x.tag in ("returnAuthMsg", "errMsg", "resultMsg")) or msg
+        except Exception:
+            pass
+        raise RuntimeError(msg.strip())
+
+
+def items(d):
+    h = (d.get("response") or {}).get("header") or {}
+    if h.get("resultCode") not in (None, "00"):
+        raise RuntimeError(f"{h.get('resultCode')} {h.get('resultMsg')}")
+    it = (((d.get("response") or {}).get("body") or {}).get("items") or {})
+    it = it.get("item", it) if isinstance(it, dict) else it
+    return it if isinstance(it, list) else ([it] if it else [])
+
+
+def ncst(key, nx, ny):
+    t = now_kst() - timedelta(minutes=45)
+    for back in (0, 1):
+        b = t - timedelta(hours=back)
+        it = items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtNcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 50, "dataType": "JSON",
+                                                                          "base_date": b.strftime("%Y%m%d"), "base_time": b.strftime("%H00"), "nx": nx, "ny": ny}))
+        if it:
+            out = {i["category"]: i["obsrValue"] for i in it}
+            out["at"] = it[0]["baseDate"] + it[0]["baseTime"]
+            return out
+    return {}
+
+
+def ultra(key, nx, ny):
+    t = now_kst() - timedelta(minutes=45)
+    out = {}
+    for i in items(get(KMA + "/VilageFcstInfoService_2.0/getUltraSrtFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 200, "dataType": "JSON",
+                                                                         "base_date": t.strftime("%Y%m%d"), "base_time": t.strftime("%H30"), "nx": nx, "ny": ny})):
+        out.setdefault(i["fcstDate"] + i["fcstTime"], {})[i["category"]] = i["fcstValue"]
+    return out
+
+
+def vilage(key, nx, ny):
+    now = now_kst() - timedelta(minutes=15)
+    h = max([s for s in (2, 5, 8, 11, 14, 17, 20, 23) if s <= now.hour], default=None)
+    base = now if h is not None else now - timedelta(days=1)
+    h = 23 if h is None else h
+    out = {}
+    for i in items(get(KMA + "/VilageFcstInfoService_2.0/getVilageFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 1500, "dataType": "JSON",
+                                                                       "base_date": base.strftime("%Y%m%d"), "base_time": f"{h:02d}00", "nx": nx, "ny": ny})):
+        out.setdefault(i["fcstDate"] + i["fcstTime"], {})[i["category"]] = i["fcstValue"]
+    return {"base": base.strftime("%Y%m%d") + f"{h:02d}00", "hours": out}
+
+
+def mid(key):
+    now = now_kst()
+    tm = now.strftime("%Y%m%d") + ("1800" if now.hour >= 18 else "0600") if now.hour >= 6 else (now - timedelta(days=1)).strftime("%Y%m%d") + "1800"
+    land = items(get(KMA + "/MidFcstInfoService/getMidLandFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 10, "dataType": "JSON", "regId": LOC["mid_land"], "tmFc": tm}))
+    ta = items(get(KMA + "/MidFcstInfoService/getMidTa", {"serviceKey": key, "pageNo": 1, "numOfRows": 10, "dataType": "JSON", "regId": LOC["mid_ta"], "tmFc": tm}))
+    land, ta = (land[0] if land else {}), (ta[0] if ta else {})
+    base = datetime.strptime(tm[:8], "%Y%m%d")
+    days = []
+    for n in range(3, 11):
+        day = {"date": (base + timedelta(days=n)).strftime("%Y%m%d")}
+        if f"wf{n}Am" in land:
+            day.update(am=land.get(f"wf{n}Am"), pm=land.get(f"wf{n}Pm"), popAm=land.get(f"rnSt{n}Am"), popPm=land.get(f"rnSt{n}Pm"))
+        elif f"wf{n}" in land:
+            day.update(am=land.get(f"wf{n}"), pm=land.get(f"wf{n}"), popAm=land.get(f"rnSt{n}"), popPm=land.get(f"rnSt{n}"))
+        if f"taMin{n}" in ta:
+            day.update(tmin=ta.get(f"taMin{n}"), tmax=ta.get(f"taMax{n}"))
+        if len(day) > 1:
+            days.append(day)
+    return {"tmFc": tm, "days": days}
+
+
+def air(key):
+    for i in items(get("http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty",
+                       {"serviceKey": key, "returnType": "json", "numOfRows": 3, "pageNo": 1, "stationName": LOC["air_station"], "dataTerm": "DAILY", "ver": "1.3"})):
+        if str(i.get("pm10Value", "-")).strip("-") or str(i.get("pm25Value", "-")).strip("-"):
+            return {k: i.get(k) for k in ("dataTime", "pm10Value", "pm25Value")} | {"station": LOC["air_station"]}
+    return {"station": LOC["air_station"]}
+
+
+def uv(key):
+    now = now_kst()
+    for back in range(0, 13):
+        try:
+            it = items(get(KMA + "/LivingWthrIdxServiceV5/getUVIdxV5", {"serviceKey": key, "pageNo": 1, "numOfRows": 10, "dataType": "JSON",
+                                                                        "areaNo": LOC["area_no"], "time": (now - timedelta(hours=back)).strftime("%Y%m%d%H")}))
+        except Exception:
+            continue
+        if it:
+            return it[0]
+    raise RuntimeError("자외선지수 없음")
+
+
+def news():
+    url = "https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": "날씨 when:1d", "hl": "ko", "gl": "KR", "ceid": "KR:ko"})
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 news-weather"}), timeout=20) as r:
+        root = ET.fromstring(r.read())
+    out = []
+    for it in root.iter("item"):
+        title, src = (it.findtext("title") or "").strip(), (it.findtext("source") or "").strip()
+        if src and title.endswith(" - " + src):
+            title = title[: -len(src) - 3]
+        out.append({"title": title, "url": it.findtext("link") or "", "source": src, "pub": it.findtext("pubDate") or ""})
+        if len(out) >= 14:
+            break
+    return out
+
+
+def collect():
+    key = os.environ.get("DATA_GO_KR_KEY", "").strip()
+    nx, ny = grid(LOC["lat"], LOC["lon"])
+    res = {"loc": {"name": LOC["name"], "lat": LOC["lat"], "lon": LOC["lon"], "nx": nx, "ny": ny, "air_station": LOC["air_station"]},
+           "need_key": not key, "errors": {}, "built": datetime.now(KST).isoformat(timespec="seconds")}
+    jobs = {"news": news}
+    if key:
+        jobs.update(ncst=lambda: ncst(key, nx, ny), ultra=lambda: ultra(key, nx, ny), vilage=lambda: vilage(key, nx, ny),
+                    mid=lambda: mid(key), air=lambda: air(key), uv=lambda: uv(key))
+
+    def one(name, fn):
+        try:
+            res[name] = fn()
+        except Exception as e:  # 한 곳이 실패해도 나머지는 보여 준다
+            res["errors"][name] = (str(e) or type(e).__name__)[:200]
+
+    ths = [threading.Thread(target=one, args=(n, f), daemon=True) for n, f in jobs.items()]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join(40)
+    return res
+
+
+def build(out_dir):
+    """site/weather.json 저장. 실패해도 뉴스 사이트 생성은 계속되도록 예외를 밖으로 내지 않는다."""
+    t0 = time.time()
+    try:
+        d = collect()
+        with open(os.path.join(out_dir, "weather.json"), "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"날씨: {'열쇠 없음' if d['need_key'] else '받음'} · 오류 {list(d['errors']) or '없음'} · {time.time() - t0:.1f}초")
+    except Exception as e:
+        print("날씨 실패:", e)
+
+
+if __name__ == "__main__":
+    here = os.path.dirname(os.path.abspath(__file__))
+    out = os.path.join(here, "site")
+    os.makedirs(out, exist_ok=True)
+    build(out)

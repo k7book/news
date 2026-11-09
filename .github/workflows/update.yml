@@ -65,6 +65,7 @@ jobs:
           TZ: Asia/Seoul
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}   # 날씨 탭(기상청·에어코리아) — 없으면 날씨 뉴스만
         run: python trend_site.py
 
       - name: deploy 브랜치로 올리기
