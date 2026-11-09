@@ -543,6 +543,48 @@ def fetch_chosun_interactive(limit=12):
     return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
 
 
+# 다음뉴스 홈 '인터랙티브 페이지 모음'(다음이 고른 언론사 인터랙티브): 홈 HTML 안의 목록 데이터에서 제목·소개·언론사·썸네일·주소.
+# news.daum.net 은 robots.txt 없음(2026-11-09 확인). 날짜가 없어 처음 본 날로 순서를 잡고, 주소에 연도가 있으면 연도만 표시.
+DAUM_HOME = "https://news.daum.net/home"
+DAUM_INTER_SEEN = os.path.join(HERE, "history", "daum_inter.json")
+
+
+def fetch_daum_interactive(now=None):
+    now = now or datetime.now(KST)
+    try:
+        if not robots_allows(DAUM_HOME):
+            return [], "robots.txt 차단"
+        body = http_get(DAUM_HOME).decode("utf-8", "ignore")
+    except Exception as e:
+        return [], f"{type(e).__name__}: {str(e)[:60]}"
+    i = body.find("interactive:{layoutMap")
+    chunk = body[i:i + 60000] if i >= 0 else body
+    rx = re.compile(r'\{thumbnail:"([^"]*)",description:"((?:[^"\\]|\\.)*)",source:"([^"]*)",sourceImage:"[^"]*",title:"((?:[^"\\]|\\.)*)",url:"([^"]*)"\}')
+    try:
+        seen = json.load(open(DAUM_INTER_SEEN, encoding="utf-8"))
+    except Exception:
+        seen = {}
+    out, got = [], set()
+    for n, m in enumerate(rx.finditer(chunk)):
+        url = _jstr(m.group(5))
+        if not url.startswith("http") or url in got:
+            continue
+        got.add(url)
+        first = seen.get(url) or (now - timedelta(seconds=n)).isoformat()  # 처음 본 날(같은 날이면 다음이 보여 준 순서)
+        seen[url] = first
+        ym = re.search(r"/(20\d\d)/|/[A-Z](\d\d)\d{4}/", url)
+        dl = ("20" + ym.group(2) if ym.group(2) else ym.group(1)) if ym else ""
+        out.append({"title": re.sub(r"\s+", " ", _jstr(m.group(4))).strip(), "url": url, "img": _jstr(m.group(1)) or None,
+                    "outlet": _jstr(m.group(3)), "date": first, "dl": dl, "desc": _jstr(m.group(2))[:120]})
+    try:
+        os.makedirs(os.path.dirname(DAUM_INTER_SEEN), exist_ok=True)
+        json.dump({k: v for k, v in seen.items() if k in got or v >= (now - timedelta(days=365)).isoformat()},
+                  open(DAUM_INTER_SEEN, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
+
+
 INTER_HOME = {"경향신문": KHAN_INTERACTIVE, "한국일보": HANKOOK_INTERACTIVE, "조선일보": CHOSUN_INTERACTIVE}
 
 
@@ -3663,6 +3705,11 @@ def main():
             rows, ierr = fn()
             pstatus.append({"name": f"{nm} 인터랙티브", "ok": ierr is None, "count": len(rows), "error": ierr or ""})
             inter += rows
+        drows, derr = fetch_daum_interactive(now)  # 다음뉴스 '인터랙티브 페이지 모음' — 언론사 이름 그대로, 주소가 겹치면 언론사 목록 쪽을 남김
+        have = {x["url"].rstrip("/") for x in inter}
+        drows = [x for x in drows if x["url"].rstrip("/") not in have]
+        pstatus.append({"name": "다음뉴스 인터랙티브 모음", "ok": derr is None, "count": len(drows), "error": derr or ""})
+        inter += drows
         books, bstatus = fetch_books(now)
         pstatus += bstatus
         n_todo, n_desc = enrich_books(books)
