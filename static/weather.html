@@ -214,6 +214,7 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 .ntab td{padding:5px 4px;border-top:1px solid var(--rule)}.ntab td:last-child{text-align:right;font-weight:700}.ntab tr.me td{color:var(--red);font-weight:700}
 .hgraph .v.zero{fill:var(--dim);font-weight:400}.hgraph .pmm{font-size:11px;fill:var(--dim)}
 @media (max-width:1000px){.nwrap{grid-template-columns:1fr}}
+.ntab td.nic{padding:0 4px}.ntab td.nic img{display:block}
 </style></head>
 <body><div class="w">
 <!--WX_HEADER-->
@@ -445,7 +446,7 @@ function render(D){
   if(NC.length){ const X = lon => (lon - 125.0) / (130.2 - 125.0) * 100, Y = lat => (38.75 - lat) / (38.75 - 33.05) * 100;
     nationCard = `<section class="wcard"><div class="h2row"><h2>전국 날씨</h2><span class="hint">기상청 초단기실황 · 주요 도시</span></div><div class="nwrap"><div class="nmap"><svg class="kr" viewBox="0 0 750 1000" preserveAspectRatio="none"><path d="${KR_NORTH}" class="kn"/><path d="${KR_SOUTH}" class="ks"/></svg>${NC.map(c => { const sk2 = sky(c.sky, +c.pty || +c.upty);
       const o = NOFF[c.name] || [0, 0];
-      return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td>${esc(sky(c.sky, +c.pty || +c.upty))}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
+      return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td class="nic">${ic(sky(c.sky, +c.pty || +c.upty), night, 28)}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
 
   html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}${pastCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>`;
   body.innerHTML = html;
