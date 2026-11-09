@@ -3445,17 +3445,17 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
         econ_sub = {}
     bpanel = render_broadcast(bcast)
     gpanel = render_deep(deep or [], now) + bpanel + render_visual(visual or []) + render_books(books or [], now, book_info) + render_graphic(graphic) + render_photo(photo or []) + render_interactive(interactive or [])
-    first_niche = next((x for x in NICHE if x in pages), None)  # 관심 탭 앞에 구분선
-    tabs = "".join(f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if c == first_niche else "") + f'>{esc(c)}</button>'
-                   for c in CATEGORIES if c in pages)
-    if gpanel:
-        tabs += f'<button role="tab" data-c="{DEEP_TAB}" class="gtab">{DEEP_TAB}</button>' if deep else ""
-        tabs += f'<button role="tab" data-c="{BCAST_TAB}">{BCAST_TAB}</button>' if bpanel else ""
-        tabs += f'<button role="tab" data-c="{VISUAL_TAB}"{"" if deep else " class=gtab"}>{VISUAL_TAB}</button>' if visual else ""
-        tabs += f'<button role="tab" data-c="{BOOK_TAB}"{"" if deep or visual else " class=gtab"}>{BOOK_TAB}</button>' if books else ""
-        tabs += ('<button role="tab" data-c="그래픽">그래픽</button>' if books else '<button role="tab" data-c="그래픽" class="gtab">그래픽</button>') if graphic else ""
-        tabs += f'<button role="tab" data-c="{PHOTO_TAB}">{PHOTO_TAB}</button>' if photo else ""
-        tabs += '<button role="tab" data-c="인터랙티브">인터랙티브</button>' if interactive else ""
+    # 메뉴 묶음(2026-11-10 재배치): 분야 뉴스 | 읽을거리 | 보는 뉴스 | 우리 동네(파주·날씨). 묶음 첫 탭 앞에 얇은 구분선
+    has = {DEEP_TAB: bool(deep), BOOK_TAB: bool(books), BCAST_TAB: bool(bpanel), PHOTO_TAB: bool(photo), "그래픽": bool(graphic),
+           VISUAL_TAB: bool(visual), "인터랙티브": bool(interactive)} if gpanel else {}
+    groups = [[c for c in CATEGORIES if c in pages and c not in NICHE],
+              [c for c in (DEEP_TAB, BOOK_TAB) if has.get(c)],
+              [c for c in (BCAST_TAB, PHOTO_TAB, "그래픽", VISUAL_TAB, "인터랙티브") if has.get(c)],
+              [c for c in NICHE if c in pages]]
+    tabs = ""
+    for gi, grp in enumerate(g for g in groups if g):
+        for i, c in enumerate(grp):
+            tabs += f'<button role="tab" data-c="{esc(c)}"' + (' class="gtab"' if gi and not i else "") + f'>{esc(c)}</button>'
     if only:
         tabs = f'<button role="tab" data-c="{esc(only)}" style="display:none">{esc(only)}</button><a class="srclink" href="index.html">← 전체 뉴스</a>'
     else:
