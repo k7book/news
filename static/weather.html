@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#1c1c1e">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&display=swap">
+<!--WX_SITECSS-->
 <style>
 /* 지금 뜨는 뉴스와 같은 종이색 테마 (다크모드 자동 + 첫 화면에서 고른 테마 따름) */
 :root{--ink:#14110c;--ink-soft:#39332a;--paper:#ede6d7;--paper-2:#e3dbc9;--paper-3:#f6f1e6;--rule:#cdc3ac;--muted:#544c3c;--dim:#7a705a;
@@ -27,7 +28,7 @@ a{color:inherit}
 .num{font-variant-numeric:tabular-nums}
 h2{margin:0 0 10px;font-family:var(--serif);font-size:19px;display:flex;align-items:baseline;gap:8px}
 h2 small{font-family:var(--sans);font-weight:400;color:var(--dim);font-size:12px}
-.card{background:var(--paper-3);border:1px solid var(--rule);border-radius:4px;padding:16px 18px}
+.wcard{background:var(--paper-3);border:1px solid var(--rule);border-radius:4px;padding:16px 18px}
 .err{margin:12px 0;padding:10px 14px;border:1px solid var(--rule);border-left:4px solid var(--red);background:var(--paper-3);font-size:14px;line-height:1.6}
 /* 배너 */
 .hero{position:relative;overflow:hidden;margin-top:16px;border-radius:6px;color:#f6f3ea;padding:30px 36px;display:grid;grid-template-columns:minmax(360px,440px) minmax(0,1fr);gap:28px;align-items:center;
@@ -67,16 +68,16 @@ h2 small{font-family:var(--sans);font-weight:400;color:var(--dim);font-size:12px
 .hc .pp{font-size:11px;color:var(--dim)}.hc .pp.hi{color:var(--blue);font-weight:700}
 /* 아래 3칸 */
 .tri{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:16px;align-items:stretch}
-.tri>.card{display:flex;flex-direction:column;min-height:0}
+.tri>.wcard{display:flex;flex-direction:column;min-height:0}
 .wr{display:grid;grid-template-columns:72px 38px 38px 40px minmax(0,1fr);align-items:center;gap:6px;padding:5px 2px;border-top:1px solid var(--rule)}
 .wr:first-child{border-top:0}
 .wr.today{background:var(--paper-2)}
 .wr .dd b{font-size:14px}.wr .dd span{color:var(--dim);font-size:11px;margin-left:4px}
 .wr .dd.sun b{color:var(--red)}.wr .dd.sat b{color:var(--blue)}
 .wr .pp{font-size:12px;color:var(--dim)}.wr .pp.hi{color:var(--blue);font-weight:700}
-.tr{display:flex;align-items:center;gap:6px}.tr .mn{color:var(--blue);width:30px;text-align:right}.tr .mx{color:var(--red);width:30px}
-.tr .bar{flex:1;height:6px;border-radius:9px;background:var(--paper-2);position:relative}
-.tr .bar i{position:absolute;top:0;bottom:0;border-radius:9px;background:linear-gradient(90deg,#6ea0ff,#ffcd00,#ff6b6b)}
+.wtr{display:flex;align-items:center;gap:6px}.wtr .mn{color:var(--blue);width:30px;text-align:right}.wtr .mx{color:var(--red);width:30px}
+.wtr .bar{flex:1;height:6px;border-radius:9px;background:var(--paper-2);position:relative}
+.wtr .bar i{position:absolute;top:0;bottom:0;border-radius:9px;background:linear-gradient(90deg,#6ea0ff,#ffcd00,#ff6b6b)}
 .nil{color:var(--dim);text-align:center}
 .ix{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:8px}
 .it{--c:var(--dim);display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:10px;padding:10px;border-radius:6px;position:relative;
@@ -96,9 +97,29 @@ h2 small{font-family:var(--sans);font-weight:400;color:var(--dim);font-size:12px
 footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:var(--dim);font-size:12px;line-height:1.7}
 @media (max-width:1000px){.hero{grid-template-columns:1fr;padding:22px}.tri{grid-template-columns:1fr}.temp{font-size:76px}}
 @media (prefers-reduced-motion:reduce){.hero .glow,.spark .ln{animation:none;stroke-dashoffset:0}}
+/* ---- 지금 뜨는 뉴스 색 한 벌로 맞춤 (11-09) : 종이색·먹·빨강·청록·금 ---- */
+:root{--good:var(--teal);--ok:var(--gold);--bad:var(--red);--lo:var(--teal);--hi:var(--red)}
+.hero,.hero.t-night,.hero.t-cloud,.hero.t-rain{background:var(--paper-3);color:var(--ink);border:1px solid var(--rule);border-top:3px solid var(--red)}
+.hero .g1{background:radial-gradient(circle,color-mix(in srgb,var(--gold) 28%,transparent),transparent 70%)}
+.hero .g2{background:radial-gradient(circle,color-mix(in srgb,var(--teal) 22%,transparent),transparent 70%)}
+.loc,.metrics,.sky span,.temp small{color:var(--muted)}
+.src{color:var(--dim)}
+.mm .mn{color:var(--lo)}.mm .mx{color:var(--hi)}
+.spark .v{fill:var(--ink)}.spark .l{fill:var(--dim)}
+.spark polyline{stroke:var(--red)}.spark circle{fill:var(--red)}.spark stop{stop-color:var(--red)}
+.hero .g-good{color:var(--good)}.hero .g-ok{color:var(--ok)}.hero .g-bad{color:var(--bad)}
+.metrics b{color:var(--ink)}
+.hc .pp.hi,.wr .pp.hi{color:var(--teal)}
+.hc .lb b{color:var(--red)}
+.wtr .mn{color:var(--lo)}.wtr .mx{color:var(--hi)}.wr .dd.sat b{color:var(--teal)}
+.wtr .bar i{background:linear-gradient(90deg,var(--teal),var(--gold),var(--red))}
+.wcard{border-radius:6px}
+.top{border-bottom:0;padding:14px 0 0;margin-top:4px}.top h1{font-size:26px}.top .sub{font-size:13px}
+.w{max-width:1280px}
 </style></head>
 <body><div class="w">
-<header class="top"><h1>파주 운정 날씨</h1><span class="sub" id="sub">불러오는 중…</span><span class="sp"></span><a class="back" href="index.html">← 지금 뜨는 뉴스</a></header>
+<!--WX_HEADER-->
+<header class="top"><h1>파주 운정 날씨</h1><span class="sub" id="sub">불러오는 중…</span></header>
 <div id="body"></div>
 <footer>날씨 자료: 기상청 동네예보·중기예보·생활기상지수, 에어코리아(운정 측정소) · 날씨 뉴스: 구글 뉴스 · 날씨 아이콘: Meteocons(Bas Milius, MIT)<br>
 생활지수 중 자외선은 기상청 발표, 나머지는 예보로 계산한 값입니다. 약 1시간마다 새로 받습니다.</footer>
@@ -161,7 +182,7 @@ function render(D){
   $("#sub").textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${DAYS[now.getDay()]}요일` + (built ? ` · ${pad(built.getHours())}:${pad(built.getMinutes())} 자료` : "");
   const news = D.news || [];
   const ago = s => { const d = new Date(s); if(isNaN(d)) return ""; const m = Math.round((Date.now() - d) / 6e4); return m < 60 ? m + "분 전" : Math.round(m / 60) + "시간 전"; };
-  const newsCard = `<section class="card"><h2>날씨 뉴스 <small>구글 뉴스 · 최근 하루</small></h2><ul class="nl">${news.map(n => `<li><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a><span>${esc(n.source)} · ${ago(n.pub)}</span></li>`).join("")}</ul></section>`;
+  const newsCard = `<section class="wcard"><h2>날씨 뉴스 <small>구글 뉴스 · 최근 하루</small></h2><ul class="nl">${news.map(n => `<li><a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a><span>${esc(n.source)} · ${ago(n.pub)}</span></li>`).join("")}</ul></section>`;
   if(D.need_key){ body.innerHTML = `<div class="err">기상청 열쇠(DATA_GO_KR_KEY)가 아직 GitHub Secrets 에 없어 예보를 받지 못했어요.</div><div class="key">${newsCard}</div>`; return; }
   const H = (D.vilage && D.vilage.hours) || {}, U = D.ultra || {}, N = D.ncst || {}, A = D.air || {};
   const keys = Object.keys(H).sort();
@@ -207,7 +228,7 @@ function render(D){
       <div class="src">기상청 실황 ${N.at ? N.at.slice(8, 10) + ":" + N.at.slice(10, 12) : ""} · 에어코리아 ${esc(A.station || "")} ${esc((A.dataTime || "").slice(11))}</div></div></section>`;
   // 시간별 48
   const hrs = keys.filter(k => k >= nowKey).slice(0, 48);
-  html += `<section class="card hourly"><h2>시간별 <small>48시간 · 기상청 단기예보 · 칸에 마우스를 올리면 바람·습도</small></h2><div class="hrow">${hrs.map((k, i) => { const h = H[k], hh = +k.slice(8, 10);
+  html += `<section class="wcard hourly"><h2>시간별 <small>48시간 · 기상청 단기예보 · 칸에 마우스를 올리면 바람·습도</small></h2><div class="hrow">${hrs.map((k, i) => { const h = H[k], hh = +k.slice(8, 10);
     return `<div class="hc${hh === 0 ? " d0" : ""}" title="${esc(`${sky(h.SKY, h.PTY)} ${h.TMP}° · 강수확률 ${h.POP}% · ${dir8(h.VEC)} ${h.WSD}m/s · 습도 ${h.REH}%`)}"><div class="lb">${hh === 0 ? `<b>${dlab(k.slice(0, 8), now).rel}</b>` : i === 0 ? "지금" : hh + "시"}</div>${ic(sky(h.SKY, h.PTY), hh < S.rH || hh >= S.sH, 40)}<div class="tp num">${Math.round(+h.TMP)}°</div><div class="pp${+h.POP >= 50 ? " hi" : ""}">${h.POP}%</div></div>`; }).join("")}</div></section>`;
   // 주간 10일
   const byDay = {}, days = [];
@@ -222,7 +243,7 @@ function render(D){
   const wk = list.map(d => { const L = dlab(d.date, now), we = L.d.getDay() === 0 ? " sun" : L.d.getDay() === 6 ? " sat" : "";
     const pop = Math.max(+(d.am && d.am.pop) || 0, +(d.pm && d.pm.pop) || 0), a = (+d.tmin - lo) / rng * 100, b = (+d.tmax - lo) / rng * 100;
     return `<div class="wr${L.rel === "오늘" ? " today" : ""}"><div class="dd${we}"><b>${L.rel}</b><span>${L.md}</span></div>${d.am ? ic(d.am.sky, false, 34) : '<span class="nil">–</span>'}${d.pm ? ic(d.pm.sky, false, 34) : '<span class="nil">–</span>'}
-      <span class="pp${pop >= 50 ? " hi" : ""}">${pop}%</span><div class="tr num"><span class="mn">${Math.round(d.tmin)}°</span><span class="bar"><i style="left:${a}%;right:${100 - b}%"></i></span><span class="mx">${Math.round(d.tmax)}°</span></div></div>`; }).join("");
+      <span class="pp${pop >= 50 ? " hi" : ""}">${pop}%</span><div class="wtr num"><span class="mn">${Math.round(d.tmin)}°</span><span class="bar"><i style="left:${a}%;right:${100 - b}%"></i></span><span class="mx">${Math.round(d.tmax)}°</span></div></div>`; }).join("");
   // 생활지수
   const dayH = keys.filter(k => k.startsWith(today) && +k.slice(8, 10) >= 9 && +k.slice(8, 10) <= 18).map(k => H[k]);
   const dh = dayH.length ? dayH : keys.slice(0, 10).map(k => H[k]);
@@ -240,8 +261,8 @@ function render(D){
     ["감기", dmin < -5 ? "bad" : (dmax - dmin >= 10 || dmin < 0) ? "ok" : "good", `일교차 ${Math.round(dmax - dmin)}°`],
     ["마스크", p10.c === "bad" || p25.c === "bad" ? "bad" : p10.c === "ok" || p25.c === "ok" ? "ok" : "good", "미세먼지 등급"]];
   const ix = IX.map(([n, c, why]) => `<div class="it ${c}" title="${esc(n + " · " + why)}"><span class="ic">${IXI[n]}</span><div class="tx"><b>${n}</b><span>${c ? TIP[n][GI[c]] : esc(why)}</span></div>${c ? `<span class="gr">${GN[c]}</span>` : ""}</div>`).join("");
-  html += `<div class="tri"><section class="card"><h2>주간 10일 <small>오전 · 오후 · 강수확률</small></h2>${wk}</section>
-    <section class="card"><h2>오늘의 생활지수 <span class="lg"><i class="good">●</i>좋음<i class="ok">●</i>보통<i class="bad">●</i>나쁨</span></h2><div class="ix">${ix}</div></section>${newsCard}</div>`;
+  html += `<div class="tri"><section class="wcard"><h2>주간 10일 <small>오전 · 오후 · 강수확률</small></h2>${wk}</section>
+    <section class="wcard"><h2>오늘의 생활지수 <span class="lg"><i class="good">●</i>좋음<i class="ok">●</i>보통<i class="bad">●</i>나쁨</span></h2><div class="ix">${ix}</div></section>${newsCard}</div>`;
   body.innerHTML = html;
   // 뉴스는 옆 칸 높이만큼, 반쯤 잘리는 기사는 숨김
   const ul = $(".tri .nl"); if(ul){ const b = ul.getBoundingClientRect().bottom + 1; [...ul.children].forEach(li => { if(li.getBoundingClientRect().bottom > b) li.hidden = true; }); }

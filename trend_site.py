@@ -2771,7 +2771,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
 .fest.empty{display:none!important}
 .fest .fest-card{border:1px solid var(--rule);border-radius:10px;padding:12px;background:var(--paper-3)}
-.fest .fest-img{border-radius:8px;overflow:hidden;aspect-ratio:3/4;background:var(--paper-2)}.fest .fest-img img{width:100%;height:100%;object-fit:cover;display:block}
+.fest .fest-img{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:3/4;background:var(--paper-2)}.fest .fest-img .bg{position:absolute;inset:-20px;background-size:cover;background-position:center;filter:blur(18px) brightness(.7)}.fest .fest-img img{position:relative;width:100%;height:100%;object-fit:contain;display:block}
 .fest .fest-noimg{height:100%;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;font-weight:800;font-size:20px;color:var(--ink-soft)}
 .fest .fest-tt{display:flex;align-items:center;gap:8px;margin-top:12px}.fest .fest-tt b{font-size:17px;line-height:1.35}
 .fest .fest-st{flex:none;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--teal-tint);color:var(--teal)}
@@ -2781,7 +2781,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .fest .fest-bt a{text-align:center;padding:9px 0;border:1px solid var(--rule);border-radius:999px;font-size:14px;text-decoration:none;color:var(--ink)}.fest .fest-bt a:hover{border-color:var(--ink)}
 .fest .fest-pg{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px;font-size:14px;color:var(--dim)}.fest .fest-pg b{color:var(--ink)}
 .fest .fest-pg button{all:unset;cursor:pointer;width:32px;height:32px;border-radius:50%;border:1px solid var(--rule);text-align:center;line-height:30px;font-size:18px}.fest .fest-pg button:disabled{opacity:.35;cursor:default}
-.nav a.wxlink{font-size:16px;color:var(--teal);text-decoration:none;padding:2px 1px 5px;border-bottom:2px solid transparent;white-space:nowrap}.nav a.wxlink:hover{border-bottom-color:var(--teal)}
+.nav a.wxlink{font-size:16px;color:var(--teal);text-decoration:none;padding:2px 1px 5px;border-bottom:2px solid transparent;white-space:nowrap}.nav a.wxlink:hover{border-bottom-color:var(--teal)}.nav a.wxlink.on{color:var(--ink);font-weight:700;border-bottom-color:var(--red)}
 .ticker{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--ink-body);overflow:hidden}
 .tag{flex:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;padding:3px 9px 3px 10px;border-radius:2px}
 .ticker .items{flex:1;min-width:0;white-space:nowrap;overflow-x:auto;scrollbar-width:none}.ticker .items::-webkit-scrollbar{display:none}.ticker .tk{all:unset;cursor:pointer;color:var(--ink-body)}.ticker .tk:hover{color:var(--ink);text-decoration:underline}.ticker .items.pg.on{display:block}.ticker .sep{color:var(--dim);margin:0 8px}
@@ -3377,7 +3377,7 @@ def render_portals(portals):
 
 
 # ── 파주 탭 옆칸: 파주시 이달의 축제·전시 (자료: site/paju_fest.json ← news_weather.py, 한국관광공사 행사정보) ──
-PAJU_FEST = r"""<section class="pg fest empty" data-c="파주" id="fest"><div class="shead"><h2 id="fest_h">파주시 축제·전시</h2><span class="en" title="한국관광공사 관광정보(행사) · 이번 달에 열리는 파주 행사">ⓘ</span></div>
+PAJU_FEST = r"""<section class="pg fest empty" data-c="파주" id="fest"><div class="shead"><h2 id="fest_h">파주시 축제·전시</h2></div>
 <div class="fest-card"><div class="fest-img" id="fest_img"></div><div class="fest-tt"><b id="fest_t"></b><span class="fest-st" id="fest_st"></span></div>
 <dl class="fest-dl"><dt>장소</dt><dd id="fest_p"></dd><dt>기간</dt><dd id="fest_d"></dd></dl>
 <div class="fest-bt"><a id="fest_more" target="_blank" rel="noopener">자세히 보기</a><a href="weather.html">날씨 보기</a></div>
@@ -3385,8 +3385,8 @@ PAJU_FEST = r"""<section class="pg fest empty" data-c="파주" id="fest"><div cl
 <script>(function(){var F=[],i=0,el=function(x){return document.getElementById(x)};
 function d(s){return s?s.slice(2,4)+"."+s.slice(4,6)+"."+s.slice(6,8)+".":""}
 function show(){var f=F[i],t=new Date(),T=""+t.getFullYear()+String(t.getMonth()+1).padStart(2,"0")+String(t.getDate()).padStart(2,"0");
- el("fest_img").innerHTML=f.img?'<img src="'+f.img+'" alt="" loading="lazy">':'<div class="fest-noimg">'+f.title+'</div>';
- el("fest_t").textContent=f.title;var st=f.end<T?["끝남","end"]:f.start>T?["예정","soon"]:["진행중","on"];el("fest_st").textContent=st[0];el("fest_st").className="fest-st "+st[1];
+ el("fest_img").innerHTML=f.img?'<i class="bg" style="background-image:url(\''+f.img+'\')"></i><img src="'+f.img+'" alt="">':'<div class="fest-noimg">'+f.title+'</div>';
+ el("fest_t").textContent=(f.kind?"["+f.kind+"] ":"")+f.title;var st=f.end<T?["끝남","end"]:f.start>T?["예정","soon"]:["진행중","on"];el("fest_st").textContent=st[0];el("fest_st").className="fest-st "+st[1];
  el("fest_p").textContent=f.addr||"-";el("fest_d").textContent=d(f.start)+" ~ "+d(f.end);
  el("fest_more").href="https://search.naver.com/search.naver?query="+encodeURIComponent(f.title);
  el("fest_n").innerHTML="<b>"+(i+1)+"</b> / "+F.length;el("fest_prev").disabled=F.length<2;el("fest_next").disabled=F.length<2}
@@ -3630,12 +3630,36 @@ def copy_static(out):
 
 
 def build_weather(out):
-    """날씨 탭: news_weather.py 로 site/weather.json 을 만든다 (화면은 static/weather.html). 실패해도 뉴스 생성은 계속."""
+    """날씨 탭: news_weather.py 로 site/weather.json 을 만든다 (화면은 static/weather.html). 실패해도 뉴스 생성은 계속.
+    weather.html 머리(날짜 줄·제호·탭 줄)는 방금 만든 index.html 것을 그대로 가져와 첫 화면과 똑같이 맞춘다."""
     try:
         import news_weather
         news_weather.build(out)
     except Exception as e:
         print("날씨 건너뜀:", e)
+    try:
+        wp, ip = os.path.join(out, "weather.html"), os.path.join(out, "index.html")
+        if not (os.path.exists(wp) and os.path.exists(ip)):
+            return
+        w, idx = open(wp, encoding="utf-8").read(), open(ip, encoding="utf-8").read()
+        m_nav = re.search(r'<nav class="nav" role="tablist">.*?</nav>', idx, re.S)
+        m_title = re.search(r'<header class="titlerow">.*?</header>', idx, re.S)
+        if not (m_nav and m_title and "<!--WX_HEADER-->" in w):
+            return
+        nav = m_nav.group(0).replace('class="srclink wxlink"', 'class="srclink wxlink on" aria-current="page"')
+        title = re.sub(r'<p class="motto">.*?</p>', '<p class="motto">파주 운정 동네 날씨 · 기상청 · 에어코리아 · 약 1시간마다</p>', m_title.group(0), flags=re.S)
+        now = datetime.now(KST)
+        date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
+        head = (f'<div class="dateline"><span>{date}</span><span class="dl-r"><a class="pill srcpill" href="index.html">← 뉴스</a>'
+                f'<a class="pill srcpill" href="sources.html">출처</a><button class="pill thm" id="thm" type="button">테마</button></span></div>{THEME_JS}'
+                + title + nav +
+                # 탭을 누르면 그 탭을 고른 채로 첫 화면으로
+                "<script>document.querySelectorAll('.nav button[data-c]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('trend_tab',b.dataset.c)}catch(e){}location.href='index.html'})</script>")
+        w = w.replace("<!--WX_HEADER-->", head).replace("<!--WX_SITECSS-->", f"<style>{themeize(CSS)}</style>")
+        with open(wp, "w", encoding="utf-8") as f:
+            f.write(w)
+    except Exception as e:
+        print("날씨 머리 맞추기 건너뜀:", e)
 
 
 def load_feeds():

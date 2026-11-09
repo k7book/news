@@ -159,7 +159,7 @@ def festivals(key):
     now = now_kst()
     month0 = now.replace(day=1)
     nxt = (month0 + timedelta(days=32)).replace(day=1)
-    start = (month0 - timedelta(days=120)).strftime("%Y%m%d")   # 몇 달 전에 시작해 아직 하는 행사도 잡도록
+    start = (month0 - timedelta(days=365)).strftime("%Y%m%d")   # 1년 안에 시작해 아직 하는 행사도 잡도록
     base = {"serviceKey": key, "MobileOS": "ETC", "MobileApp": "news-rajin", "_type": "json", "numOfRows": 300, "pageNo": 1,
             "arrange": "A", "eventStartDate": start}
     rows, errs = [], []
@@ -184,7 +184,37 @@ def festivals(key):
                     "tel": r.get("tel", "")})
     today = now.strftime("%Y%m%d")
     out.sort(key=lambda x: (x["end"] < today, x["start"]))
-    return {"month": now.month, "items": out[:12]}
+    return {"month": now.month, "items": out[:30]}
+
+
+def culture(key):
+    """파주 공연·전시 (한국문화정보원 한눈에보는문화정보 cultureinfo/area2, XML). 이번 달에 열리는 것."""
+    now = now_kst()
+    month0 = now.replace(day=1)
+    m1 = ((month0 + timedelta(days=32)).replace(day=1) - timedelta(days=1)).strftime("%Y%m%d")
+    out, page = [], 1
+    while page <= 5:
+        q = urllib.parse.urlencode({"serviceKey": key, "PageNo": page, "numOfrows": 100, "sido": "경기", "gugun": "파주시",
+                                    "from": month0.strftime("%Y%m%d"), "to": m1})
+        req = urllib.request.Request("https://apis.data.go.kr/B553457/cultureinfo/area2?" + q, headers={"User-Agent": "news-weather/1.0"})
+        with urllib.request.urlopen(req, timeout=25) as r:
+            root = ET.fromstring(r.read())
+        code = (root.findtext(".//resultCode") or "").strip()
+        if code and code not in ("00", "0000"):
+            raise RuntimeError(f"{code} {root.findtext('.//resultMsg')}")
+        its = root.findall(".//item")
+        for it in its:
+            g = lambda k: (it.findtext(k) or "").strip()
+            if "파주" not in g("sigungu") + g("place") + g("area") and g("sigungu"):
+                continue
+            out.append({"title": g("title"), "addr": g("place"), "start": g("startDate").replace(".", "").replace("-", ""),
+                        "end": g("endDate").replace(".", "").replace("-", ""), "img": g("thumbnail").replace("http://", "https://"),
+                        "id": g("seq"), "kind": g("realmName")})
+        total = int(root.findtext(".//totalCount") or 0)
+        if page * 100 >= total or not its:
+            break
+        page += 1
+    return out
 
 
 def collect():
@@ -226,9 +256,17 @@ def build(out_dir):
                 fest.update(festivals(key))
             except Exception as e:
                 fest["error"] = str(e)[:200]
+            try:                       # 공연·전시 (한국문화정보원) — 활용신청 전이면 건너뜀
+                seen = {x["title"] for x in fest["items"]}
+                more = [x for x in culture(key) if x["title"] not in seen]
+                today = now_kst().strftime("%Y%m%d")
+                fest["items"] = sorted(fest["items"] + more, key=lambda x: (x["end"] < today, x["start"]))[:40]
+                fest["culture"] = len(more)
+            except Exception as e:
+                fest["culture_error"] = str(e)[:200]
         with open(os.path.join(out_dir, "paju_fest.json"), "w", encoding="utf-8") as f:
             json.dump(fest, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"파주 축제: {len(fest['items'])}건{' · ' + fest['error'] if fest.get('error') else ''}")
+        print(f"파주 축제·행사: {len(fest['items'])}건 (공연·전시 {fest.get('culture', 0)}){' · 축제 오류 ' + fest['error'] if fest.get('error') else ''}{' · 공연전시 오류 ' + fest['culture_error'] if fest.get('culture_error') else ''}")
     except Exception as e:
         print("날씨 실패:", e)
 
