@@ -173,6 +173,23 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 .sunarc svg{display:block;width:100%;max-width:280px;margin:0 auto}.sunt{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);max-width:280px;margin:2px auto 0}.sunt b{color:var(--ink);font-size:15px;margin-left:4px}
 .nb .nl{flex:none;overflow:visible}
 @media (max-width:1000px){.nv{grid-template-columns:1fr}.three{grid-template-columns:1fr}.nowrow{grid-template-columns:auto 1fr}.nowdl{grid-column:1/-1;justify-self:start}}
+/* 시간별 그래프 꾸밈 · 10일 예보 합침 (11-09) */
+.hgraph .nightb{fill:var(--ink);opacity:.045}
+.hgraph .dayl{stroke:var(--rule);stroke-dasharray:3 4}
+.hgraph .nowl{stroke:var(--red);stroke-width:1.5;stroke-dasharray:2 3;opacity:.7}
+.hgraph .v{font-size:12px;font-weight:700;fill:var(--ink)}.hgraph .v.ext{font-size:13px}
+.hgraph .pb{font-size:11px;fill:var(--cold);font-weight:700}
+.hgraph .hline{filter:drop-shadow(0 3px 4px rgba(0,0,0,.12))}
+.hc2{height:66px}
+.rest{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:10px}
+.rd{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:8px;background:var(--paper-2)}
+.rdd{display:flex;flex-direction:column;align-items:center;line-height:1.2}.rdd b{font-size:14px}.rdd span{font-size:11px;color:var(--dim)}
+.rdd.sun b{color:var(--red)}.rdd.sat b{color:var(--cold)}
+.rdi{display:flex;gap:0;margin:-2px 0}
+.rdp{font-size:11px;color:var(--dim)}.rdp.hi{color:var(--cold);font-weight:700}
+.rdt{display:flex;gap:6px;font-size:14px;font-weight:700}.rdt i{font-style:normal}.rdt .mn{color:var(--cold)}.rdt .mx{color:var(--red)}
+.three .td{padding:14px}.three .tdh img{width:64px;height:64px}
+@media (max-width:1000px){.rest{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style></head>
 <body><div class="w">
 <!--WX_HEADER-->
@@ -285,16 +302,38 @@ function render(D){
 
   // ③ 시간별 (탭: 날씨·강수·바람·습도)
   const hrs = keys.filter(k => k >= nowKey).slice(0, 48);
-  const W = 64, n = hrs.length, Hh = 92;
+  const W = 64, n = hrs.length, Hh = 150;
   const series = {wx: hrs.map(k => +H[k].TMP), rain: hrs.map(k => +H[k].POP || 0), wind: hrs.map(k => +H[k].WSD || 0), hum: hrs.map(k => +H[k].REH || 0)};
   const vals = series[HT], unit = {wx: "°", rain: "%", wind: "", hum: "%"}[HT];
   const mn = HT === "wx" ? Math.min(...vals) : 0, mx = HT === "wx" ? Math.max(...vals) : Math.max(HT === "wind" ? 10 : 100, ...vals), sp = Math.max(1, mx - mn);
-  const xs = vals.map((_, i) => i * W + W / 2), ys = vals.map(v => Hh - 14 - (v - mn) / sp * (Hh - 36));
+  const xs = vals.map((_, i) => i * W + W / 2), ys = vals.map(v => Hh - 34 - (v - mn) / sp * (Hh - 64));
   const hot = Math.max(...series.wx), tcol = hot >= 25 ? "var(--red)" : hot >= 18 ? "var(--gold)" : hot >= 13 ? "var(--teal)" : "var(--cold)";
   const col = HT === "wx" ? tcol : HT === "rain" ? "var(--cold)" : HT === "wind" ? "var(--teal)" : "var(--gold)";
-  const graph = HT === "rain" || HT === "hum"
-    ? xs.map((x, i) => `<rect x="${x - 9}" y="${ys[i]}" width="18" height="${Hh - 14 - ys[i]}" rx="3" fill="${col}" opacity="${vals[i] ? .85 : .2}"/><text x="${x}" y="${ys[i] - 5}" text-anchor="middle" class="v">${vals[i]}${unit}</text>`).join("")
-    : `<polyline points="${xs.map((x, i) => `${x},${ys[i].toFixed(1)}`).join(" ")}" fill="none" stroke="${col}" stroke-width="2.5"/>` + xs.map((x, i) => `<circle cx="${x}" cy="${ys[i].toFixed(1)}" r="3.5" fill="${col}"/><text x="${x}" y="${(ys[i] - 9).toFixed(1)}" text-anchor="middle" class="v">${HT === "wind" ? vals[i].toFixed(1) : Math.round(vals[i]) + unit}</text>`).join("");
+  // 부드러운 곡선(Catmull-Rom → 베지어)
+  const smooth = (X, Y) => { let d = `M${X[0]},${Y[0].toFixed(1)}`; for(let k = 0; k < X.length - 1; k++){ const x0 = X[k - 1] ?? X[k], y0 = Y[k - 1] ?? Y[k], x3 = X[k + 2] ?? X[k + 1], y3 = Y[k + 2] ?? Y[k + 1];
+    d += ` C${(X[k] + (X[k + 1] - x0) / 6).toFixed(1)},${(Y[k] + (Y[k + 1] - y0) / 6).toFixed(1)} ${(X[k + 1] - (x3 - X[k]) / 6).toFixed(1)},${(Y[k + 1] - (y3 - Y[k]) / 6).toFixed(1)} ${X[k + 1]},${Y[k + 1].toFixed(1)}`; } return d; };
+  // 밤 시간 그늘 + 날짜 구분선
+  const nightBands = hrs.map((k, i) => { const hh = +k.slice(8, 10); return (hh < Math.floor(S.rH) || hh >= Math.ceil(S.sH)) ? `<rect x="${i * W}" y="0" width="${W}" height="${Hh}" class="nightb"/>` : ""; }).join("");
+  const dayLines = hrs.map((k, i) => +k.slice(8, 10) === 0 && i ? `<line x1="${i * W}" y1="0" x2="${i * W}" y2="${Hh}" class="dayl"/>` : "").join("");
+  // 기온 색: 값에 따라 세로 그라데이션(추우면 파랑 → 따뜻하면 금 → 더우면 빨강)
+  const tc = v => v <= 0 ? "#3b7dd8" : v <= 8 ? "#4a9fd8" : v <= 15 ? "#2aa198" : v <= 22 ? "#d4a017" : v <= 28 ? "#e8743b" : "#d1382c";
+  const gid = "hg" + HT;
+  let graph;
+  if(HT === "rain" || HT === "hum"){
+    graph = xs.map((x, i) => { const hgt = Hh - 26 - ys[i]; return `<rect x="${x - 11}" y="${ys[i]}" width="22" height="${Math.max(2, hgt)}" rx="5" fill="url(#${gid})" opacity="${vals[i] ? 1 : .25}"/>${vals[i] ? `<text x="${x}" y="${ys[i] - 6}" text-anchor="middle" class="v">${vals[i]}${unit}</text>` : ""}`; }).join("")
+      + `<defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${HT === "rain" ? "#3b7dd8" : "#2aa198"}"/><stop offset="1" stop-color="${HT === "rain" ? "#3b7dd8" : "#2aa198"}" stop-opacity=".25"/></linearGradient></defs>`;
+  }else{
+    const path = smooth(xs, ys);
+    const stops = HT === "wx" ? [mx, (mx + mn) / 2, mn].map((v, k) => `<stop offset="${k / 2}" stop-color="${tc(v)}"/>`).join("") : `<stop offset="0" stop-color="#2aa198"/><stop offset="1" stop-color="#2aa198"/>`;
+    graph = `<defs><linearGradient id="${gid}" x1="0" x2="0" y1="${Math.min(...ys)}" y2="${Math.max(...ys)}" gradientUnits="userSpaceOnUse">${stops}</linearGradient>
+        <linearGradient id="${gid}a" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${HT === "wx" ? tc(mx) : "#2aa198"}" stop-opacity=".28"/><stop offset="1" stop-color="${HT === "wx" ? tc(mn) : "#2aa198"}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${path} L${xs[n - 1]},${Hh - 22} L${xs[0]},${Hh - 22} Z" fill="url(#${gid}a)"/>
+      <path class="hline" d="${path}" fill="none" stroke="url(#${gid})" stroke-width="3" stroke-linecap="round"/>`
+      + xs.map((x, i) => { const v = vals[i], ext = HT === "wx" && (v === mx || v === mn) && (i === vals.indexOf(v));
+          return `<circle cx="${x}" cy="${ys[i].toFixed(1)}" r="${ext ? 5 : 3.2}" fill="var(--paper-3)" stroke="${HT === "wx" ? tc(v) : "#2aa198"}" stroke-width="2.4"/><text x="${x}" y="${(ys[i] - 11).toFixed(1)}" text-anchor="middle" class="v${ext ? " ext" : ""}">${HT === "wind" ? v.toFixed(1) : Math.round(v) + unit}</text>`; }).join("");
+  }
+  graph = nightBands + dayLines + `<line x1="${W / 2}" y1="4" x2="${W / 2}" y2="${Hh - 22}" class="nowl"/>` + graph
+    + hrs.map((k, i) => { const h = H[k]; return HT === "wx" && +h.POP >= 30 ? `<text x="${i * W + W / 2}" y="${Hh - 6}" text-anchor="middle" class="pb">☂${h.POP}%</text>` : ""; }).join("");
   const hcells = hrs.map((k, i) => { const h = H[k], hh = +k.slice(8, 10);
     const top = HT === "wind" ? `<span class="wd" style="transform:rotate(${(+h.VEC + 180) % 360}deg)">↑</span><span class="lb2">${dir8(h.VEC)}</span>` : ic(sky(h.SKY, h.PTY), hh < S.rH || hh >= S.sH, 36);
     return `<div class="hc2${hh === 0 ? " d0" : ""}"><div class="lb">${hh === 0 ? `<b>${dlab(k.slice(0, 8), now).rel}</b>` : i === 0 ? "지금" : hh + "시"}</div>${top}</div>`; }).join("");
@@ -302,13 +341,13 @@ function render(D){
   const hourCard = `<section class="wcard"><div class="h2row"><h2>시간별 예보</h2><div class="htabs">${tabs}</div></div>
     <div class="hscroll"><div class="hrow2" style="width:${n * W}px">${hcells}</div><svg class="hgraph" width="${n * W}" height="${Hh}">${graph}</svg></div></section>`;
 
-  // ④ 주간 예보 (10일, 목록)
-  const list = days.slice(0, 10);
-  const wk = list.map(d => { const L = dlab(d.date, now), we = L.d.getDay() === 0 ? " sun" : L.d.getDay() === 6 ? " sat" : "";
-    const half = (x, lab) => `<div class="wh"><span class="wpop${x && +x.pop >= 50 ? " hi" : ""}">${x && x.pop != null ? x.pop + "%" : ""}</span>${x ? ic(x.sky, false, 40) : '<span class="nil">–</span>'}</div>`;
-    return `<li class="${L.rel === "오늘" ? "on" : ""}"><div class="wdd${we}"><b>${L.rel}</b><span>${L.md}.</span></div>${half(d.am)}${half(d.pm)}<div class="wt num"><i class="mn">${Math.round(d.tmin)}°</i><span>/</span><i class="mx">${Math.round(d.tmax)}°</i></div></li>`; }).join("");
-  const weekCard = `<section class="wcard"><div class="h2row"><h2>주간예보</h2><span class="hint">오전 · 오후 강수확률</span></div><ul class="wlist">${wk}</ul></section>`;
-
+  // ④ 10일 예보: 주요 3일(크게) + 나머지 7일(작게)
+  const rest = days.filter(d => d.date >= today).slice(3, 10).map(d => { const L = dlab(d.date, now), we = L.d.getDay() === 0 ? " sun" : L.d.getDay() === 6 ? " sat" : "";
+    const pop = Math.max(+(d.am && d.am.pop) || 0, +(d.pm && d.pm.pop) || 0);
+    return `<div class="rd"><div class="rdd${we}"><b>${L.rel}</b><span>${L.md}</span></div><div class="rdi">${d.am ? ic(d.am.sky, false, 34) : ""}${d.pm ? ic(d.pm.sky, false, 34) : ""}</div>
+      <div class="rdp${pop >= 50 ? " hi" : ""}">${pop ? "☂ " + pop + "%" : "&nbsp;"}</div><div class="rdt num"><i class="mn">${Math.round(d.tmin)}°</i><i class="mx">${Math.round(d.tmax)}°</i></div></div>`; }).join("");
+  const weekCard = `<section class="wcard"><div class="h2row"><h2>10일 예보</h2><span class="hint">3일은 기상청 단기예보, 그 뒤는 중기예보</span></div>
+    <div class="three">${three}</div><div class="rest">${rest}</div></section>`;
   // ⑤ 미세먼지 (오른쪽)
   const ring = (v, max, g, label) => { const r = 40, c = 2 * Math.PI * r, f = Math.min(1, (parseFloat(v) || 0) / max) * .75;
     return `<div class="ring ${g.c}"><svg viewBox="0 0 100 100"><g transform="rotate(135 50 50)"><circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--paper-2)" stroke-width="9" stroke-dasharray="${c * .75} ${c}" stroke-linecap="round"/><circle cx="50" cy="50" r="${r}" fill="none" stroke="currentColor" stroke-width="9" stroke-dasharray="${c * f} ${c}" stroke-linecap="round"/></g><text x="50" y="50" text-anchor="middle" class="rg">${g.t}</text><text x="50" y="66" text-anchor="middle" class="rv">${v && v !== "-" ? v + "㎍/㎥" : ""}</text></svg><span>${label}</span></div>`; };
@@ -334,7 +373,7 @@ function render(D){
     ${frac == null ? "" : `<path d="M${cx - R} ${cy} A${R} ${R} 0 0 1 ${sx.toFixed(1)} ${sy.toFixed(1)}" fill="none" stroke="var(--gold)" stroke-width="4" stroke-linecap="round"/><circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="9" fill="#ffcd00"/>`}<line x1="6" y1="${cy}" x2="174" y2="${cy}" stroke="var(--rule)"/></svg>
     <div class="sunt num"><span>일출 <b>${S.rise}</b></span><span>일몰 <b>${S.set}</b></span></div></div></section>`;
 
-  html += `<div class="nv"><div class="nvl">${nowCard}${threeCard}${hourCard}${weekCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${newsCard}</aside></div>`;
+  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${newsCard}</aside></div>`;
   body.innerHTML = html;
   body.querySelectorAll("[data-ht]").forEach(b => b.onclick = () => { HT = b.dataset.ht; const x = body.querySelector(".hscroll").scrollLeft; render(window.__D); body.querySelector(".hscroll").scrollLeft = x; });
   const hs = body.querySelector(".hscroll"); if(hs) hs.addEventListener("wheel", e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ hs.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
