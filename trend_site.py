@@ -1551,20 +1551,28 @@ def fetch_deep(now, days=7, per_outlet=25):
     return rows, status
 
 
+DEEP_COLOR = {"슬로우뉴스": 0, "뉴스타파": 1, "셜록": 2, "시사IN": 3, "뉴스하다": 4, "뉴스버스": 5, "시사 매거진": 6, "라이프 매거진": 7}
+
+
+def deep_color(k):
+    """맥락·탐사 매체(또는 매거진 묶음)마다 겹치지 않는 색 번호 0~7"""
+    return DEEP_COLOR.get(k, outlet_color(k))
+
+
 def render_deep(rows, now):
     """맥락·탐사 탭 본문: 매체 버튼 + 글 목록(사진·제목·요약·매체·날짜)"""
     if not rows:
         return ""
     cnt = Counter(x.get("grp") or x["outlet"] for x in rows)
     chips = (f'<button class="on" data-k="">전체<i>{len(rows)}</i></button>'
-             + "".join(f'<button data-k="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o, _, _ in DEEP_FEEDS if cnt.get(o))
-             + "".join(f'<button data-k="{esc(g)}">{esc(g)}<i>{cnt[g]}</i></button>' for g, _, _ in DAUM_MAG_GROUPS if cnt.get(g)))
+             + "".join(f'<button data-k="{esc(o)}"><span class="cdot oc{deep_color(o)}"></span>{esc(o)}<i>{cnt[o]}</i></button>' for o, _, _ in DEEP_FEEDS if cnt.get(o))
+             + "".join(f'<button data-k="{esc(g)}"><span class="cdot oc{deep_color(g)}"></span>{esc(g)}<i>{cnt[g]}</i></button>' for g, _, _ in DAUM_MAG_GROUPS if cnt.get(g)))
 
     def row(x):
         th = (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
               f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
         d = datetime.fromisoformat(x["date"])
-        return (f'<li data-k="{esc(x.get("grp") or x["outlet"])}">{th}<div><div class="pm top"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>'
+        return (f'<li data-k="{esc(x.get("grp") or x["outlet"])}">{th}<div><div class="pm top"><b class="ot oc{deep_color(x.get("grp") or x["outlet"])}">{esc(x["outlet"])}</b>'
                 f'{d.month}.{d.day} ({WEEK[d.weekday()]})</div><div class="bt">{link(x["url"], x["title"])}</div>'
                 + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>")
     return (f'<div class="pg" data-c="{DEEP_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
@@ -1579,9 +1587,9 @@ def render_deep_side(rows):
     """맥락·탐사 탭 오른쪽 칸: 매체 소개와 이번 주 글 수, 바로 가기"""
     cnt = Counter(x["outlet"] for x in rows or [])
     gc = Counter(x.get("grp") for x in rows or [] if x.get("grp"))
-    lis = "".join(f'<li><b class="ot oc{outlet_color(o)}">{esc(o)}</b> {link(h, DEEP_DESC.get(o, ""))}<span class="o">{cnt.get(o, 0)}건</span></li>'
+    lis = "".join(f'<li><b class="ot oc{deep_color(o)}">{esc(o)}</b> {link(h, DEEP_DESC.get(o, ""))}<span class="o">{cnt.get(o, 0)}건</span></li>'
                   for o, _, h in DEEP_FEEDS)
-    lis += "".join(f'<li><b class="ot oc{outlet_color(g)}">{esc(g)}</b> {esc(d)}<span class="o">{gc.get(g, 0)}건</span></li>' for g, _, d in DAUM_MAG_GROUPS)
+    lis += "".join(f'<li><b class="ot oc{deep_color(g)}">{esc(g)}</b> {esc(d)}<span class="o">{gc.get(g, 0)}건</span></li>' for g, _, d in DAUM_MAG_GROUPS)
     return (f'<section class="pg" data-c="{DEEP_TAB}"><div class="shead"><h2>매체 바로 가기</h2><span class="en">이번 주 글 수</span></div>'
             f'<ul class="barts dside">{lis}</ul></section>')
 
@@ -2780,7 +2788,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .lead .ph{aspect-ratio:4/3;overflow:hidden;background:var(--paper-2);border:1px solid var(--rule)}
 .lead .ph img{width:100%;height:100%;object-fit:contain;display:block}
 @media(max-width:700px){.lead.has-img{grid-template-columns:1fr}.lead .ph{order:-1}}
-.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}.bci{width:132px}.bcr{margin-left:143px}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:156px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 167px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:1px}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}.bci{width:132px}.bcr{margin-left:143px}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:156px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 167px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
 .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px;margin-top:14px}
 @media(max-width:700px){.pgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid a{display:block;text-decoration:none}.pgrid a:hover .pt{text-decoration:underline}
