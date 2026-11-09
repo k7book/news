@@ -217,7 +217,7 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 @media (max-width:1000px){.nwrap{grid-template-columns:1fr}}
 .ntab td.nic{padding:0 4px}.ntab td.nic img{display:block}
 /* 지난 15일 차트 */
-.pscroll{overflow-x:auto;scrollbar-width:thin}
+.pscroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}#pastc{margin-top:18px}
 .pchart{display:block}.pchart .pmx{font-size:13px;font-weight:700;fill:var(--red)}.pchart .pmn{font-size:13px;font-weight:700;fill:var(--cold)}
 .plabs{display:grid;border-top:1px solid var(--rule);padding-top:6px}
 .pl{display:flex;flex-direction:column;align-items:center;line-height:1.25}.pl b{font-size:13px}.pl span{font-size:11px;color:var(--dim)}.pl em{font-style:normal;font-size:11px;color:var(--dim)}.pl em.hi{color:var(--cold);font-weight:700}
@@ -305,7 +305,7 @@ const GI = {good: 0, ok: 1, bad: 2}, GN = {good: "좋음", ok: "보통", bad: "�
 // 지난 날씨 차트: 카드 너비를 꽉 채우도록 칸 폭을 계산해 그림
 function drawPast(){
   const box = document.querySelector("#pastc .pscroll"), P = window.__P || []; if(!box || !P.length) return;
-  const n2 = P.length, PW = Math.max(46, Math.floor(box.clientWidth / n2)), PH = 280, top = 30, bot = 30;
+  const n2 = P.length, PW = Math.max(46, box.clientWidth / n2), PH = 280, top = 30, bot = 30;
   const allT = P.flatMap(r => [+r.minTa, +r.maxTa]), lo2 = Math.min(...allT), hi2 = Math.max(...allT), r2 = Math.max(1, hi2 - lo2);
   const BW = Math.max(12, Math.min(22, Math.round(PW * .3)));
   const yy = v => top + (hi2 - v) / r2 * (PH - top - bot), xx = i => i * PW + PW / 2;
@@ -478,7 +478,7 @@ function render(D){
       const o = NOFF[c.name] || [0, 0];
       return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td class="nic">${ic(sky(c.sky, +c.pty || +c.upty), night, 28)}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
 
-  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}${pastCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>`;
+  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>${pastCard}`;
   body.innerHTML = html;
   drawPast();
   body.querySelectorAll("[data-ht]").forEach(b => b.onclick = () => { HT = b.dataset.ht; const x = body.querySelector(".hscroll").scrollLeft; render(window.__D); body.querySelector(".hscroll").scrollLeft = x; });
