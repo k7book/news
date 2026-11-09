@@ -551,12 +551,9 @@ DAUM_INTER_SEEN = os.path.join(HERE, "history", "daum_inter.json")
 
 def fetch_daum_interactive(now=None):
     now = now or datetime.now(KST)
-    try:
-        if not robots_allows(DAUM_HOME):
-            return [], "robots.txt 차단"
-        body = http_get(DAUM_HOME).decode("utf-8", "ignore")
-    except Exception as e:
-        return [], f"{type(e).__name__}: {str(e)[:60]}"
+    body, err = daum_home()
+    if err:
+        return [], err
     i = body.find("interactive:{layoutMap")
     chunk = body[i:i + 60000] if i >= 0 else body
     rx = re.compile(r'\{thumbnail:"([^"]*)",description:"((?:[^"\\]|\\.)*)",source:"([^"]*)",sourceImage:"[^"]*",title:"((?:[^"\\]|\\.)*)",url:"([^"]*)"\}')
@@ -583,6 +580,107 @@ def fetch_daum_interactive(now=None):
     except Exception:
         pass
     return out, None if out else "목록을 찾지 못함(페이지 구조 변경?)"
+
+
+_DAUM_BODY = {}
+
+
+def daum_home():
+    """다음뉴스 홈 HTML(한 번 받아 인터랙티브·시사/라이프 매거진·사진으로 본 오늘에 같이 쓴다) → (body, err)"""
+    if "b" not in _DAUM_BODY:
+        try:
+            if not robots_allows(DAUM_HOME):
+                _DAUM_BODY.update(b="", e="robots.txt 차단")
+            else:
+                _DAUM_BODY.update(b=http_get(DAUM_HOME).decode("utf-8", "ignore"), e=None)
+        except Exception as e:
+            _DAUM_BODY.update(b="", e=f"{type(e).__name__}: {str(e)[:60]}")
+    return _DAUM_BODY["b"], _DAUM_BODY["e"]
+
+
+def _daum_items(seg):
+    """다음 홈 데이터 조각 안의 {id:"hamny-…",title,…,pcUrl,image,cpName,createdAt} 목록"""
+    out = []
+    for m in re.finditer(r'\{id:"hamny-[^"]*",(.*?)createdAt:"([^"]+)"', seg, re.S):
+        body = m.group(1)
+
+        def g(k):
+            x = re.search(k + r':"((?:[^"\\]|\\.)*)"', body)
+            return _jstr(x.group(1)) if x else ""
+        out.append({"title": re.sub(r"\s+", " ", g("title")).strip(), "url": g("pcUrl"), "img": g("image") or None,
+                    "outlet": g("cpName"), "date": m.group(2), "desc": re.sub(r"\s+", " ", g("summary")).strip()[:160]})
+    return [x for x in out if x["title"] and x["url"].startswith("http")]
+
+
+# 맥락·탐사: 다음뉴스 홈 '시사 매거진'(주·월간 시사전문지)·'라이프 매거진'(문화·생활 전문지) 최신 글. 홈에 6건씩만 실려 매시간 받아 7일 모은다.
+DAUM_MAG = os.path.join(HERE, "history", "daum_mag.json")
+DAUM_MAG_GROUPS = [("시사 매거진", "[뉴스홈] 시사매거진", "주·월간 시사전문지"), ("라이프 매거진", "[뉴스홈] 라이프매거진", "문화·생활 전문지")]
+
+
+def fetch_daum_magazines(now, days=7):
+    body, err = daum_home()
+    try:
+        old = json.load(open(DAUM_MAG, encoding="utf-8"))
+    except Exception:
+        old = []
+    new, status = [], []
+    for grp, key, _ in DAUM_MAG_GROUPS:
+        i = body.find('title:"' + key + '"') if body else -1
+        rows = _daum_items(body[i:body.find("hasNext", i)]) if i >= 0 else []
+        for x in rows:
+            x["grp"] = grp
+            if x.get("img"):  # 원본은 커서 400px로
+                x["img"] = "https://img1.daumcdn.net/thumb/R400x0/?fname=" + urllib.parse.quote(x["img"], safe="")
+        new += rows
+        status.append({"name": f"맥락·탐사 {grp}(다음뉴스)", "ok": bool(rows), "count": len(rows), "error": err or ("" if rows else "목록을 찾지 못함")})
+    lo = (now - timedelta(days=days)).isoformat()
+    seen, out = set(), []
+    for x in new + old:
+        if x["url"] in seen or x["date"] < lo:
+            continue
+        seen.add(x["url"])
+        out.append(x)
+    out.sort(key=lambda x: x["date"], reverse=True)
+    try:
+        os.makedirs(os.path.dirname(DAUM_MAG), exist_ok=True)
+        json.dump(out, open(DAUM_MAG, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
+    return out, status
+
+
+# 포토: 다음뉴스 홈 '사진으로 본 오늘'(언론사 사진 연재 20여 개). 홈 데이터의 연재 번호로 연재마다 최근 사진 10장(issue.daum.net, robots.txt 없음)
+DAUM_PHOTO_API = "https://issue.daum.net/api/arms/STYLER_CLUSTER_PHOTO_CONTENTS?id={id}&limit=10"
+
+
+def fetch_daum_photos(now, days=3):
+    body, err = daum_home()
+    if err:
+        return [], [{"name": "포토 사진으로 본 오늘(다음뉴스)", "ok": False, "count": 0, "error": err}]
+    i = body.find("photoClusters:")
+    cl = re.findall(r'\{id:(\d+),title:"([^"]*)",hasNext', body[i:i + 4000]) if i >= 0 else []
+
+    def work(c):
+        try:
+            j = json.loads(http_get(DAUM_PHOTO_API.format(id=c[0])))
+            rows = ((j.get("document") or {}).get("data") or {}).get("contents") or []
+            return c, rows
+        except Exception:
+            return c, []
+    lo = (now - timedelta(days=days)).isoformat()
+    out, seen = [], set()
+    with ThreadPoolExecutor(6) as ex:
+        for (cid, col), rows in ex.map(work, cl):
+            for r in rows:
+                u, img, d = r.get("pcUrl") or "", r.get("image") or "", r.get("createdAt") or ""
+                if not u or not img or u in seen or d < lo:
+                    continue
+                seen.add(u)
+                out.append({"title": re.sub(r"\s+", " ", r.get("title") or "").strip(), "url": u, "date": d, "cover": img,
+                            "thumb": "https://img1.daumcdn.net/thumb/R600x0/?fname=" + urllib.parse.quote(img, safe=""),
+                            "photos": [{"u": img}], "outlet": r.get("cpName") or "", "col": col, "src": "daum"})
+    out.sort(key=lambda x: x["date"], reverse=True)
+    return out, [{"name": "포토 사진으로 본 오늘(다음뉴스)", "ok": bool(out), "count": len(out), "error": f"연재 {len(cl)}개" if out else "사진 0장"}]
 
 
 INTER_HOME = {"경향신문": KHAN_INTERACTIVE, "한국일보": HANKOOK_INTERACTIVE, "조선일보": CHOSUN_INTERACTIVE}
@@ -1394,30 +1492,33 @@ def render_deep(rows, now):
     """맥락·탐사 탭 본문: 매체 버튼 + 글 목록(사진·제목·요약·매체·날짜)"""
     if not rows:
         return ""
-    cnt = Counter(x["outlet"] for x in rows)
+    cnt = Counter(x.get("grp") or x["outlet"] for x in rows)
     chips = (f'<button class="on" data-k="">전체<i>{len(rows)}</i></button>'
-             + "".join(f'<button data-k="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o, _, _ in DEEP_FEEDS if cnt.get(o)))
+             + "".join(f'<button data-k="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o, _, _ in DEEP_FEEDS if cnt.get(o))
+             + "".join(f'<button data-k="{esc(g)}">{esc(g)}<i>{cnt[g]}</i></button>' for g, _, _ in DAUM_MAG_GROUPS if cnt.get(g)))
 
     def row(x):
         th = (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
               f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
         d = datetime.fromisoformat(x["date"])
-        return (f'<li data-k="{esc(x["outlet"])}">{th}<div><div class="pm top"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>'
+        return (f'<li data-k="{esc(x.get("grp") or x["outlet"])}">{th}<div><div class="pm top"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>'
                 f'{d.month}.{d.day} ({WEEK[d.weekday()]})</div><div class="bt">{link(x["url"], x["title"])}</div>'
                 + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>")
     return (f'<div class="pg" data-c="{DEEP_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>맥락·탐사</h2><span class="en">IN DEPTH · 최근 1주 {len(rows)}건</span></div>'
             f'<div class="ofilter" id="dcat" role="group" aria-label="매체">{chips}</div>'
             f'<ul class="blist dlist" id="dl">{"".join(row(x) for x in rows)}</ul>'
-            f'<p class="note">속보보다 맥락·해설·탐사에 힘쓰는 독립 매체들의 최근 1주 글입니다. 각 매체 RSS의 제목과 요약 앞부분만 보여 주며, 글은 원문 사이트에서 읽습니다.</p>'
+            f'<p class="note">속보보다 맥락·해설·탐사에 힘쓰는 독립 매체들과 주·월간 시사지·라이프 전문지의 최근 1주 글입니다. 제목과 요약 앞부분만 보여 주며, 글은 원문에서 읽습니다.</p>'
             f'</section></div>')
 
 
 def render_deep_side(rows):
     """맥락·탐사 탭 오른쪽 칸: 매체 소개와 이번 주 글 수, 바로 가기"""
     cnt = Counter(x["outlet"] for x in rows or [])
+    gc = Counter(x.get("grp") for x in rows or [] if x.get("grp"))
     lis = "".join(f'<li><b class="ot oc{outlet_color(o)}">{esc(o)}</b> {link(h, DEEP_DESC.get(o, ""))}<span class="o">{cnt.get(o, 0)}건</span></li>'
                   for o, _, h in DEEP_FEEDS)
+    lis += "".join(f'<li><b class="ot oc{outlet_color(g)}">{esc(g)}</b> {esc(d)}<span class="o">{gc.get(g, 0)}건</span></li>' for g, _, d in DAUM_MAG_GROUPS)
     return (f'<section class="pg" data-c="{DEEP_TAB}"><div class="shead"><h2>매체 바로 가기</h2><span class="en">이번 주 글 수</span></div>'
             f'<ul class="barts dside">{lis}</ul></section>')
 
@@ -2122,24 +2223,31 @@ def fetch_photo(now, days=7, pages=2, max_new=30):
 
 def render_photo(rows):
     """포토 탭: 화보 대표 사진 Masonry + 쪽 넘기기. 사진을 누르면 그 화보 사진을 넘겨 보는 확대 창, 제목은 원문으로."""
-    rows = [g for g in rows or [] if g.get("cover") or g.get("photos")]
+    rows = sorted((g for g in rows or [] if g.get("cover") or g.get("photos")), key=lambda g: g.get("date") or "", reverse=True)
     if not rows:
         return ""
     data = [{"t": g["title"], "u": g["url"], "p": [p["u"] for p in g.get("photos") or []] or [g["cover"]]} for g in rows]
 
     def card(k, g):
         d = datetime.fromisoformat(g["date"])
-        src = (g.get("photos") or [{}])[0].get("u") or g["cover"]
+        src = g.get("thumb") or (g.get("photos") or [{}])[0].get("u") or g["cover"]
         n = len(g.get("photos") or []) or g.get("count") or 1
-        return (f'<a class="vcard pcard" data-g="{k}" href="{esc(g["url"])}" target="_blank" rel="noopener noreferrer">'
+        dm = g.get("src") == "daum"
+        o = g.get("outlet") or "연합뉴스"
+        return (f'<a class="vcard pcard" data-g="{k}" data-s="{"daum" if dm else "yna"}" href="{esc(g["url"])}" target="_blank" rel="noopener noreferrer">'
                 f'<div class="vph"><img src="{esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="const c=this.closest(\'.pcard\');c.dataset.dead=1;c.remove()">'
-                f'<span class="pcnt">사진 {n}</span></div><div class="vt">{esc(g["title"])}</div>'
-                f'<div class="pm"><b class="ot oc4">연합뉴스</b>{d.month}.{d.day} {d.strftime("%H:%M")}</div></a>')
+                + ("" if dm else f'<span class="pcnt">사진 {n}</span>') + f'</div><div class="vt">{esc(g["title"])}</div>'
+                f'<div class="pm"><b class="ot oc{outlet_color(o)}">{esc(o)}</b>' + (f'{esc(g["col"])} · ' if dm and g.get("col") else "")
+                + f'{d.month}.{d.day} {d.strftime("%H:%M")}</div></a>')
+    ny = sum(1 for g in rows if g.get("src") != "daum")
+    nd = len(rows) - ny
+    chips = (f'<div class="ofilter" id="pf" role="group" aria-label="사진 묶음"><button class="on" data-s="">전체<i>{len(rows)}</i></button>'
+             f'<button data-s="yna">연합뉴스 화보<i>{ny}</i></button>' + (f'<button data-s="daum">사진으로 본 오늘<i>{nd}</i></button>' if nd else "") + '</div>')
     return (f'<div class="pg" data-c="{PHOTO_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
-            f'<div class="shead" style="padding-top:12px"><h2>포토</h2><span class="en">YONHAP GALLERY · 최근 7일 {len(rows)}개 화보</span></div>'
+            f'<div class="shead" style="padding-top:12px"><h2>포토</h2><span class="en">PHOTO · 화보 {ny}개 · 사진 {nd}장</span></div>{chips}'
             f'<div class="vmas" id="pmas">{"".join(card(k, g) for k, g in enumerate(rows))}</div><nav class="pager" id="ppg" aria-label="쪽 넘기기"></nav>'
             f'<script type="application/json" id="pgdata">{json.dumps(data, ensure_ascii=False).replace("</", "<\\/")}</script>'
-            f'<p class="note">연합뉴스 {link("https://www.yna.co.kr/gallery/", "화보")}입니다. 사진을 누르면 그 화보의 사진을 크게 넘겨 볼 수 있고, 제목을 누르면 원문으로 갑니다. 사진 저작권은 연합뉴스와 각 통신사에 있습니다.</p>'
+            f'<p class="note">연합뉴스 {link("https://www.yna.co.kr/gallery/", "화보")}(최근 7일)와 언론사 사진 연재 \'사진으로 본 오늘\'(최근 3일)입니다. 사진을 누르면 크게 넘겨 볼 수 있고, 제목을 누르면 원문으로 갑니다. 사진 저작권은 각 언론사·통신사에 있습니다.</p>'
             f'</section></div>')
 
 
@@ -2823,12 +2931,13 @@ up.onclick=()=>scrollTo({top:0,behavior:'smooth'});document.body.appendChild(up)
 addEventListener('scroll',()=>up.classList.toggle('on',scrollY>700),{passive:true})})();
 (function(){const g=document.getElementById('pmas'),pg=document.getElementById('ppg');if(!g)return;
 // 포토: 오늘의 차트와 같은 Masonry, 쪽 나누지 않고 모두
-const cards=[...g.querySelectorAll('.pcard')],PER=1e9,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0;g.classList.add('js');
+const cards=[...g.querySelectorAll('.pcard')],PER=1e9,hold=document.createElement('div');hold.hidden=true;let page=1,ncol=0,t=0,fs='';g.classList.add('js');
+document.querySelectorAll('#pf button').forEach(b=>b.onclick=()=>{fs=b.dataset.s;document.querySelectorAll('#pf button').forEach(x=>x.classList.toggle('on',x===b));layout()});
 const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
-function layout(){const all=cards.filter(c=>!c.dataset.dead),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
+function layout(){const all=cards.filter(c=>!c.dataset.dead&&(!fs||c.dataset.s===fs)),pages=Math.max(1,Math.ceil(all.length/PER));if(page>pages)page=pages;
 const vis=all.slice((page-1)*PER,page*PER);ncol=cols();const cs=[];g.textContent='';
 for(let i=0;i<ncol;i++){const d=document.createElement('div');d.className='vcol';g.appendChild(d);cs.push(d)}
-all.forEach(c=>{if(!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
+cards.forEach(c=>{if(!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
 vis.forEach(c=>{const im=c.querySelector('img');if(im&&im.loading==='lazy')im.loading='eager';cs.reduce((a,b)=>b.offsetHeight<a.offsetHeight?b:a).appendChild(c)});
 if(!pg)return;if(pages<=1){pg.innerHTML='';return}
 let h='<button type="button" data-p="'+(page-1)+'"'+(page<=1?' disabled':'')+'>‹ 이전</button>';
@@ -3727,6 +3836,9 @@ def main():
         pstatus += cstatus
         photo, phstatus = fetch_photo(now)
         pstatus += phstatus
+        dphoto, dpstatus = fetch_daum_photos(now)
+        pstatus += dpstatus
+        photo = (photo or []) + dphoto
         bcast, bcstatus = fetch_broadcast(now)
         pstatus += bcstatus
         visual, vstatus = fetch_visual(now)
@@ -3734,6 +3846,9 @@ def main():
         deep, dstatus = fetch_deep(now)
         pstatus += dstatus
         n_todo, n_dimg = enrich_books(deep, path=DEEP_META, need_img=True)
+        mags, mstatus = fetch_daum_magazines(now)
+        pstatus += mstatus
+        deep = sorted(deep + mags, key=lambda x: x["date"], reverse=True)
         pstatus.append({"name": "맥락·탐사 원문 사진·소개글", "ok": True, "count": n_dimg, "error": ""})
         g_search, serr = fetch_graphic_search()
         pstatus.append({"name": "그래픽 검색(구글뉴스)", "ok": serr is None, "count": len(g_search), "error": serr or ""})
