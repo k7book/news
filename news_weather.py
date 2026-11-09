@@ -154,6 +154,39 @@ def news():
     return out
 
 
+def festivals(key):
+    """파주시 축제·행사 (한국관광공사 국문 관광정보 KorService2 searchFestival2). 이번 달에 열리는 것만, 시작일 순."""
+    now = now_kst()
+    month0 = now.replace(day=1)
+    nxt = (month0 + timedelta(days=32)).replace(day=1)
+    start = (month0 - timedelta(days=120)).strftime("%Y%m%d")   # 몇 달 전에 시작해 아직 하는 행사도 잡도록
+    base = {"serviceKey": key, "MobileOS": "ETC", "MobileApp": "news-rajin", "_type": "json", "numOfRows": 300, "pageNo": 1,
+            "arrange": "A", "eventStartDate": start}
+    rows, errs = [], []
+    for extra in ({"lDongRegnCd": "41", "lDongSignguCd": "480"}, {"areaCode": "31"}):
+        try:
+            rows = items(get("https://apis.data.go.kr/B551011/KorService2/searchFestival2", base | extra))
+            rows = [r for r in rows if "파주" in (r.get("addr1") or "") + (r.get("addr2") or "")]
+            if rows:
+                break
+        except Exception as e:
+            errs.append(str(e)[:120])
+    if not rows and errs:
+        raise RuntimeError(errs[-1])
+    out = []
+    m0, m1 = month0.strftime("%Y%m%d"), (nxt - timedelta(days=1)).strftime("%Y%m%d")
+    for r in rows:
+        s_, e_ = str(r.get("eventstartdate") or ""), str(r.get("eventenddate") or r.get("eventstartdate") or "")
+        if not s_ or e_ < m0 or s_ > m1:
+            continue
+        out.append({"title": r.get("title", ""), "addr": (r.get("addr1") or "").replace("경기도 ", ""), "start": s_, "end": e_,
+                    "img": (r.get("firstimage") or r.get("firstimage2") or "").replace("http://", "https://"), "id": r.get("contentid", ""),
+                    "tel": r.get("tel", "")})
+    today = now.strftime("%Y%m%d")
+    out.sort(key=lambda x: (x["end"] < today, x["start"]))
+    return {"month": now.month, "items": out[:12]}
+
+
 def collect():
     key = os.environ.get("DATA_GO_KR_KEY", "").strip()
     nx, ny = grid(LOC["lat"], LOC["lon"])
@@ -186,6 +219,16 @@ def build(out_dir):
         with open(os.path.join(out_dir, "weather.json"), "w", encoding="utf-8") as f:
             json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
         print(f"날씨: {'열쇠 없음' if d['need_key'] else '받음'} · 오류 {list(d['errors']) or '없음'} · {time.time() - t0:.1f}초")
+        key = os.environ.get("DATA_GO_KR_KEY", "").strip()
+        fest = {"month": now_kst().month, "items": [], "need_key": not key}
+        if key:
+            try:
+                fest.update(festivals(key))
+            except Exception as e:
+                fest["error"] = str(e)[:200]
+        with open(os.path.join(out_dir, "paju_fest.json"), "w", encoding="utf-8") as f:
+            json.dump(fest, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"파주 축제: {len(fest['items'])}건{' · ' + fest['error'] if fest.get('error') else ''}")
     except Exception as e:
         print("날씨 실패:", e)
 
