@@ -56,7 +56,7 @@ def get(url, params, timeout=20):
 
 def items(d):
     h = (d.get("response") or {}).get("header") or {}
-    if h.get("resultCode") not in (None, "00"):
+    if h.get("resultCode") not in (None, "00", "0000"):
         raise RuntimeError(f"{h.get('resultCode')} {h.get('resultMsg')}")
     it = (((d.get("response") or {}).get("body") or {}).get("items") or {})
     it = it.get("item", it) if isinstance(it, dict) else it
