@@ -1282,16 +1282,16 @@ def render_interactive(rows):
     chips = (f'<button class="on" data-o="">전체<i>{len(rows)}</i></button>'
              + "".join(f'<button data-o="{esc(o)}">{esc(o)}<i>{cnt[o]}</i></button>' for o in outlets))
     cells = "".join(
-        f'<a data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer"><div class="ph iph">'
-        + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
-        + f'</div><div class="pt">{esc(x["title"])}</div><div class="pm"><b>{esc(x["outlet"])}</b>'
-        + (f" · {when(x)}" if when(x) else "") + "</div></a>" for x in rows)
+        f'<a class="vcard icard" data-o="{esc(x["outlet"])}" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer">'
+        + (f'<div class="vph"><img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>' if x.get("img") else "")
+        + f'<div class="vt">{esc(x["title"])}</div><div class="pm"><b class="ot oc{outlet_color(x["outlet"])}">{esc(x["outlet"])}</b>'
+        + (f"{when(x)}" if when(x) else "") + "</div></a>" for x in rows)
     more = " · ".join(link(u, f"{o} 인터랙티브 전체 보기 →") for o, u in INTER_HOME.items() if o in cnt)
     return (f'<div class="pg" data-c="인터랙티브" role="tabpanel"><section class="photos" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>인터랙티브</h2><span class="en">INTERACTIVE · {len(rows)}건</span></div>'
             f'<div class="ofilter" id="if" role="group" aria-label="언론사">{chips}</div>'
             f'<p class="note" style="margin:4px 0 4px">데이터·지도·스크롤 화면으로 만든 기획 기사입니다. 누르면 원문 인터랙티브 페이지가 열립니다.</p>'
-            f'<div class="pgrid g3 inter" id="ig">{cells}</div>'
+            f'<div class="vmas" id="ig">{cells}</div>'
             f'<p class="note">{more}</p></section></div>')
 
 
@@ -2976,9 +2976,18 @@ document.querySelectorAll('.nav button[role=tab]').forEach(b=>b.addEventListener
 document.querySelectorAll('#dcat button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
 document.querySelectorAll('#dcat button').forEach(x=>x.classList.toggle('on',x===b));
 document.querySelectorAll('#dl>li').forEach(li=>li.hidden=!!k&&li.dataset.k!==k)});
-document.querySelectorAll('#if button').forEach(b=>b.onclick=()=>{const o=b.dataset.o;
-document.querySelectorAll('#if button').forEach(x=>x.classList.toggle('on',x===b));
-document.querySelectorAll('#ig>a').forEach(a=>a.style.display=(!o||a.dataset.o===o)?'':'none')});
+(function(){const g=document.getElementById('ig');if(!g)return;
+// 인터랙티브: 포토·그래픽과 같은 Masonry(가장 짧은 기둥에 차례로), 쪽 나누지 않고 모두. 그림은 원래 비율 그대로
+const cards=[...g.querySelectorAll('.icard')],hold=document.createElement('div');hold.hidden=true;let o='',ncol=0,t=0;g.classList.add('js');
+const cols=()=>{const w=g.clientWidth||innerWidth;return w>=700?3:w>=440?2:1};
+function layout(){const vis=cards.filter(c=>!o||c.dataset.o===o);ncol=cols();const cs=[];g.textContent='';
+for(let i=0;i<ncol;i++){const d=document.createElement('div');d.className='vcol';g.appendChild(d);cs.push(d)}
+cards.forEach(c=>{if(!vis.includes(c))hold.appendChild(c)});g.appendChild(hold);
+vis.forEach(c=>{const im=c.querySelector('img');if(im&&im.loading==='lazy')im.loading='eager';cs.reduce((a,b)=>b.offsetHeight<a.offsetHeight?b:a).appendChild(c)})}
+document.querySelectorAll('#if button').forEach(b=>b.onclick=()=>{o=b.dataset.o;document.querySelectorAll('#if button').forEach(x=>x.classList.toggle('on',x===b));layout()});
+g.addEventListener('load',()=>{clearTimeout(t);t=setTimeout(layout,120)},true);g.addEventListener('error',()=>{clearTimeout(t);t=setTimeout(layout,120)},true);
+addEventListener('resize',()=>{if(cols()!==ncol)layout()});
+layout();document.querySelectorAll('.nav button[role=tab]').forEach(b=>b.addEventListener('click',()=>{if(g.offsetParent)layout()}))})();
 function gfilter(o){window._go=o||'';if(window._glayout)window._glayout(true);
 let n=0;document.querySelectorAll('#gl li').forEach(li=>{const v=li.dataset.img==='0'&&(!o||li.dataset.o===o);li.style.display=v?'':'none';if(v)n++});
 const gl=document.getElementById('gl');if(gl)gl.style.display=n?'':'none';}
