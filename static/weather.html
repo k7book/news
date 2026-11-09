@@ -143,6 +143,7 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 .now2 .temp{font-size:72px;color:var(--ink)}.now2 .temp small{font-size:28px;color:var(--muted)}
 .now2 .sky{font-size:20px;font-weight:800;margin:0}.now2 .mm{font-size:14px}.now2 .mm .mn{color:var(--cold)}.now2 .mm .mx{color:var(--red)}
 .nowdl{display:grid;grid-template-columns:auto auto;gap:6px 14px;margin:0 0 0 auto;font-size:14px;justify-self:end}.nowdl dt{color:var(--dim)}.nowdl dd{margin:0;font-weight:700;text-align:right}
+.rainline{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;background:var(--paper-2);color:var(--muted)}.rainline.wet{background:color-mix(in srgb,var(--cold) 14%,transparent);color:var(--cold)}.rainline.may{background:color-mix(in srgb,var(--cold) 8%,transparent);color:var(--cold)}
 .pills{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;padding:0}
 .pills li{padding:6px 12px;border-radius:999px;background:var(--paper-2);font-size:13px;color:var(--muted)}.pills li b{margin-left:4px;color:var(--ink)}
 .pills li.good b{color:var(--teal)}.pills li.ok b{color:var(--gold)}.pills li.bad b{color:var(--red)}
@@ -353,12 +354,23 @@ function render(D){
   // ① 지금 날씨
   let uvv = null; const u = D.uv; if(u && u.date && u.date.slice(0, 8) === today){ const d0 = +u.date.slice(8, 10), v = []; for(let k = 0; k <= 21; k += 3) if(d0 + k < 24 && u["h" + k] !== "" && u["h" + k] != null) v.push(+u["h" + k]); if(v.length) uvv = Math.max(...v); }
   const uvT = uvv == null ? "–" : uvv >= 8 ? "매우높음" : uvv >= 6 ? "높음" : uvv >= 3 ? "보통" : "낮음", uvC = uvv == null ? "" : uvv >= 6 ? "bad" : uvv >= 3 ? "ok" : "good";
+  // 비 소식 한 줄: 초단기예보(6시간, 1시간 단위) → 없으면 단기예보 강수확률(12시간)
+  const rainMsg = (() => { const wet = h => h && +h.PTY > 0, kind = h => ({3: "눈", 7: "눈", 2: "비·눈", 6: "비·눈"})[+h.PTY] || "비";
+    const nowWet = +(N.PTY || 0) > 0 || (N.RN1 && N.RN1 !== "0");
+    const uks = Object.keys(U).sort().filter(k => k > nowKey.slice(0, 10) + "00").slice(0, 6), mins = k => Math.round((new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), +k.slice(8, 10)) - now) / 60000);
+    const when = k => { const m = mins(k); return m <= 50 ? "곧" : m < 90 ? "1시간 뒤" : `${Math.round(m / 60)}시간 뒤(${+k.slice(8, 10)}시)`; };
+    if(nowWet){ const stop = uks.find(k => !wet(U[k])); return {c: "wet", t: stop ? `지금 ${kind(N.PTY > 0 ? N : U[uks[0]] || {})} · ${when(stop)} 그쳐요` : `지금 ${kind(N.PTY > 0 ? N : U[uks[0]] || {})} · 6시간 넘게 이어져요`}; }
+    const st = uks.find(k => wet(U[k])); if(st) return {c: "wet", t: `${when(st)} ${kind(U[st])} 와요${U[st].RN1 && !/없음/.test(U[st].RN1) ? " · " + U[st].RN1 : ""}`};
+    const pk = keys.filter(k => k > nowKey).slice(0, 12).find(k => +H[k].POP >= 60 || wet(H[k]));
+    if(pk) return {c: "may", t: `${+pk.slice(8, 10)}시쯤 ${kind(H[pk])} 가능성 ${H[pk].POP}%`};
+    return {c: "dry", t: "12시간 안에 비 소식 없어요"}; })();
   const sunMsg = night ? `일출 ${S.rise}` : `일몰 ${S.set}`;
   const nowCard = `<section class="wcard now2">
     <div class="locbar"><b>${esc(loc.name)}</b><span>기상청 실황 ${N.at ? N.at.slice(8, 10) + ":" + N.at.slice(10, 12) : ""}</span></div>
     <div class="nowrow">${ic(sk, night, 128)}<div class="nowt"><div class="temp num">${t != null && t !== "" ? Math.round(+t * 10) / 10 : "–"}<small>°</small></div>
       <div class="sky">${esc(sk)}</div><div class="mm num"><span class="mn">최저 ${tday.tmin != null ? Math.round(tday.tmin) + "°" : "–"}</span> <span class="mx">최고 ${tday.tmax != null ? Math.round(tday.tmax) + "°" : "–"}</span></div></div>
       <dl class="nowdl"><dt>체감</dt><dd>${fl != null ? fl + "°" : "–"}</dd><dt>습도</dt><dd>${N.REH ?? "–"}%</dd><dt>${dir8(N.VEC)}풍</dt><dd>${N.WSD ?? "–"}m/s</dd><dt>1시간 강수</dt><dd>${N.RN1 && N.RN1 !== "0" ? esc(N.RN1) : "없음"}</dd></dl></div>
+    <div class="rainline ${rainMsg.c}"><span>${rainMsg.c === "dry" ? "☀" : "☂"}</span>${esc(rainMsg.t)}</div>
     <ul class="pills"><li class="${p10.c}">미세먼지 <b>${p10.t}</b></li><li class="${p25.c}">초미세먼지 <b>${p25.t}</b></li><li class="${uvC}">자외선 <b>${uvT}</b></li><li>${sunMsg.split(" ")[0]} <b>${sunMsg.split(" ")[1]}</b></li></ul></section>`;
 
   // ② 오늘 · 내일 · 모레
