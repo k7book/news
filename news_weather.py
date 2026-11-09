@@ -317,6 +317,18 @@ def build(out_dir):
                 fest["items"] = sorted(fest["items"] + add, key=lambda x: (x["end"] < today, x["start"]))
         except Exception as e:
             print("직접 적은 행사 읽기 실패:", e)
+        # 같은 행사 겹침 빼기: 연도·괄호말·띄어쓰기·기호를 떼고 같은 이름이면 하나만 (앞의 것 = 관광공사 자료 우선)
+        import re as _re
+        def _k(t):
+            t = _re.sub(r"&[a-z]+;|\[[^\]]*\]|\([^)]*\)", "", t.lower())
+            return _re.sub(r"(19|20)\d{2}|제\d+회|[^0-9a-z가-힣]", "", t)
+        uniq, seen = [], set()
+        for x in fest["items"]:
+            k = _k(x["title"])
+            if k and k in seen:
+                continue
+            seen.add(k); uniq.append(x)
+        fest["items"] = uniq
         with open(os.path.join(out_dir, "paju_fest.json"), "w", encoding="utf-8") as f:
             json.dump(fest, f, ensure_ascii=False, separators=(",", ":"))
         print(f"파주 축제·행사: {len(fest['items'])}건 (공연·전시 {fest.get('culture', 0)}){' · 축제 오류 ' + fest['error'] if fest.get('error') else ''}{' · 공연전시 오류 ' + fest['culture_error'] if fest.get('culture_error') else ''}")
