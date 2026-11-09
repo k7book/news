@@ -94,6 +94,20 @@ def vilage(key, nx, ny):
     for i in items(get(KMA + "/VilageFcstInfoService_2.0/getVilageFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 1500, "dataType": "JSON",
                                                                        "base_date": base.strftime("%Y%m%d"), "base_time": f"{h:02d}00", "nx": nx, "ny": ny})):
         out.setdefault(i["fcstDate"] + i["fcstTime"], {})[i["category"]] = i["fcstValue"]
+    # [2026-11-09] 오후 발표분에는 오늘 지난 시간·오늘 최저(TMN)·최고(TMX)가 없어 '최고 8° (지금 11.9°)'처럼 어긋났다.
+    #   오늘 02시 발표분을 더 받아 오늘 빠진 시간과 TMN·TMX를 채운다.
+    if (h, base.date()) != (2, now.date()) and now.hour * 60 + now.minute >= 2 * 60 + 15:
+        try:
+            today = now.strftime("%Y%m%d")
+            for i in items(get(KMA + "/VilageFcstInfoService_2.0/getVilageFcst", {"serviceKey": key, "pageNo": 1, "numOfRows": 400, "dataType": "JSON",
+                                                                               "base_date": today, "base_time": "0200", "nx": nx, "ny": ny})):
+                if i["fcstDate"] != today:
+                    continue
+                k = i["fcstDate"] + i["fcstTime"]
+                if k not in out or i["category"] in ("TMN", "TMX"):
+                    out.setdefault(k, {}).setdefault(i["category"], i["fcstValue"])
+        except Exception:
+            pass
     return {"base": base.strftime("%Y%m%d") + f"{h:02d}00", "hours": out}
 
 

@@ -335,7 +335,10 @@ function render(D){
   const nowKey = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}00`, today = nowKey.slice(0, 8);
   const uk = Object.keys(U).sort().find(k => k >= nowKey) || Object.keys(U).sort()[0];
   const sk = uk ? sky(U[uk].SKY, U[uk].PTY) : H[nowKey] ? sky(H[nowKey].SKY, H[nowKey].PTY) : "";
-  const t = N.T1H ?? (H[nowKey] && H[nowKey].TMP), fl = feels(t, N.WSD);
+  // 지금 기온: 실황이 지금 시각(정시)의 것이면 실황, 아니면(실황은 정시 40분 뒤에 나와 한 시간 이상 묵는다) 초단기예보의 지금 시각 값
+  const nAt = N.at ? N.at.slice(0, 10) + "00" : "", nowFromObs = nAt === nowKey || !(U[nowKey] && U[nowKey].T1H != null);
+  const t = nowFromObs ? (N.T1H ?? (H[nowKey] && H[nowKey].TMP)) : U[nowKey].T1H, fl = feels(t, nowFromObs ? N.WSD : (U[nowKey].WSD ?? N.WSD));
+  const nowSrc = nowFromObs ? `기상청 실황 ${N.at ? N.at.slice(8, 10) + ":" + N.at.slice(10, 12) : ""}` : `기상청 초단기예보 ${nowKey.slice(8, 10)}:00 (실황 ${N.at ? N.at.slice(8, 10) + ":00" : "–"})`;
   const p10 = pm(A.pm10Value, "pm10"), p25 = pm(A.pm25Value, "pm25");
   const loc = D.loc || {lat: 37.7183, lon: 126.758, name: "파주시 운정1동"}, S = sun(loc.lat, loc.lon, now);
   const hNow = now.getHours() + now.getMinutes() / 60, night = hNow < S.rH || hNow >= S.sH;
@@ -348,7 +351,8 @@ function render(D){
     if(L.length >= 6) days.push({date: d, am: pick(am), pm: pick(pm_), tmin: n0 ?? Math.min(...ts), tmax: x0 ?? Math.max(...ts)}); });
   ((D.mid && D.mid.days) || []).forEach(m => { if(!days.find(x => x.date === m.date)) days.push({date: m.date, am: m.am ? {sky: m.am, pop: m.popAm} : null, pm: m.pm ? {sky: m.pm, pop: m.popPm} : null, tmin: m.tmin, tmax: m.tmax}); });
   days.sort((a, b) => a.date.localeCompare(b.date));
-  const tday = days.find(d => d.date === today) || {};
+  const tday = Object.assign({}, days.find(d => d.date === today) || {});
+  if(t != null && t !== ""){ const tv = +t; if(tday.tmax == null || tv > tday.tmax) tday.tmax = tv; if(tday.tmin == null || tv < tday.tmin) tday.tmin = tv; }  // 지금 기온이 예보 최저·최고를 벗어나면 맞춰 줌
   const errs = Object.entries(D.errors || {}).filter(([k]) => !["past", "nation", "uv"].includes(k));   // 없어도 되는 칸은 조용히 숨김
   let html = errs.length ? `<div class="err">일부 자료를 못 받았어요 — ${errs.map(([k, v]) => `<b>${esc(k)}</b>: ${esc(v)}`).join(" · ")}</div>` : "";
 
@@ -367,7 +371,7 @@ function render(D){
     return {c: "dry", t: "12시간 안에 비 소식 없어요"}; })();
   const sunMsg = night ? `일출 ${S.rise}` : `일몰 ${S.set}`;
   const nowCard = `<section class="wcard now2">
-    <div class="locbar"><b>${esc(loc.name)}</b><span>기상청 실황 ${N.at ? N.at.slice(8, 10) + ":" + N.at.slice(10, 12) : ""}</span></div>
+    <div class="locbar"><b>${esc(loc.name)}</b><span>${esc(nowSrc)}</span></div>
     <div class="nowrow">${ic(sk, night, 128)}<div class="nowt"><div class="temp num">${t != null && t !== "" ? Math.round(+t * 10) / 10 : "–"}<small>°</small></div>
       <div class="sky">${esc(sk)}</div><div class="mm num"><span class="mn">최저 ${tday.tmin != null ? Math.round(tday.tmin) + "°" : "–"}</span> <span class="mx">최고 ${tday.tmax != null ? Math.round(tday.tmax) + "°" : "–"}</span></div></div>
       <dl class="nowdl"><dt>체감</dt><dd>${fl != null ? fl + "°" : "–"}</dd><dt>습도</dt><dd>${N.REH ?? "–"}%</dd><dt>${dir8(N.VEC)}풍</dt><dd>${N.WSD ?? "–"}m/s</dd><dt>1시간 강수</dt><dd>${N.RN1 && N.RN1 !== "0" ? esc(N.RN1) : "없음"}</dd></dl></div>
