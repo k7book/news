@@ -314,7 +314,7 @@ function render(D){
   ((D.mid && D.mid.days) || []).forEach(m => { if(!days.find(x => x.date === m.date)) days.push({date: m.date, am: m.am ? {sky: m.am, pop: m.popAm} : null, pm: m.pm ? {sky: m.pm, pop: m.popPm} : null, tmin: m.tmin, tmax: m.tmax}); });
   days.sort((a, b) => a.date.localeCompare(b.date));
   const tday = days.find(d => d.date === today) || {};
-  const errs = Object.entries(D.errors || {});
+  const errs = Object.entries(D.errors || {}).filter(([k]) => !["past", "nation", "uv"].includes(k));   // 없어도 되는 칸은 조용히 숨김
   let html = errs.length ? `<div class="err">일부 자료를 못 받았어요 — ${errs.map(([k, v]) => `<b>${esc(k)}</b>: ${esc(v)}`).join(" · ")}</div>` : "";
 
   // ① 지금 날씨
