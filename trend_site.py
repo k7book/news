@@ -3174,7 +3174,6 @@ const top=document.getElementById('gf')||g;scrollTo({top:top.getBoundingClientRe
 g.addEventListener('load',()=>{clearTimeout(t);t=setTimeout(()=>layout(),120)},true);addEventListener('resize',()=>{if(cols()!==ncol)layout()});
 document.querySelectorAll('.nav button[role=tab]').forEach(b=>b.addEventListener('click',()=>{if(g.offsetParent)layout()}))})();
 gfilter('');
-document.getElementById('st')?.addEventListener('click',()=>{const d=document.querySelector('details.status');d.open=true;d.scrollIntoView({behavior:'smooth'})});
 """
 
 WEEK = "월화수목금토일"
@@ -3534,8 +3533,7 @@ def render_page(pages, trends, portals, status, now, nitems, hours, outlets=0, g
 {render_brief(trends, pages, now, only or "전체")}
 <div class="cols"><main>{"".join(body)}{gpanel}</main><aside class="side">{side}</aside></div>
 {stats}
-<details class="status"><summary>수집 상태 · {ok}/{len(status)} 성공</summary><ul>{st}</ul></details>
-<footer><span>제목과 링크만 모읍니다. 기사 원문은 각 언론사에 있습니다.</span><span class="ftl"><button class="flink" id="st" type="button">수집 현황 {ok}/{len(status)}</button><a href="sources.html">뉴스 출처 보기 →</a></span></footer>
+<footer><span>제목과 링크만 모읍니다. 기사 원문은 각 언론사에 있습니다.</span><span class="ftl"><a href="sources.html">뉴스 출처 보기 →</a></span></footer>
 </div><script>{JS}</script></body></html>"""
 
 
