@@ -3700,7 +3700,7 @@ def build_weather(out):
         if not (m_nav and m_title and "<!--WX_HEADER-->" in w):
             return
         nav = m_nav.group(0).replace('class="srclink wxlink"', 'class="srclink wxlink on" aria-current="page"')
-        title = re.sub(r'<p class="motto">.*?</p>', '<p class="motto">파주 운정 동네 날씨 · 기상청 · 에어코리아 · 약 1시간마다</p>', m_title.group(0), flags=re.S)
+        title = re.sub(r'<p class="motto">.*?</p>', '<p class="motto">파주 운정 동네 날씨 · 기상청·에어코리아</p>', m_title.group(0), flags=re.S)
         now = datetime.now(KST)
         date = f'{now.year}년 {now.month}월 {now.day}일 {WEEK[now.weekday()]}요일 · {now.strftime("%H:%M")} 기준'
         head = (f'<div class="dateline"><span>{date}</span><span class="dl-r"><a class="pill srcpill" href="index.html">← 뉴스</a>'
