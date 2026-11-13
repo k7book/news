@@ -222,6 +222,13 @@ footer{margin-top:22px;padding-top:10px;border-top:1px solid var(--rule);color:v
 .plabs{display:grid;border-top:1px solid var(--rule);padding-top:6px}
 .pl{display:flex;flex-direction:column;align-items:center;line-height:1.25}.pl b{font-size:13px}.pl span{font-size:11px;color:var(--dim)}.pl em{font-style:normal;font-size:11px;color:var(--dim)}.pl em.hi{color:var(--cold);font-weight:700}
 .pl.sun b{color:var(--red)}.pl.sat b{color:var(--cold)}
+.rdr .rbox{position:relative;background:var(--paper-2,#0001);border-radius:6px;overflow:hidden;line-height:0}
+.rdr .rbox img{width:100%;height:auto;display:block}
+.rdr .rbox .rtm{position:absolute;left:8px;top:8px;line-height:1.2;background:rgba(0,0,0,.62);color:#fff;font-size:13px;font-weight:700;padding:4px 8px;border-radius:4px}
+.rdr .rctl{display:flex;align-items:center;gap:10px;margin-top:10px}
+.rdr .rctl button{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:14px;flex:none}
+.rdr .rctl input{flex:1;accent-color:var(--ink)}
+.rdr .rctl span{font-size:12px;color:var(--dim);white-space:nowrap}
 </style></head>
 <body><div class="w">
 <!--WX_HEADER-->
@@ -482,11 +489,48 @@ function render(D){
       const o = NOFF[c.name] || [0, 0];
       return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td class="nic">${ic(sky(c.sky, +c.pty || +c.upty), night, 28)}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
 
-  html += `<div class="nv"><div class="nvl">${nowCard}${hourCard}${weekCard}${nationCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>${pastCard}`;
+  html += `<div class="nv"><div class="nvl">${nowCard}<section class="wcard rdr" id="radarc" hidden></section>${hourCard}${weekCard}${nationCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>${pastCard}`;
   body.innerHTML = html;
   drawPast();
+  radarMount();
   body.querySelectorAll("[data-ht]").forEach(b => b.onclick = () => { HT = b.dataset.ht; const x = body.querySelector(".hscroll").scrollLeft; render(window.__D); body.querySelector(".hscroll").scrollLeft = x; });
   const hs = body.querySelector(".hscroll"); if(hs) hs.addEventListener("wheel", e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ hs.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
+}
+// 비구름 레이더 — /api/radar (기상청 레이더 합성영상, 최근 2시간·10분 간격)
+let RD = null, RDi = 0, RDt = null, RDplay = true;
+const rtime = t => `${+t.slice(8, 10)}:${t.slice(10, 12)}`;
+function radarShow(i){
+  const c = $("#radarc"); if(!c || !RD) return;
+  RDi = i; const f = RD[i];
+  c.querySelector(".rbox img").src = f.src;
+  c.querySelector(".rtm").textContent = `${+f.t.slice(4, 6)}/${+f.t.slice(6, 8)} ${rtime(f.t)}${i === RD.length - 1 ? " · 최신" : ""}`;
+  c.querySelector("input").value = i;
+}
+function radarTick(){
+  clearTimeout(RDt); if(!RDplay || !RD) return;
+  RDt = setTimeout(() => { radarShow((RDi + 1) % RD.length); radarTick(); }, RDi === RD.length - 1 ? 1800 : 550);
+}
+function radarDraw(){
+  const c = $("#radarc"); if(!c || !RD || !RD.length) return;
+  const a = RD[0], b = RD[RD.length - 1];
+  c.innerHTML = `<div class="h2row"><h2>비구름 레이더</h2><span class="hint">기상청 레이더 합성영상 · ${rtime(a.t)}~${rtime(b.t)}</span></div>
+<div class="rbox"><img alt="기상청 레이더 합성영상" decoding="async"><span class="rtm"></span></div>
+<div class="rctl"><button type="button" aria-label="재생/멈춤">${RDplay ? "❚❚" : "▶"}</button><input type="range" min="0" max="${RD.length - 1}" step="1" aria-label="시각 선택"><span>10분 간격 · 2시간</span></div>`;
+  c.hidden = false;
+  const btn = c.querySelector("button"), rg = c.querySelector("input");
+  btn.onclick = () => { RDplay = !RDplay; btn.textContent = RDplay ? "❚❚" : "▶"; if(RDplay && RDi === RD.length - 1) RDi = -1; radarTick(); };
+  rg.oninput = () => { RDplay = false; btn.textContent = "▶"; clearTimeout(RDt); radarShow(+rg.value); };
+  radarShow(RDplay ? RDi : RD.length - 1); radarTick();
+}
+function radarMount(){
+  if(RD) return radarDraw();
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches) RDplay = false;
+  fetch("/api/radar").then(r => r.json()).then(d => {
+    if(!d.frames || !d.frames.length){ if(d.error) console.warn("레이더:", d.error); return; }
+    RD = d.frames; RDi = RD.length - 1;
+    RD.forEach(f => { const im = new Image(); im.src = f.src; });
+    radarDraw();
+  }).catch(e => console.warn("레이더:", e));
 }
 fetch("weather.json", {cache: "no-store"}).then(r => r.json()).then(render).catch(e => { $("#body").innerHTML = `<div class="err">날씨 자료를 불러오지 못했어요: ${esc(e.message)}</div>`; });
 </script>

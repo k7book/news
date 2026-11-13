@@ -88,6 +88,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.NEWS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.NEWS1 }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}   # functions/api/radar.js(비구름 레이더)가 쓰는 Pages 비밀값 — 없을 때만 한 번 넣음
         run: |
           cp _headers site/_headers
           printf 'User-agent: *\nDisallow: /\n' > site/robots.txt
@@ -104,6 +105,9 @@ jobs:
             echo "account token verify: $(chk https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify)"
           } > cf.log 2>&1
           npx --yes wrangler@4.20.0 pages project create news --production-branch main >> cf.log 2>&1
+          if [ -n "$DATA_GO_KR_KEY" ] && ! npx --yes wrangler@4.20.0 pages secret list --project-name news 2>/dev/null | grep -q DATA_GO_KR_KEY; then
+            printf %s "$DATA_GO_KR_KEY" | tr -d '[:space:]' | npx --yes wrangler@4.20.0 pages secret put DATA_GO_KR_KEY --project-name news >> cf.log 2>&1 && echo "pages secret DATA_GO_KR_KEY set" >> cf.log
+          fi
           npx --yes wrangler@4.20.0 pages deploy site --project-name news --branch main --commit-dirty=true >> cf.log 2>&1
           rc=$?
           msg=$(sed -E 's/\x1b\[[0-9;]*m//g' cf.log | grep -vE '^\s*$' | tail -30)
