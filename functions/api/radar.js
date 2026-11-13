@@ -58,7 +58,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     try {
       res = json({ frames: await frames(env), source: "기상청 레이더 합성영상" });
     } catch (e) {
-      return json({ frames: [], error: String(e.message || e) }, 502);
+      return json({ frames: [], error: String(e.message || e) }, 200, 60);
     }
   }
   waitUntil(cache.put(ck, res.clone()));
