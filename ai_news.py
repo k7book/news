@@ -22,10 +22,11 @@ BOOK_CALLS = 3   # 책 이름 뽑기는 한 번 실행에 3번까지만(첫 실�
 KST = timezone(timedelta(hours=9))
 STATE = {"calls": 0, "tin": 0, "tout": 0, "err": ""}
 
-SYS_CLUSTER = ("너는 통신사 데스크다. 사건 묶음마다 여러 언론사의 기사 제목을 받는다. 제목들에 공통으로 나온 사실만으로 "
-               "'무슨 일인가'를 한 문장(45자 이내, '~했다/~한다' 꼴 대신 명사형이나 '~해' 없이 담백한 서술)으로 쓴다. "
-               "누가·무엇을·어떻게 중심. 평가·전망·추측·형용사 과장은 쓰지 않는다. 언론사마다 엇갈리면 공통된 부분만. "
-               '제목만으로 알 수 없으면 쓰지 않고 빈 문자열. JSON 배열로만: [{"i": 0, "s": "..."}]')
+SYS_CLUSTER = ("너는 통신사 데스크다. 사건 묶음마다 화면에 이미 보이는 '대표 제목'과, 같은 사건을 다룬 다른 언론사 기사의 제목·요약을 받는다. "
+               "독자는 대표 제목을 이미 읽었다. 대표 제목에 없는 사실 가운데 가장 중요한 것 하나를 한 줄(45자 이내)로 보탠다: "
+               "숫자·결과·이유·다음 일정·당사자 반응·배경 같은 것. 대표 제목의 낱말을 되풀이하거나 바꿔 말하지 않는다. "
+               "여러 기사에 공통으로 나온 사실만 쓰고, 평가·전망·추측은 쓰지 않는다. 명사형이나 담백한 서술로. "
+               '보탤 새 사실이 없으면 s 를 빈 문자열로. JSON 배열로만: [{"i": 0, "s": "..."}]')
 SYS_BOOKS = ("너는 신문 책 지면 편집자다. 기사마다 제목과 요약을 받는다. 그 기사가 소개·서평·인터뷰로 다룬 책의 제목만 뽑는다. "
              "저자의 예전 책, 수상 경력으로만 나온 책, 문학상·행사·영화·전시 이름, 기사 제목의 일부 문구는 넣지 않는다. "
              "책 제목은 기사에 적힌 표기 그대로(부제는 빼고, 낫표·따옴표는 떼고). 책이 없으면 빈 배열. "
@@ -85,10 +86,10 @@ def _save(p, d):
 
 
 def _ck(c):
-    return hashlib.sha1(re.sub(r"\W", "", c["title"]).encode()).hexdigest()[:14]
+    return "v2:" + hashlib.sha1(re.sub(r"\W", "", c["title"]).encode()).hexdigest()[:14]   # v2: 제목에 없는 사실만 보태는 방식
 
 
-def cluster_summaries(pages, per_page=None):
+def cluster_summaries(pages, per_page=None, descs=None):
     """pages[c]['clusters'] 의 상위 묶음에 c['ai'] 를 붙인다. 돌려주는 값: (붙인 수, 새로 물은 수)"""
     per_page = per_page or {"전체": 10}
     cache = _load(C_CACHE)
@@ -104,13 +105,18 @@ def cluster_summaries(pages, per_page=None):
         if not available():
             break
         part = todo[s:s + 12]
-        text = "\n\n".join(f"[{i}]\n" + "\n".join(f"- {l['outlet']}: {l['title']}" for l in c["links"][:6]) for i, (k, c) in enumerate(part))
+        descs = descs or {}
+        def one(i, c):
+            ls = c["links"][:7]
+            body = "\n".join(f"- {l['outlet']}: {l['title']}" + (f" | 요약: {descs[l['url']][:150]}" if descs.get(l.get("url")) else "") for l in ls)
+            return f"[{i}] 대표 제목: {c['title']}\n{body}"
+        text = "\n\n".join(one(i, c) for i, (k, c) in enumerate(part))
         res = _ask(SYS_CLUSTER, text, max_tokens=8000)
         if res is None:
             break
         got = {r.get("i"): str(r.get("s") or "").strip() for r in res if isinstance(r, dict)}
         for i, (k, c) in enumerate(part):
-            if i in got:
+            if i in got:   # 빈 문자열도 저장(보탤 게 없다는 답 — 다시 묻지 않음)
                 cache[k] = {"s": got[i][:70], "t": now}
     n = 0
     for name, p in pages.items():

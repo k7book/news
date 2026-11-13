@@ -3225,7 +3225,7 @@ def outlets_html(c):
 
 def AISUM(c):
     """사건 묶음의 Claude 한 줄 요약 (없으면 빈 글자)"""
-    return f'<p class="aisum" title="Claude가 언론사들의 기사 제목만 보고 쓴 한 줄 요약"><b>AI</b>{esc(c["ai"])}</p>' if c.get("ai") else ""
+    return f'<p class="aisum" title="Claude가 같은 사건의 다른 언론사 기사에서 제목에 없는 사실을 골라 보탠 한 줄"><b>AI</b>{esc(c["ai"])}</p>' if c.get("ai") else ""
 
 
 def render_clusters(cs, now, label, photos_html=""):
@@ -4129,7 +4129,7 @@ def main():
         pages[c]["trends"] = channel_trends(c, subs[c], trends, now)
     if not args.demo and ai_news and ai_news.available():  # [2026-11-13] Claude: 사건 묶음 '무슨 일인가' 한 줄
         try:
-            n_cs, n_csn = ai_news.cluster_summaries(pages, {"전체": 10})
+            n_cs, n_csn = ai_news.cluster_summaries(pages, {"전체": 10}, {a["url"]: a.get("desc") for a in items if a.get("desc")})
             pstatus.append({"name": "Claude 사건 요약", "ok": True, "count": n_cs, "error": f"새로 {n_csn}건 · {ai_news.status_line()}"})
         except Exception as e:  # noqa: BLE001
             pstatus.append({"name": "Claude 사건 요약", "ok": False, "count": 0, "error": f"{type(e).__name__}"})
