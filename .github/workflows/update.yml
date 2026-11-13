@@ -66,6 +66,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}   # 날씨 탭(기상청·에어코리아) — 없으면 날씨 뉴스만
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # Claude(Haiku): 사건 한 줄 요약·책 이름 뽑기 — 없으면 건너뜀
         run: python trend_site.py
 
       - name: deploy 브랜치로 올리기

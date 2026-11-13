@@ -17,6 +17,10 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+try:  # [2026-11-13] Claude(Haiku) 단계 — 키(ANTHROPIC_API_KEY)가 없으면 아무것도 안 함
+    import ai_news
+except Exception:  # noqa: BLE001
+    ai_news = None
 
 KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) trend_site/0.2 (personal)"
@@ -847,6 +851,8 @@ _BK_NOT = re.compile(r"(문학상|노벨상|부커상|베스트셀러)$")
 def book_titles_of(x):
     t, d = x["title"], x.get("desc") or ""
     out = []
+    if x.get("ai_books") is not None:  # [2026-11-13] Claude가 뽑은 책 이름이 있으면 정규식 대신 그것(+ 본문 묶음 책)
+        return _bk_clean(list(x["ai_books"]) + (x.get("books_in") or []))
     for rx in _BK:
         for m in rx.finditer(t + " ‖ " + d):
             if rx.groups == 2 and not re.search(r"[가-힣A-Za-z]{2,}", m.group(2)):  # (64) 같은 나이 괄호는 제외
@@ -869,6 +875,10 @@ def book_titles_of(x):
         out.append(m.group(1))
     out += x.get("books_in") or []  # 묶음 기사 본문에서 뽑은 책(한 권씩)
     # (2026-10-30 삭제) 한겨레 서평 '[.txt]' 제목 속 따옴표 낱말 규칙: '억울함'·'오리'처럼 책 제목이 아닌 경우가 대부분이었다.
+    return _bk_clean(out)
+
+
+def _bk_clean(out):
     res, seen = [], set()
     for b in out:
         b = re.sub(r"\s*(?:…|\.{2,})\s*$", "", re.sub(r"\s+", " ", b))  # 끝 말줄임표(줄여 쓴 제목)
@@ -2800,6 +2810,8 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .lead.has-img h2{font-size:clamp(20px,2.2vw,26px);line-height:1.42}
 .story h3{text-wrap:pretty}
 .byline{font-size:11.5px;letter-spacing:.04em;color:var(--muted)}
+.aisum{margin:3px 0 5px;font-size:13px;line-height:1.55;color:var(--ink,inherit);opacity:.86}
+.aisum b{font-size:9.5px;letter-spacing:.06em;border:1px solid currentColor;border-radius:3px;padding:0 3px;margin-right:6px;vertical-align:1px;opacity:.6;font-weight:700}
 .outlets{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .outlets a{font-size:12px;color:var(--ink-soft);border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3)}
 .outlets a:hover{border-color:var(--ink);text-decoration:none;color:var(--ink)}
@@ -3211,6 +3223,11 @@ def outlets_html(c):
     return '<div class="outlets">' + "".join(link(l["url"], l["outlet"], l["title"]) for l in c["links"]) + "</div>"
 
 
+def AISUM(c):
+    """사건 묶음의 Claude 한 줄 요약 (없으면 빈 글자)"""
+    return f'<p class="aisum" title="Claude가 언론사들의 기사 제목만 보고 쓴 한 줄 요약"><b>AI</b>{esc(c["ai"])}</p>' if c.get("ai") else ""
+
+
 def render_clusters(cs, now, label, photos_html=""):
     if not cs:
         return (f'<p class="empty">최근 {label} 관련 기사가 아직 없습니다.</p>' if label in NICHE
@@ -3219,7 +3236,7 @@ def render_clusters(cs, now, label, photos_html=""):
     ph = (f'<a class="ph" href="{esc(c["links"][0]["url"])}" target="_blank" rel="noopener noreferrer">'
           f'<img src="{esc(c["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.lead\').classList.remove(\'has-img\');this.parentNode.remove()"></a>') if c.get("img") else ""
     lead = (f'<article class="lead{" has-img" if ph else ""}"><div><div class="kicker">{esc(label)} 1위<span class="km">{span_txt(c)}</span></div>'
-            f'<h2>{link(c["links"][0]["url"], c["title"])}</h2>'
+            f'<h2>{link(c["links"][0]["url"], c["title"])}</h2>' + AISUM(c) +
             f'<div class="byline">같은 사건을 다룬 언론사</div>{outlets_html(c)}</div>{ph}</article>')
     def thumb(x):
         if not x.get("img"):
@@ -3228,7 +3245,7 @@ def render_clusters(cs, now, label, photos_html=""):
                 f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" '
                 f'onerror="this.closest(\'.story\').classList.remove(\'has-th\');this.parentNode.remove()"></a>')
     rest = "".join(
-        f'<article class="story{" has-th" if x.get("img") else ""}"><div class="no">{i}</div><div><h3>{link(x["links"][0]["url"], x["title"])}</h3>'
+        f'<article class="story{" has-th" if x.get("img") else ""}"><div class="no">{i}</div><div><h3>{link(x["links"][0]["url"], x["title"])}</h3>' + AISUM(x) +
         f'<div class="byline"><span class="cnt">{x["count"]}개 언론사</span> · {x.get("total", x["count"])}건 · {ago(x["latest"], now)}</div>{outlets_html(x)}</div>{thumb(x)}</article>'
         for i, x in enumerate(cs[1:], 2))
     return lead + rest  # 사진 뉴스 칸은 목록에 통합(사진 있는 사건은 썸네일)
@@ -4030,6 +4047,12 @@ def main():
         arch = book_archive(books, now)
         enrich_books(arch, max_new=40)
         n_mread, n_mbooks = enrich_multi_books(arch)
+        if ai_news and ai_news.available():  # [2026-11-13] Claude: 책 기사에서 소개된 책 이름 뽑기(정규식 대신)
+            try:
+                n_ab, n_abn = ai_news.mark_books(arch)
+                pstatus.append({"name": "Claude 책 이름 뽑기", "ok": True, "count": n_ab, "error": f"새로 {n_abn}건 · {ai_news.status_line()}"})
+            except Exception as e:  # noqa: BLE001
+                pstatus.append({"name": "Claude 책 이름 뽑기", "ok": False, "count": 0, "error": f"{type(e).__name__}"})
         pstatus.append({"name": "책책책 묶음 기사 본문(책 한 권씩)", "ok": True, "count": n_mbooks, "error": ", ".join(sorted(set(BKM_ERR)))[:120]})
         book_info = enrich_book_titles(arch, max_new=80)
         books_json = books_export(arch, book_info, now)
@@ -4104,6 +4127,12 @@ def main():
     trends = trend_related(attach_news(trends, items), items)
     for c in pages:
         pages[c]["trends"] = channel_trends(c, subs[c], trends, now)
+    if not args.demo and ai_news and ai_news.available():  # [2026-11-13] Claude: 사건 묶음 '무슨 일인가' 한 줄
+        try:
+            n_cs, n_csn = ai_news.cluster_summaries(pages, {"전체": 10})
+            pstatus.append({"name": "Claude 사건 요약", "ok": True, "count": n_cs, "error": f"새로 {n_csn}건 · {ai_news.status_line()}"})
+        except Exception as e:  # noqa: BLE001
+            pstatus.append({"name": "Claude 사건 요약", "ok": False, "count": 0, "error": f"{type(e).__name__}"})
     graphic = {"yna": yna_g, "others": graphic_section(yna_g, g_search, items, extra=nis_g)}
     if not args.demo:
         n_todo, n_img = enrich_graphics(graphic["others"])
