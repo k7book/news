@@ -12,9 +12,10 @@
 		</linearGradient>
 		<linearGradient id="c" x1="30.31" y1="44.3" x2="31.69" y2="46.7" xlink:href="#b"/>
 		<linearGradient id="d" x1="37.31" y1="44.3" x2="38.69" y2="46.7" xlink:href="#b"/>
-	</defs>
-	<path d="M46.5,31.5l-.32,0a10.49,10.49,0,0,0-19.11-8,7,7,0,0,0-10.57,6,7.21,7.21,0,0,0,.1,1.14A7.5,7.5,0,0,0,18,45.5a4.19,4.19,0,0,0,.5,0v0h28a7,7,0,0,0,0-14Z" stroke="#e6effc" stroke-miterlimit="10" stroke-width="0.5" fill="url(#a)"/>
-	<line x1="24.08" y1="45.01" x2="23.92" y2="45.99" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" stroke="url(#b)"/>
-	<line x1="31.08" y1="45.01" x2="30.92" y2="45.99" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" stroke="url(#c)"/>
-	<line x1="38.08" y1="45.01" x2="37.92" y2="45.99" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" stroke="url(#d)"/>
+	<linearGradient id="rc" x1="22" y1="20" x2="40" y2="47" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#e9eef5"/><stop offset=".55" stop-color="#d3dce8"/><stop offset="1" stop-color="#aebdd0"/></linearGradient><linearGradient id="rd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6eb1ff"/><stop offset="1" stop-color="#1f63d6"/></linearGradient></defs>
+	<path d="M46.5,31.5l-.32,0a10.49,10.49,0,0,0-19.11-8,7,7,0,0,0-10.57,6,7.21,7.21,0,0,0,.1,1.14A7.5,7.5,0,0,0,18,45.5a4.19,4.19,0,0,0,.5,0v0h28a7,7,0,0,0,0-14Z" stroke="#9fb0c4" stroke-miterlimit="10" stroke-width="0.5" fill="url(#rc)"/>
+
+	<path d="M24,48C24.81,50.1 25.8,51.21 25.8,52.2A1.8,1.8 0 0 1 22.2,52.2C22.2,51.21 23.19,50.1 24,48Z" fill="url(#rd)" stroke="#1a56c4" stroke-width="0.4"/>
+	<path d="M31.5,51C32.31,53.1 33.3,54.21 33.3,55.2A1.8,1.8 0 0 1 29.7,55.2C29.7,54.21 30.69,53.1 31.5,51Z" fill="url(#rd)" stroke="#1a56c4" stroke-width="0.4"/>
+	<path d="M39,48C39.81,50.1 40.8,51.21 40.8,52.2A1.8,1.8 0 0 1 37.2,52.2C37.2,51.21 38.19,50.1 39,48Z" fill="url(#rd)" stroke="#1a56c4" stroke-width="0.4"/>
 </svg>
