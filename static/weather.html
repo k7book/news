@@ -247,16 +247,20 @@ const pad = n => String(n).padStart(2, "0");
 function sky(s, p){ p = +p || 0; s = +s || 1;
   if(p === 1 || p === 5) return "비"; if(p === 2 || p === 6) return "비/눈"; if(p === 3 || p === 7) return "눈"; if(p === 4) return "소나기";
   return s === 4 ? "흐림" : s === 3 ? "구름많음" : "맑음"; }
-function icName(t, night){ t = String(t || ""); const dn = night ? "night" : "day";
+// 비 양(mm) → 단계: 기상청 기준 약한 비 3mm/h 미만, 강한 비 15mm/h 이상
+function mmOf(v){ if(v == null || v === "") return null; v = String(v); if(/없음/.test(v)) return 0; if(/미만/.test(v)) return .5; const n = parseFloat(v); return isNaN(n) ? null : n; }
+const rainLv = mm => mm == null || mm <= 0 ? "" : mm < 3 ? "light" : mm >= 15 ? "heavy" : "mid";
+const RLV = {light: "약한 비", mid: "보통 비", heavy: "강한 비"};
+function icName(t, night, mm){ t = String(t || ""); const dn = night ? "night" : "day", lv = rainLv(mm);
   if(/뇌우|천둥/.test(t)) return "thunderstorms-rain";
   if(/비\/눈|눈\/비|진눈/.test(t)) return /구름/.test(t) ? `partly-cloudy-${dn}-sleet` : "sleet";
   if(/소나기/.test(t)) return `partly-cloudy-${dn}-rain`;
-  if(/빗방울/.test(t)) return "drizzle";
-  if(/비/.test(t)) return /구름많/.test(t) ? `partly-cloudy-${dn}-rain` : "rain";
+  if(/빗방울/.test(t)) return "rain-light";
+  if(/비/.test(t)) return /구름많/.test(t) ? `partly-cloudy-${dn}-rain` : lv === "light" ? "rain-light" : lv === "heavy" ? "rain-heavy" : "rain";
   if(/눈/.test(t)) return /구름많/.test(t) ? `partly-cloudy-${dn}-snow` : "snow";
   if(/안개/.test(t)) return "fog"; if(/흐/.test(t)) return "overcast"; if(/구름/.test(t)) return `partly-cloudy-${dn}`;
   if(/맑/.test(t)) return night ? "clear-night" : "clear-day"; return "not-available"; }
-const ic = (t, night, s) => `<img src="wx/${icName(t, night)}.svg" width="${s}" height="${s}" alt="${esc(t)}" title="${esc(t)}">`;
+const ic = (t, night, s, mm) => { const n = icName(t, night, mmOf(mm)), lab = t + (/^rain/.test(n) && rainLv(mmOf(mm)) ? ` · ${RLV[rainLv(mmOf(mm))]} ${mm}${/mm/.test(String(mm)) ? "" : "mm"}` : ""); return `<img src="wx/${n}.svg" width="${s}" height="${s}" alt="${esc(lab)}" title="${esc(lab)}">`; };
 function pm(v, k){ v = parseFloat(v); if(isNaN(v)) return {t: "정보 없음", c: ""}; const c = k === "pm25" ? [15, 35, 75] : [30, 80, 150];
   return v <= c[0] ? {t: "좋음", c: "good"} : v <= c[1] ? {t: "보통", c: "ok"} : v <= c[2] ? {t: "나쁨", c: "bad"} : {t: "매우나쁨", c: "bad"}; }
 function feels(t, w){ t = +t; w = +w; if(isNaN(t)) return null; if(t > 10 || isNaN(w) || w < 1.3) return t; const v = Math.pow(w * 3.6, .16); return Math.round((13.12 + .6215 * t - 11.37 * v + .3965 * v * t) * 10) / 10; }
@@ -379,7 +383,7 @@ function render(D){
   const sunMsg = night ? `일출 ${S.rise}` : `일몰 ${S.set}`;
   const nowCard = `<section class="wcard now2">
     <div class="locbar"><b>${esc(loc.name)}</b><span>${esc(nowSrc)}</span></div>
-    <div class="nowrow">${ic(sk, night, 128)}<div class="nowt"><div class="temp num">${t != null && t !== "" ? Math.round(+t * 10) / 10 : "–"}<small>°</small></div>
+    <div class="nowrow">${ic(sk, night, 128, mmOf(N.RN1) > 0 ? N.RN1 : (U[nowKey] || {}).RN1)}<div class="nowt"><div class="temp num">${t != null && t !== "" ? Math.round(+t * 10) / 10 : "–"}<small>°</small></div>
       <div class="sky">${esc(sk)}</div><div class="mm num"><span class="mn">최저 ${tday.tmin != null ? Math.round(tday.tmin) + "°" : "–"}</span> <span class="mx">최고 ${tday.tmax != null ? Math.round(tday.tmax) + "°" : "–"}</span></div></div>
       <dl class="nowdl"><dt>체감</dt><dd>${fl != null ? fl + "°" : "–"}</dd><dt>습도</dt><dd>${N.REH ?? "–"}%</dd><dt>${dir8(N.VEC)}풍</dt><dd>${N.WSD ?? "–"}m/s</dd><dt>1시간 강수</dt><dd>${N.RN1 && N.RN1 !== "0" ? esc(N.RN1) : "없음"}</dd></dl></div>
     <div class="rainline ${rainMsg.c}"><span>${rainMsg.c === "dry" ? "☀" : "☂"}</span>${esc(rainMsg.t)}</div>
@@ -427,7 +431,7 @@ function render(D){
     + (HT === "rain" ? hrs.map((k, i) => { const p = H[k].PCP; return `<text x="${i * W + W / 2}" y="${Hh - 6}" text-anchor="middle" class="pmm">${p && p !== "강수없음" ? esc(p) : "-"}</text>`; }).join("") : "")
     + hrs.map((k, i) => { const h = H[k]; return HT === "wx" && +h.POP >= 30 ? `<text x="${i * W + W / 2}" y="${Hh - 6}" text-anchor="middle" class="pb">☂${h.POP}%</text>` : ""; }).join("");
   const hcells = hrs.map((k, i) => { const h = H[k], hh = +k.slice(8, 10);
-    const top = HT === "wind" ? `<span class="wd" style="transform:rotate(${(+h.VEC + 180) % 360}deg)">↑</span><span class="lb2">${dir8(h.VEC)}</span>` : ic(sky(h.SKY, h.PTY), hh < S.rH || hh >= S.sH, 36);
+    const top = HT === "wind" ? `<span class="wd" style="transform:rotate(${(+h.VEC + 180) % 360}deg)">↑</span><span class="lb2">${dir8(h.VEC)}</span>` : ic(sky(h.SKY, h.PTY), hh < S.rH || hh >= S.sH, 36, h.PCP);
     return `<div class="hc2${hh === 0 ? " d0" : ""}"><div class="lb">${hh === 0 ? `<b>${dlab(k.slice(0, 8), now).rel}</b>` : i === 0 ? "지금" : hh + "시"}</div>${top}</div>`; }).join("");
   const tabs = [["wx", "날씨"], ["rain", "강수"], ["wind", "바람"], ["hum", "습도"]].map(([k, l]) => `<button type="button" class="ht${HT === k ? " on" : ""}" data-ht="${k}">${l}</button>`).join("");
   const hourCard = `<section class="wcard"><div class="h2row"><h2>시간별 예보</h2><div class="htabs">${tabs}</div></div>
@@ -487,7 +491,7 @@ function render(D){
   if(NC.length){ const X = lon => (lon - 125.0) / (130.2 - 125.0) * 100, Y = lat => (38.75 - lat) / (38.75 - 33.05) * 100;
     nationCard = `<section class="wcard"><div class="h2row"><h2>전국 날씨</h2><span class="hint">기상청 초단기실황 · 주요 도시</span></div><div class="nwrap"><div class="nmap"><svg class="kr" viewBox="0 0 750 1000" preserveAspectRatio="none"><path d="${KR_NORTH}" class="kn"/><path d="${KR_SOUTH}" class="ks"/></svg>${NC.map(c => { const sk2 = sky(c.sky, +c.pty || +c.upty);
       const o = NOFF[c.name] || [0, 0];
-      return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td class="nic">${ic(sky(c.sky, +c.pty || +c.upty), night, 28)}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
+      return `<div class="nc${c.name === "파주" ? " me" : ""}" style="left:calc(${X(c.lon)}% + ${o[0]}px);top:calc(${Y(c.lat)}% + ${o[1]}px)">${ic(sk2, night, 30, c.rn)}<b>${esc(c.name)}</b><span class="num" style="color:${+c.t <= 5 ? "var(--cold)" : +c.t >= 25 ? "var(--red)" : "var(--ink)"}">${Math.round(+c.t * 10) / 10}°</span></div>`; }).join("")}</div><table class="ntab"><tr><th>도시</th><th>날씨</th><th>기온</th></tr>${NC.map(c => `<tr class="${c.name === "파주" ? "me" : ""}"><td>${esc(c.name)}</td><td class="nic">${ic(sky(c.sky, +c.pty || +c.upty), night, 28)}</td><td class="num">${Math.round(+c.t * 10) / 10}°</td></tr>`).join("")}</table></div></section>`; }
 
   html += `<div class="nv"><div class="nvl">${nowCard}<section class="wcard rdr" id="radarc" hidden></section>${hourCard}${weekCard}${nationCard}</div><aside class="nvr">${dustCard}${ixCard}${sunCard}${moonCard}${newsCard}</aside></div>${pastCard}`;
   body.innerHTML = html;
