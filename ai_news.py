@@ -17,7 +17,8 @@ HIST = os.path.join(HERE, "history")
 C_CACHE = os.path.join(HIST, "ai_clusters.json")
 B_CACHE = os.path.join(HIST, "ai_books.json")
 MODEL = "claude-haiku-5-5"
-MAX_CALLS = 6
+MAX_CALLS = 10
+BOOK_CALLS = 3   # 책 이름 뽑기는 한 번 실행에 3번까지만(첫 실행 밀린 몫은 다음 시간으로) — 사건 요약 몫을 남긴다
 KST = timezone(timedelta(hours=9))
 STATE = {"calls": 0, "tin": 0, "tout": 0, "err": ""}
 
@@ -99,12 +100,12 @@ def cluster_summaries(pages, per_page=None):
             if k not in seen:
                 seen.add(k); targets.append((k, c))
     todo = [(k, c) for k, c in targets if k not in cache]
-    for s in range(0, len(todo), 25):
+    for s in range(0, len(todo), 12):
         if not available():
             break
-        part = todo[s:s + 25]
+        part = todo[s:s + 12]
         text = "\n\n".join(f"[{i}]\n" + "\n".join(f"- {l['outlet']}: {l['title']}" for l in c["links"][:6]) for i, (k, c) in enumerate(part))
-        res = _ask(SYS_CLUSTER, text)
+        res = _ask(SYS_CLUSTER, text, max_tokens=8000)
         if res is None:
             break
         got = {r.get("i"): str(r.get("s") or "").strip() for r in res if isinstance(r, dict)}
@@ -127,12 +128,13 @@ def mark_books(rows, max_new=150):
     cache = _load(B_CACHE)
     now = datetime.now(KST).isoformat()
     todo = [x for x in rows if x.get("url") and x["url"] not in cache][:max_new]
+    start_calls = STATE["calls"]
     for s in range(0, len(todo), 30):
-        if not available():
+        if not available() or STATE["calls"] - start_calls >= BOOK_CALLS:
             break
         part = todo[s:s + 30]
         text = "\n".join(f"[{i}] {x['outlet']} | {x['title']} | {(x.get('desc') or '')[:200]}" for i, x in enumerate(part))
-        res = _ask(SYS_BOOKS, text, max_tokens=4000)
+        res = _ask(SYS_BOOKS, text, max_tokens=10000)
         if res is None:
             break
         got = {r.get("i"): r.get("b") for r in res if isinstance(r, dict)}
