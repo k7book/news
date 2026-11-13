@@ -14,7 +14,7 @@ async function listDay(key, day) {
   const q = new URLSearchParams({ serviceKey: key, pageNo: "1", numOfRows: "10", dataType: "JSON", data: "CMP_WRC", time: day });
   const r = await fetch(`${API}?${q}`, { headers: { "User-Agent": "news-radar/1.0" } });
   const t = await r.text();
-  if (!r.ok) throw new Error(`기상청 응답 ${r.status}`);
+  if (!r.ok) throw new Error(`기상청 응답 ${r.status}: ${t.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)}`);
   if (!t.trim().startsWith("{")) {  // 키 오류 등은 XML로 온다
     const m = t.match(/<returnAuthMsg>([^<]+)|<resultMsg>([^<]+)/);
     throw new Error(m ? (m[1] || m[2]) : "알 수 없는 응답");
