@@ -420,5 +420,95 @@
   "url": "https://news.google.com/rss/search?q=%EC%9A%B4%EC%A0%95+OR+%EA%B5%90%ED%95%98+OR+%EA%B8%88%EC%B4%8C+OR+%ED%97%A4%EC%9D%B4%EB%A6%AC+OR+%EC%9E%84%EC%A7%84%EA%B0%81+OR+%EB%AC%B8%EC%82%B0+when%3A2d&hl=ko&gl=KR&ceid=KR:ko",
   "via": "구글뉴스 검색",
   "by_source": true
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "전체",
+  "url": "https://www.newsis.com/RSS/sokbo.xml"
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "정치",
+  "url": "https://www.newsis.com/RSS/politics.xml"
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "경제",
+  "url": "https://www.newsis.com/RSS/economy.xml"
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "사회",
+  "url": "https://www.newsis.com/RSS/society.xml"
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "스포츠",
+  "url": "https://www.newsis.com/RSS/sports.xml"
+ },
+ {
+  "outlet": "뉴시스",
+  "category": "연예",
+  "url": "https://www.newsis.com/RSS/entertain.xml"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "전체",
+  "url": "https://biz.heraldcorp.com/rss/google/newsAll"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "정치",
+  "url": "https://biz.heraldcorp.com/rss/google/politics"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "경제",
+  "url": "https://biz.heraldcorp.com/rss/google/economy"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "사회",
+  "url": "https://biz.heraldcorp.com/rss/google/society"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "스포츠",
+  "url": "https://biz.heraldcorp.com/rss/google/sports"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "연예",
+  "url": "https://biz.heraldcorp.com/rss/google/entertainment"
+ },
+ {
+  "outlet": "헤럴드경제",
+  "category": "주식",
+  "url": "https://biz.heraldcorp.com/rss/google/stock"
+ },
+ {
+  "outlet": "머니투데이",
+  "category": "전체",
+  "url": "https://rss.mt.co.kr/mt_news.xml"
+ },
+ {
+  "outlet": "프레시안",
+  "category": "전체",
+  "url": "https://www.pressian.com/api/v3/site/rss/news"
+ },
+ {
+  "outlet": "전자신문",
+  "category": "전체",
+  "url": "https://rss.etnews.com/Section901.xml"
+ },
+ {
+  "outlet": "전자신문",
+  "category": "경제",
+  "url": "https://rss.etnews.com/02.xml"
+ },
+ {
+  "outlet": "ZDNet Korea",
+  "category": "경제",
+  "url": "https://feeds.feedburner.com/zdkorea"
  }
 ]

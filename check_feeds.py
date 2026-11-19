@@ -79,6 +79,18 @@ CANDIDATES = {
   "스포츠": "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ko&gl=KR&ceid=KR:ko",
   "연예": "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=ko&gl=KR&ceid=KR:ko"},
  "구글트렌드": {"전체": "https://trends.google.com/trending/rss?geo=KR"},
+ "뉴시스": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "전체": "https://www.newsis.com/RSS/sokbo.xml", "정치": "https://www.newsis.com/RSS/politics.xml", "경제": "https://www.newsis.com/RSS/economy.xml", "사회": "https://www.newsis.com/RSS/society.xml", "스포츠": "https://www.newsis.com/RSS/sports.xml", "연예": "https://www.newsis.com/RSS/entertain.xml"},
+ "헤럴드경제": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "전체": "https://biz.heraldcorp.com/rss/google/newsAll", "정치": "https://biz.heraldcorp.com/rss/google/politics", "경제": "https://biz.heraldcorp.com/rss/google/economy", "사회": "https://biz.heraldcorp.com/rss/google/society", "스포츠": "https://biz.heraldcorp.com/rss/google/sports", "연예": "https://biz.heraldcorp.com/rss/google/entertainment", "주식": "https://biz.heraldcorp.com/rss/google/stock"},
+ "머니투데이": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "전체": "https://rss.mt.co.kr/mt_news.xml"},
+ "프레시안": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "전체": "https://www.pressian.com/api/v3/site/rss/news"},
+ "전자신문": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "전체": "https://rss.etnews.com/Section901.xml", "경제": "https://rss.etnews.com/02.xml"},
+ "ZDNet Korea": {  # confirmed (2026-11-20, 공식 RSS 안내 페이지)
+  "경제": "https://feeds.feedburner.com/zdkorea"},
 }
 
 PORTALS = {  # 네이트·네이버는 2026-10-19 robots 전체 차단 확인 → 제외. 줌 랭킹 주소 후보들

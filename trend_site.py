@@ -199,6 +199,8 @@ def fetch_feed(feed):
                           "url": link.get("href", "") if link is not None else "",
                           "date": item_date(it), "img": item_image(it)})
     for a in items:
+        if a.get("title") and ";" in a["title"]:  # 프레시안 등: '&'가 빠진 엔티티("quot;", "hellip;") 복구
+            a["title"] = html.unescape(re.sub(r"(?<![&#A-Za-z])(quot|hellip|middot|lsquo|rsquo|ldquo|rdquo|apos|amp|lt|gt);", r"&\1;", a["title"]))
         src = re.sub(r"^https?://|/+$", "", a.pop("_src", "")).strip()  # 이름 대신 주소가 온 경우 정리
         a["outlet"] = src if feed.get("by_source") and src else feed["outlet"]  # 구글뉴스 검색: 실제 언론사 이름으로
         a["category"] = feed["category"]
@@ -3562,7 +3564,9 @@ HOMEPAGES = {"연합뉴스": "https://www.yna.co.kr", "한겨레": "https://www.
              "세계일보": "https://www.segye.com", "구글뉴스": "https://news.google.com/home?hl=ko&gl=KR&ceid=KR:ko",
              "뉴시스": "https://www.newsis.com", "줌": "https://news.zum.com",
              "KBS": "https://news.kbs.co.kr", "MBC": "https://imnews.imbc.com",
-             "파이낸셜뉴스": "https://www.fnnews.com", "이데일리": "https://www.edaily.co.kr"}
+             "파이낸셜뉴스": "https://www.fnnews.com", "이데일리": "https://www.edaily.co.kr",
+             "헤럴드경제": "https://biz.heraldcorp.com", "머니투데이": "https://www.mt.co.kr", "프레시안": "https://www.pressian.com",
+             "전자신문": "https://www.etnews.com", "ZDNet Korea": "https://zdnet.co.kr"}
 EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /) — 검색엔진만 허용", "2026-10-24 재확인"),
             ("네이버 뉴스 랭킹", "robots.txt가 모든 수집기를 차단(User-agent: * Disallow: /)", "2026-10-19"),
             ("네이버 뉴스 검색 API", "개발자센터 신규 신청 종료(2026-07-30), 바뀐 약관(9-07)이 결과 저장·캐싱·AI 입력 금지", "2026-10-24"),
@@ -3572,7 +3576,11 @@ EXCLUDED = [("네이트 뉴스 랭킹", "robots.txt가 모든 수집기를 차�
             ("오마이뉴스 연예 RSS", "주소 404", "2026-10-19"),
             ("매일경제 스포츠 RSS", "빈 응답", "2026-10-19"),
             ("중앙일보 디지털스페셜", "robots.txt가 /digitalspecial 을 차단", "2026-10-20"),
-            ("한겨레·동아일보 인터랙티브", "모아 둔 목록 페이지가 없음(404)", "2026-10-20")]
+            ("한겨레·동아일보 인터랙티브", "모아 둔 목록 페이지가 없음(404)", "2026-10-20"),
+            ("서울신문·미디어오늘·아시아경제·YTN RSS", "robots.txt가 수집을 막음", "2026-11-20"),
+            ("서울경제 RSS", "안내 페이지가 개인·비상업 용도로만 허용(여러 이용자 대상 이용·AI 학습 금지)", "2026-11-20"),
+            ("시사IN RSS", "2024-06 이후 갱신 멈춤", "2026-11-20"),
+            ("한국일보·뉴스1·연합뉴스TV·정책브리핑 RSS", "주소 오류 또는 접속 차단", "2026-11-20")]
 
 
 def render_sources(feeds, status, now):
