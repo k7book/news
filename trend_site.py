@@ -1768,7 +1768,7 @@ def vc_stem(u):
 def vc_is_ad(u):
     """광고·후원 배너 그림 이름 (예: Adobe-dealmaker-ads_Takeover-1920x100, …-mid-article_800x450)"""
     name = (u or "").rsplit("/", 1)[-1].lower()
-    return bool(re.search(r"(^|[-_])ads?[-_.]|takeover|leaderboard|mid-article|billboard|skyscraper|\d{3,4}x(90|100|250)px|\d{3,4}x(90|100|250)[-_.]", name))
+    return bool(re.search(r"(^|[-_])ads?[-_.]|takeover|leaderboard|mid-article|billboard|skyscraper|button|cta[-_]|\d{3,4}x(90|100|250)px|\d{3,4}x(90|100|250)[-_.]", name))
 
 
 def vc_full_ok(full, share):
@@ -1786,7 +1786,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 8]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 9]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
     anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
     if now < anchor:
