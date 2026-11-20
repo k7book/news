@@ -1753,13 +1753,27 @@ def vc_full_image(url, share=""):
             continue
         if u not in cands:
             cands.append(u)
-    if not cands:
-        return None
-    stem = re.sub(r"[^a-z]", "", re.sub(r"[-_](share|shareable).*$", "", share.rsplit("/", 1)[-1].lower()))[:8]
+    cands = [u for u in cands if not vc_is_ad(u)]  # 광고 배너 제외 (2026-11-20 DealMaker 광고가 썸네일로 들어간 사고)
+    stem = vc_stem(share)
     for u in cands:  # 공유 그림과 이름 앞부분이 같은 것(예: costofwater-share → costofwater-1)
         if stem and stem in re.sub(r"[^a-z]", "", u.rsplit("/", 1)[-1].lower()):
             return u
-    return cands[0]
+    return cands[0] if cands else None
+
+
+def vc_stem(u):
+    return re.sub(r"[^a-z]", "", re.sub(r"[-_](share|shareable).*$", "", (u or "").rsplit("/", 1)[-1].lower()))[:8]
+
+
+def vc_is_ad(u):
+    """광고·후원 배너 그림 이름 (예: Adobe-dealmaker-ads_Takeover-1920x100, …-mid-article_800x450)"""
+    name = (u or "").rsplit("/", 1)[-1].lower()
+    return bool(re.search(r"(^|[-_])ads?[-_.]|takeover|leaderboard|mid-article|billboard|skyscraper|\d{3,4}x(90|100|250)px|\d{3,4}x(90|100|250)[-_.]", name))
+
+
+def vc_full_ok(full, share):
+    """원본 그림 후보가 쓸 만한지: 광고 배너가 아니면 된다"""
+    return bool(full) and not vc_is_ad(full)
 
 
 def fetch_visual(now, days=30, limit=60):
@@ -1772,7 +1786,7 @@ def fetch_visual(now, days=30, limit=60):
             cache = {"fetched": "", "rows": cache}
     except Exception:
         cache = {"fetched": "", "rows": []}
-    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 7]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
+    conf = hashlib.md5(json.dumps([VISUAL_FEEDS, VISUAL_GN, 8]).encode()).hexdigest()[:8]  # 출처 설정이 바뀌면 바로 다시 받기
     # 매일 아침 8시(한국 시간) 뒤 첫 갱신 때 한 번 받는다 → 미국에서 밤사이 올라온 차트가 아침에 들어온다
     anchor = now.replace(hour=VISUAL_HOUR, minute=0, second=0, microsecond=0)
     if now < anchor:
@@ -1847,6 +1861,9 @@ def fetch_visual(now, days=30, limit=60):
                 if old.get(k):
                     x[k] = old[k]
             by[x["url"]] = x
+    for x in by.values():  # 예전 규칙(본문 첫 그림)으로 잘못 고른 원본 그림은 버리고 공유 그림으로
+        if x["outlet"] == "Visual Capitalist" and x.get("full") and not vc_full_ok(x["full"], x.get("img") or ""):
+            x.pop("full", None); x.pop("full_tried", None)  # 광고를 빼고 다시 찾기
     todo = [x for x in by.values() if x["outlet"] == "Visual Capitalist" and not x.get("full") and not x.get("full_tried")][:25]
     n_full = 0
     for x in todo:
