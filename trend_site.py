@@ -2331,27 +2331,7 @@ def bcast_common(ent, th=3):
 BC_JS = r"""<script>(function(){const r=document.currentScript.closest('.bcast');if(!r)return;
 r.addEventListener('click',e=>{const b=e.target.closest('.bcvt button');if(!b)return;const c=b.closest('.bccom');
 c.querySelectorAll('.bcvt button').forEach(x=>x.classList.toggle('on',x===b));c.querySelector('.bcol').hidden=b.dataset.v!=='l';c.querySelector('.bcmxw').hidden=b.dataset.v!=='t'});
-// 이미지로 저장: 그날 방송사별 TOP4 제목·기자를 한 장 그림(1080px 폭)으로. 사진은 다른 사이트 것이라 넣지 않는다
-function wrap(x,t,w){const out=[];let line='';for(const ch of t){const tt=line+ch;if(x.measureText(tt).width>w&&line){out.push(line);line=ch.trim()?ch:''}else line=tt}if(line)out.push(line);return out}
-r.querySelector('.bcimg').onclick=async e=>{const btn=e.target,day=r.querySelector('.bcday:not([hidden])'),lab=r.querySelector('.bcdays button.on')?.textContent||'';
-try{await document.fonts.load('700 30px "Noto Serif KR"');await document.fonts.load('600 26px Pretendard')}catch(x){}
-const W=1080,P=56,cs=getComputedStyle(document.documentElement),SERIF='"Noto Serif KR", serif',SANS='Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
-const cards=[...day.querySelectorAll('.bcard2:not(.bcoff)')].map(s=>({n:s.querySelector('.bcn').textContent,p:s.querySelector('.bcp').textContent,
- it:[...s.querySelectorAll('.bcl li')].map(li=>({t:li.querySelector('.bct').textContent,c:!!li.querySelector('.bcb.c')}))}));
-const com=[...day.querySelectorAll('.bcol li')].slice(0,3).map(li=>({n:li.querySelector('.bcn2').textContent,t:li.querySelector('.bcct').textContent}));
-const cv=document.createElement('canvas'),x=cv.getContext('2d');
-const ops=[];let y=P;const T=(t,f,c,h)=>{ops.push([t,f,c,y]);y+=h};
-x.font='700 46px '+SERIF;T('방송사 메인뉴스 TOP 4','700 46px '+SERIF,'#14110c',62);
-T(lab+' · 저녁 메인뉴스 첫~네 번째 꼭지','500 26px '+SANS,'#544c3c',54);
-if(com.length){y+=6;T('여러 방송사가 함께 다룬 사건','700 28px '+SANS,'#b02e20',42);x.font='600 27px '+SANS;
- for(const g of com){const ls=wrap(x,g.n+'  '+g.t,W-2*P);ls.forEach((l,i)=>T(l,'600 27px '+SANS,'#1f1b14',38));y+=6}y+=10}
-for(const c of cards){y+=14;ops.push(['RULE',null,null,y]);y+=20;T(c.n+'  '+c.p,'800 32px '+SANS,'#14110c',48);x.font='500 27px '+SANS;
- c.it.forEach((it,i)=>{const ls=wrap(x,(i+1)+'. '+it.t,W-2*P-20);ls.forEach((l,k)=>T((k?'    ':'')+l,'500 27px '+SANS,it.c?'#1f1b14':'#39332a',39));y+=4})}
-y+=24;T('지금 뜨는 뉴스 · news.rajin.live · 제목 저작권은 각 방송사','400 22px '+SANS,'#7a705a',30);y+=P-30;
-cv.width=W;cv.height=y;x.fillStyle='#f6f1e6';x.fillRect(0,0,W,y);x.textBaseline='top';
-for(const [t,f,c,yy] of ops){if(t==='RULE'){x.fillStyle='#cdc3ac';x.fillRect(P,yy,W-2*P,2);continue}x.font=f;x.fillStyle=c;x.fillText(t,P,yy)}
-cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='방송사메인뉴스TOP4_'+(day.dataset.d||'')+'.png';document.body.appendChild(a);a.click();a.remove();
-setTimeout(()=>URL.revokeObjectURL(a.href),4000);btn.textContent='저장했습니다';setTimeout(()=>btn.textContent='이미지로 저장',1600)},'image/png')}})()</script>"""
+})()</script>"""
 
 
 def render_broadcast(cache):
@@ -2414,7 +2394,7 @@ def render_broadcast(cache):
     return (f'<div class="pg" data-c="{BCAST_TAB}" role="tabpanel"><section class="bcast" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>방송사 메인뉴스 TOP 4</h2><span class="en">MAIN NEWS · 저녁 메인뉴스 첫~네 번째 기사</span></div>'
             f'<p class="bclead">각 방송사 메인 뉴스의 첫 번째~네 번째 기사 제목과 기자입니다. 방송사마다 무엇을 중요하게 보고 어떤 시각으로 다루는지 비교해 볼 수 있습니다. 순서는 지상파 먼저, 회사명 가나다순입니다.</p>'
-            f'<div class="bcbar"><div class="bcdays" role="group" aria-label="방송 날짜">{"".join(pills)}</div><button type="button" class="pill bccopy">글로 복사</button><button type="button" class="pill bcimg">이미지로 저장</button></div>'
+            f'<div class="bcbar"><div class="bcdays" role="group" aria-label="방송 날짜">{"".join(pills)}</div><button type="button" class="pill bccopy">글로 복사</button></div>'
             f'{"".join(secs)}'
             + BC_JS +
             f'<p class="note">밤 10시부터 그날 방송을 받습니다(그 전에는 전날 방송). 기사 제목·사진 저작권은 각 방송사에 있습니다. MBC·KBS는 하루 한 번 목록만 받아 첫 4건을 보여 줍니다.</p>'
@@ -3031,7 +3011,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .bcmx th:first-child,.bcmx td:first-child{text-align:left;white-space:normal;min-width:220px;font-weight:700;line-height:1.4}
 .bcmx th{font-size:12px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--rule)}
 .bcmx td.r1{color:var(--paper);background:var(--red);font-weight:700;border-radius:4px}.bcmx td.r2,.bcmx td.r3,.bcmx td.r4{font-weight:700;color:var(--red)}
-.bcbar .bcimg{margin-left:6px}.bcbar .bccopy{margin-left:auto}@media(max-width:900px) and (min-width:601px){.bcgrid{grid-template-columns:1fr}}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:224px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:14px;line-height:1;padding:5px 7px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:16.5px;font-weight:700;line-height:1.45}.bcr{display:block;margin:4px 0 0 236px;font-size:13px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.bcbar .bccopy{margin-left:auto}@media(max-width:900px) and (min-width:601px){.bcgrid{grid-template-columns:1fr}}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:224px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:14px;line-height:1;padding:5px 7px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:16.5px;font-weight:700;line-height:1.45}.bcr{display:block;margin:4px 0 0 236px;font-size:13px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
 .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px;margin-top:14px}
 @media(max-width:700px){.pgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid a{display:block;text-decoration:none}.pgrid a:hover .pt{text-decoration:underline}
