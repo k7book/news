@@ -2276,6 +2276,58 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
 _WD = "월화수목금토일"
 
 
+_BC_SUB = [("北", "북"), ("中", "중국"), ("美", "미국"), ("日", "일본"), ("李", "이재명"), ("尹", "윤석열"), ("與", "여당"), ("野", "야당"),
+           ("檢", "검찰"), ("韓", "한국"), ("靑", "청와대"), ("露", "러시아")]
+_BC_STOPB = {"했다", "한다", "있다", "없다", "에서", "으로", "하는", "대한", "이다", "까지", "부터", "단독", "속보", "하고", "에도", "는데", "지만", "에게"}
+
+
+def _bc_bigrams(t):
+    t = re.sub(r"^\[[^\]]{1,8}\]", "", t)
+    for a, b in _BC_SUB:
+        t = t.replace(a, b)
+    out = set()
+    for w in re.findall(r"[가-힣A-Za-z0-9]+", t):
+        out |= {w[i:i + 2] for i in range(len(w) - 1)} - _BC_STOPB
+    return out
+
+
+def bcast_common(ent, th=3):
+    """그날 방송사별 TOP4 → (여러 방송사가 함께 다룬 사건 목록, {(방송사키, 순번): 묶음 번호}).
+    방송 제목은 짧고 표현이 제각각이라(北/북, 젠슨황/젠슨 황) 두 글자 조각이 3개 이상 겹치면 같은 사건으로 잇는다(다른 방송사끼리만)."""
+    items = []
+    for key, name, *_ in BROADCASTERS:
+        for j, x in enumerate([x for x in ((ent.get(key) or {}).get("items") or []) if not _BTAG.search(x.get("t") or "")], 1):
+            items.append({"key": key, "name": name, "j": j, "t": x["t"], "g": _bc_bigrams(x["t"])})
+    par = list(range(len(items)))
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    for a in range(len(items)):
+        for b in range(a + 1, len(items)):
+            if items[a]["key"] != items[b]["key"] and len(items[a]["g"] & items[b]["g"]) >= th:
+                par[f(a)] = f(b)
+    G = defaultdict(list)
+    for i, x in enumerate(items):
+        G[f(i)].append(x)
+    out = []
+    for mem in G.values():
+        ranks = {}
+        for x in mem:
+            ranks[x["name"]] = min(ranks.get(x["name"], 9), x["j"])
+        if len(ranks) < 2:
+            continue
+        rep = max(mem, key=lambda x: (sum(len(x["g"] & y["g"]) for y in mem if y is not x), -x["j"]))
+        out.append({"title": re.sub(r"^\[[^\]]{1,8}\]\s*", "", rep["t"]), "n": len(ranks), "ranks": ranks, "mem": mem})
+    out.sort(key=lambda g: (-g["n"], sum(g["ranks"].values()) / g["n"]))
+    mark = {(x["key"], x["j"]): gi for gi, g in enumerate(out) for x in g["mem"]}
+    for g in out:
+        g.pop("mem")
+    return out, mark
+
+
 def render_broadcast(cache):
     """방송 TOP4 탭: 날짜를 고르면 그날 각 방송사 메인뉴스 첫~네 번째 기사(썸네일·제목·기자)."""
     days = sorted([d for d, v in (cache or {}).items() if any((v.get(k) or {}).get("items") for k, *_ in BROADCASTERS)], reverse=True)[:7]
@@ -2290,6 +2342,15 @@ def render_broadcast(cache):
                           "각 방송사 메인 뉴스의 첫 번째 ~ 네 번째 기사 제목과 기자를 정리했습니다.",
                           "각 방송사 뉴스가 무엇을 중요하게 생각하는지,", "어떤 시각으로 바라보는지 비교해볼 수 있습니다.", ""]
         n_ok = 0
+        groups, mark = bcast_common(cache[day])
+        order = {name: i for i, (_, name, *_) in enumerate(BROADCASTERS)}
+        def ranks_txt(g):
+            return " · ".join(f"{n} {r}번째" for n, r in sorted(g["ranks"].items(), key=lambda kv: order[kv[0]]))
+        com = ""
+        if groups:
+            com = ('<div class="bccom"><h3>여러 방송사가 함께 다룬 사건<small>숫자는 그 방송사에서 몇 번째 꼭지였는지</small></h3><ol>'
+                   + "".join(f'<li><b class="bcn2">{g["n"]}사</b><span class="bcct">{esc(g["title"])}</span><span class="bccr">{esc(ranks_txt(g))}</span></li>' for g in groups[:6])
+                   + '</ol></div>')
         for key, name, prog0, purl, fn in BROADCASTERS:
             ent = cache[day].get(key) or {}
             items = [x for x in (ent.get("items") or []) if not _BTAG.search(x.get("t") or "")]
@@ -2303,7 +2364,8 @@ def render_broadcast(cache):
                     f'<li><a href="{esc(x["u"])}" target="_blank" rel="noopener noreferrer"><span class="bci">'
                     + (f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' if x.get("img") else "")
                     + f'<b>{j}</b></span><span class="bct">{esc(x["t"])}</span></a>'
-                    + (f'<span class="bcr">{esc(x["rep"])} 기자</span>' if x.get("rep") else "") + '</li>'
+                    + '<span class="bcr">' + (f'<span class="bcb c">{groups[mark[(key, j)]]["n"]}사 공통</span>' if (key, j) in mark else '<span class="bcb">이 방송사만</span>')
+                    + (f'{esc(x["rep"])} 기자' if x.get("rep") else "") + '</span></li>'
                     for j, x in enumerate(items, 1))
                 cards.append(f'<section class="bcard2">{head}<ol class="bcl">{lis}</ol></section>')
             else:
@@ -2311,7 +2373,9 @@ def render_broadcast(cache):
                                                       else "아직 방송 전이거나 방송사 사이트에 목록이 올라오지 않았습니다. 매시간 다시 확인합니다")
                 cards.append(f'<section class="bcard2 bcoff">{head}<p class="bcno">{esc(why)}.</p></section>')
         txt[6:6] = [f"{n_ok}개 방송사를 정리했으며, 순서는 회사명 가나다 순입니다. (지상파 먼저)", ""]
-        secs.append(f'<div class="bcday" data-d="{day}"{"" if i == 0 else " hidden"}><div class="bcgrid">{"".join(cards)}</div>'
+        if groups:
+            txt += ["■ 여러 방송사가 함께 다룬 사건"] + [f'- {g["title"]} ({g["n"]}사: {ranks_txt(g)})' for g in groups[:6]] + [""]
+        secs.append(f'<div class="bcday" data-d="{day}"{"" if i == 0 else " hidden"}>{com}<div class="bcgrid">{"".join(cards)}</div>'
                     f'<textarea class="bctxt" hidden>{esc(chr(10).join(txt).rstrip())}</textarea></div>')
     return (f'<div class="pg" data-c="{BCAST_TAB}" role="tabpanel"><section class="bcast" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>방송사 메인뉴스 TOP 4</h2><span class="en">MAIN NEWS · 저녁 메인뉴스 첫~네 번째 기사</span></div>'
@@ -2870,7 +2934,7 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 @media(max-width:560px){.nav{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;gap:22px;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
 .nav.more{-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}}
 .dl-r .srcpill{text-decoration:none;display:inline-flex;align-items:center}.dl-r .srcpill:hover{color:var(--ink);border-color:var(--ink)}.dl-r .sbtn{display:inline-flex;align-items:center;gap:4px;cursor:pointer}@media(max-width:560px){.dl-r .sbtn span{display:none}}#smodal{border:0;padding:0;width:min(720px,94vw);max-height:84vh;margin:6vh auto auto;border-radius:12px;background:var(--paper-3);color:var(--ink);box-shadow:0 14px 44px rgba(0,0,0,.4);overflow:hidden;flex-direction:column}#smodal[open]{display:flex}#smodal::backdrop{background:rgba(10,10,14,.55)}@media(max-width:600px){#smodal{inset:0;width:auto;max-width:none;height:auto;max-height:none;margin:0;border-radius:0}}#sres{min-width:0}.slist li{overflow-wrap:anywhere}.shd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--rule);color:var(--muted)}.shd input{flex:1;min-width:0;font:inherit;font-size:17px;border:0;outline:0;background:transparent;color:var(--ink)}.shd input::-webkit-search-cancel-button{cursor:pointer}.shd .sx{all:unset;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 6px}.shd .sx:hover{color:var(--ink)}.sflt{padding:0 16px}.sflt .ofilter{padding:10px 0 0}.sflt .ofilter button{font-size:12.5px;padding:3px 11px}#stab:empty{display:none}.sinfo{padding:10px 16px 4px;font-size:12.5px;color:var(--muted)}#sres{overflow:auto;padding:0 16px 18px;flex:1}#sres .pday{position:sticky;top:0;background:var(--paper-3);z-index:1}.slist{list-style:none;margin:0;padding:0}.slist li{padding:9px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.slist li b.ot{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:4px;margin-right:7px;vertical-align:1px;color:var(--c);background:var(--cb)}.slist li a{color:var(--ink)}.slist li a:hover{text-decoration:underline}.slist li .o{margin-left:7px;font-size:11.5px;color:var(--muted);white-space:nowrap}.slist mark{background:var(--teal-tint);color:inherit;font-weight:700;padding:0 1px;border-radius:2px}.snone{margin:14px 0 0;font-size:14px}.snone a{color:var(--teal);font-weight:700}.smore{display:block;margin:14px auto 0;font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:6px 16px;background:var(--paper);color:var(--ink);cursor:pointer}.shot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:14px}.shot b{font-size:12.5px;color:var(--muted);font-weight:400;margin-right:4px}.shot button{font:inherit;font-size:13px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper);color:var(--ink);cursor:pointer}.shot button:hover{border-color:var(--ink)}.vmas{column-count:3;column-gap:18px;margin-top:10px}.vmas>.vcard{break-inside:avoid;margin-bottom:22px}.vmas.js{column-count:auto;display:flex;gap:18px;align-items:flex-start}.vcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:24px}@media(max-width:900px){.vmas{column-count:2}}@media(max-width:520px){.vmas{column-count:1}}.vcard{display:flex;flex-direction:column;gap:6px;color:var(--ink);min-width:0}.vcard[hidden]{display:none}.vcard:hover .vt{text-decoration:underline}.vph{background:#fff;border:1px solid var(--rule);border-radius:4px;overflow:hidden;min-height:80px}.vph img{width:100%;height:auto;display:block}.vt{font-size:15px;font-weight:700;line-height:1.4}.vcat{display:flex;flex-wrap:wrap;gap:4px}.vcat span{font-size:11px;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:0 5px}.vcard .pm{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}.vcard b.ot,.vside b.ot{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:var(--c);background:var(--cb)}.vcr{margin-left:auto;font-size:11px;color:var(--dim)}.vside li{display:block}.vlist li[hidden],#vl[hidden],#vlh[hidden]{display:none}#vlh{margin-top:28px}#gzoom{border:0;padding:0;background:transparent;max-width:96vw;max-height:96vh;overflow:visible}#gzoom[open]{display:flex;flex-direction:column;align-items:center;gap:10px}#gzoom::backdrop{background:rgba(8,8,12,.86)}#gzoom .bclose{position:fixed;top:12px;right:14px;float:none;margin:0;color:#fff;font-size:24px;z-index:3}.gzimg{cursor:zoom-out}.gzimg img{display:block;max-width:94vw;max-height:80vh;object-fit:contain;background:#fff;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5)}.gzcap{max-width:min(860px,94vw);color:#eee;text-align:center}.gzt{font-size:16px;font-weight:700;line-height:1.45}.gzm{font-size:12.5px;color:#bbb;margin-top:4px}.gzm a{color:#7dd3c8;margin-left:6px}#gg .gph img,#vg .vph img{cursor:zoom-in}.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:18px 0 6px}.pager:empty{display:none}.pager button{font:inherit;font-size:13px;min-width:34px;padding:5px 10px;border:1px solid var(--rule);border-radius:999px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer}.pager button.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}.pager button:disabled{opacity:.4;cursor:default}.pager button:not(:disabled):not(.on):hover{border-color:var(--ink);color:var(--ink)}.pcard .vph{position:relative}.pcnt{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;cursor:zoom-in}#pmas .vph img{cursor:zoom-in}.gznav{position:fixed;top:50%;transform:translateY(-50%);width:46px;height:64px;border:0;border-radius:8px;background:rgba(255,255,255,.14);color:#fff;font-size:34px;line-height:1;cursor:pointer;z-index:3}.gznav:hover:not(:disabled){background:rgba(255,255,255,.28)}.gznav:disabled{opacity:.25;cursor:default}#gzprev{left:12px}#gznext{right:12px}.gznav[hidden]{display:none}#gg.vmas .gph{aspect-ratio:auto;background:#fff}#gg.vmas img{height:auto}#gg .vcol>a{display:block}#ndrawer{position:fixed;inset:0 0 0 auto;margin:0;height:100dvh;max-height:100dvh;width:min(520px,100vw);max-width:100vw;border:0;padding:0;background:var(--paper-3);color:var(--ink);box-shadow:-12px 0 40px rgba(0,0,0,.35);transform:translateX(100%);transition:transform .18s ease-out;display:flex;flex-direction:column}#ndrawer:not([open]){display:none}#ndrawer.in{transform:none}#ndrawer::backdrop{background:rgba(10,10,14,.45)}.ndh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--rule)}.ndk{font-size:12.5px;color:var(--muted);font-weight:700}.ndx{all:unset;cursor:pointer;font-size:20px;color:var(--muted);padding:4px 8px}.ndx:hover{color:var(--ink)}.ndb{overflow:auto;padding:16px 18px 28px;flex:1}.ndimg{margin:0 0 14px;border-radius:6px;overflow:hidden;background:var(--paper-2)}.ndimg img{width:100%;display:block;max-height:320px;object-fit:cover}.ndt{font-size:21px;line-height:1.4;margin:0 0 6px}.ndm{font-size:12.5px;color:var(--muted)}.ndbtns{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}.ndgo,.ndsr{font:inherit;font-size:13px;border-radius:999px;padding:6px 14px;cursor:pointer;text-decoration:none}.ndgo{background:var(--ink);color:var(--paper);font-weight:700}.ndsr{border:1px solid var(--rule);background:var(--paper);color:var(--ink)}.ndh3{font-size:13px;color:var(--muted);margin:18px 0 4px;letter-spacing:.02em}.ndl{list-style:none;margin:0;padding:0}.ndl li{padding:10px 0;border-bottom:1px dotted var(--rule-dot);font-size:14.5px;line-height:1.5}.ndl li a{color:var(--ink)}.ndl li a:hover{text-decoration:underline}.ndo{display:inline-block;font-size:11.5px;font-weight:800;color:var(--teal);margin-right:8px;min-width:4em}#ndrawer.wide{width:min(980px,100vw)}.ndah{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:-4px 0 10px}.ndback{all:unset;cursor:pointer;font-size:13px;color:var(--teal);font-weight:700}.ndat{flex:1 1 100%;font-size:16px;font-weight:700;line-height:1.45}.ndnew{font-size:12.5px;color:var(--muted);margin-left:auto}.ndnew:hover{color:var(--ink)}.ndframe{display:block;width:100%;height:calc(100dvh - 190px);min-height:420px;border:1px solid var(--rule);border-radius:6px;background:#fff}.ndno{margin-top:20px;padding:24px 18px;border:1px dashed var(--rule);border-radius:8px;text-align:center;color:var(--ink-soft);font-size:14px}.ndno .ndgo{display:inline-block;margin-top:8px}
-.ndrec{margin:0 0 14px;padding:11px 14px;border-radius:8px;background:var(--paper-2);border-left:3px solid var(--accent,#e4572e);font-size:14px;line-height:1.5;color:var(--ink)}
+.ndrec{margin:0 0 14px;padding:11px 14px;border-radius:8px;background:var(--paper-2);border-left:3px solid var(--red);font-size:14px;line-height:1.5;color:var(--ink)}
 .ndrec b{display:block;font-size:15px;margin-bottom:2px}
 .nddesc{font-size:15px;line-height:1.7;color:var(--ink-soft);margin:10px 0 16px}.lk{display:inline-flex;margin-left:4px;color:var(--muted);vertical-align:-1px;opacity:.75}.lk.dr{color:var(--teal);opacity:1}a:hover .lk{opacity:1}.subtabs{display:flex;gap:0;margin:16px 0 22px;border:1px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}.subtabs button{all:unset;cursor:pointer;font-size:14.5px;font-weight:700;padding:6px 20px;color:var(--ink-soft)}.subtabs button+button{border-left:1px solid var(--ink)}.subtabs button.on{background:var(--ink);color:var(--paper)}.subtabs button:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}.subv[hidden]{display:none}.pday{font-size:15px;margin:18px 0 0;padding-bottom:6px;border-bottom:1px solid var(--rule);color:var(--ink)}.pday span{font-weight:400;font-size:12px;color:var(--muted);margin-left:6px}.dlist li.pr{padding:9px 0;font-size:14.5px;line-height:1.55}.dlist li.pr b.ot{margin-right:8px}.dlist li.pr a{color:var(--ink)}.jump{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:12px 0 4px}.jump::before{content:"바로 가기";flex:none;white-space:nowrap;font-size:12px;color:var(--muted);margin-right:2px}.jump button{flex:none}.jump button{font:inherit;font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 11px;background:var(--paper-3);color:var(--ink-soft);cursor:pointer;white-space:nowrap}.jump button:hover{border-color:var(--ink);color:var(--ink)}@media(max-width:600px){.jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}.totop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border-radius:50%;border:1px solid var(--rule);background:var(--paper-3);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:4}.totop.on{opacity:1;pointer-events:auto}
 .nav button.on{color:var(--ink);font-weight:800;border-bottom-color:var(--red)}
@@ -2915,7 +2979,17 @@ a{color:inherit;text-decoration:none}a:hover{text-decoration:underline;text-unde
 .lead .ph{aspect-ratio:4/3;overflow:hidden;background:var(--paper-2);border:1px solid var(--rule)}
 .lead .ph img{width:100%;height:100%;object-fit:contain;display:block}
 @media(max-width:700px){.lead.has-img{grid-template-columns:1fr}.lead .ph{order:-1}}
-.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}footer .ftl{display:inline-flex;gap:16px;flex-wrap:wrap;align-items:center}footer .flink{all:unset;cursor:pointer;color:inherit;text-decoration:underline;text-underline-offset:3px}footer .flink:hover{color:var(--ink)}.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:1px}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}.bci{width:132px}.bcr{margin-left:143px}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:156px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 167px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.photos{margin:4px 0 30px;border-top:1px solid var(--ink)}footer .ftl{display:inline-flex;gap:16px;flex-wrap:wrap;align-items:center}footer .flink{all:unset;cursor:pointer;color:inherit;text-decoration:underline;text-underline-offset:3px}footer .flink:hover{color:var(--ink)}.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:1px}.bclead{margin:8px 0 10px;font-size:14px;color:var(--ink-soft);line-height:1.6}.bcbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 14px}.bcdays{display:flex;gap:6px;flex-wrap:wrap}.bcdays button{all:unset;cursor:pointer;font-size:12.5px;padding:4px 11px;border:1px solid var(--rule);border-radius:999px;color:var(--ink-soft)}.bcdays button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}.bcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px 22px}@media(max-width:600px){.bcgrid{grid-template-columns:1fr}.bci{width:132px}.bcr{margin-left:143px}}.bcard2{border-top:2px solid var(--ink);padding-top:8px}.bch{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.bcn{font-size:17px;font-weight:800}.bcp{font-size:13px;color:var(--muted)}.bcgo{margin-left:auto;font-size:12px;color:var(--muted)}.bcl{list-style:none;margin:0;padding:0}
+.bccom{margin:2px 0 16px;padding:12px 16px;border:1px solid var(--rule);border-radius:10px;background:var(--paper-3)}
+.bccom h3{margin:0 0 6px;font-size:15px}.bccom h3 small{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+.bccom ol{list-style:none;margin:0;padding:0}
+.bccom li{display:flex;gap:4px 10px;align-items:baseline;padding:6px 0;border-top:1px dotted var(--rule-dot);flex-wrap:wrap}
+.bccom li:first-child{border-top:0}
+.bcn2{flex:none;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:var(--red);color:var(--paper)}
+.bcct{font-weight:700;flex:1;min-width:220px;line-height:1.45}
+.bccr{font-size:12px;color:var(--muted);flex-basis:100%;padding-left:44px}
+.bcb{display:inline-block;font-size:11px;line-height:1.5;padding:0 6px;border-radius:8px;margin-right:6px;border:1px solid var(--rule-dot);color:var(--muted)}
+.bcb.c{color:var(--red);border-color:var(--red)}.bcl li{padding:9px 0;border-bottom:1px dotted var(--rule-dot)}.bcl li:last-child{border-bottom:0}.bcl a{display:flex;gap:11px;align-items:flex-start;color:var(--ink)}.bci{position:relative;flex:none;width:156px;aspect-ratio:16/9;background:var(--paper-2);overflow:hidden;border-radius:3px}.bci img{width:100%;height:100%;object-fit:cover;display:block}.bci b{position:absolute;left:0;top:0;background:var(--ink);color:var(--paper);font-size:12px;line-height:1;padding:4px 6px}.bcl a .lk{margin-top:5px}.bct{flex:1;font-size:15px;font-weight:700;line-height:1.45}.bcr{display:block;margin:3px 0 0 167px;font-size:12px;color:var(--muted)}.bcoff .bcno{margin:10px 0 0;font-size:13px;color:var(--muted)}
 .pgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px;margin-top:14px}
 @media(max-width:700px){.pgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .pgrid a{display:block;text-decoration:none}.pgrid a:hover .pt{text-decoration:underline}
