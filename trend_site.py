@@ -3909,8 +3909,22 @@ def _frame_allowed(url):
     return True
 
 
-def frame_check(pages, now, max_new=40):
-    """→ 띄워도 되는 언론사 도메인 목록"""
+def _walk_urls(o, out):
+    """dict/list 안의 url·link 값을 모두 모은다 (깊이 읽기처럼 묶음 구조가 아닌 목록용)"""
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k in ("url", "link", "real") and isinstance(v, str) and v.startswith("https://"):
+                out.append(v)
+            elif isinstance(v, (dict, list)):
+                _walk_urls(v, out)
+    elif isinstance(o, list):
+        for v in o:
+            _walk_urls(v, out)
+    return out
+
+
+def frame_check(pages, now, max_new=40, extra=None):
+    """→ 띄워도 되는 언론사 도메인 목록. extra = 깊이 읽기 등 다른 목록(구조 상관없이 url을 찾아 씀)"""
     try:
         cache = json.load(open(FRAME_CACHE, encoding="utf-8"))
     except Exception:
@@ -3924,6 +3938,9 @@ def frame_check(pages, now, max_new=40):
                     continue
                 d = urllib.parse.urlsplit(u).netloc.lower()
                 sample.setdefault(d, u)
+    for u in _walk_urls(extra, []):  # [2026-11-28] 깊이 읽기(다음 매거진·뉴스타파·슬로우뉴스 등)도 드로어로
+        if not GN_RX.search(u):
+            sample.setdefault(urllib.parse.urlsplit(u).netloc.lower(), u)
     lo = (now - timedelta(days=7)).strftime("%Y-%m-%d")
     todo = [d for d in sample if (cache.get(d) or {}).get("t", "") < lo][:max_new]
 
@@ -4163,7 +4180,7 @@ def main():
         n_todo, n_img = enrich_graphics(graphic["others"])
         pstatus.append({"name": "그래픽 원문 사진", "ok": True, "count": n_img, "error": "" if n_img else f"{n_todo}건 중 0"})
 
-    frame_ok = [] if args.demo else frame_check(pages, now)
+    frame_ok = [] if args.demo else frame_check(pages, now, extra=deep)
     pstatus.append({"name": "드로어 원문 보기 가능 언론사", "ok": True, "count": len(frame_ok), "error": ""})
     os.makedirs(args.out, exist_ok=True)
     allstatus = status + pstatus
