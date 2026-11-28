@@ -2020,7 +2020,7 @@ BCAST_KVER = {"mbn": 4, "tvchosun": 4}  # 방송사별로만 다시 받을 때 (
 BCAST_BACKFILL = {"mbn"}  # 날짜를 골라 받을 수 있는 곳: 최근 7일 중 빈 날도 다시 받는다
 BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
 _NOT_NAME = {"경제", "사회", "정치", "국제", "문화", "연예", "스포츠", "취재", "영상", "사진", "기자", "전문", "담당", "소속", "현장", "앵커", "이메일", "제보"}
-_BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스\s*(\([^)]*\))?$|^헤드라인")
+_BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요\s?뉴스\s*(\([^)]*\))?$|^헤드라인")
 
 
 def http_post(url, form, timeout=30):
@@ -2233,8 +2233,8 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
             if not callable(fn) or (day in back and key not in BCAST_BACKFILL):
                 continue
             cur = slot.get(key) or {}
-            if cur.get("v") != BCAST_KVER.get(key, BCAST_VER):
-                cur = {}
+            if cur.get("v") != BCAST_KVER.get(key, BCAST_VER):  # 방식이 바뀌면 다시 받되, 못 받으면 예전 것을 그대로 둔다
+                cur = {"keep": cur.get("items")} if cur.get("items") else {}
             if len(cur.get("items") or []) >= 4 or cur.get("tries", 0) >= max_tries:
                 continue
             err = ""
@@ -2254,6 +2254,10 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
             except Exception as e:
                 err = f"{type(e).__name__}: {str(e)[:60]}"
             cur["tries"] = cur.get("tries", 0) + 1
+            if cur.get("items"):
+                cur.pop("keep", None)
+            elif cur.get("keep") and (cur["tries"] >= max_tries or day < days[0]):
+                cur["items"] = cur.pop("keep")
             cur["v"] = BCAST_KVER.get(key, BCAST_VER)
             slot[key] = cur
             if day == days[-1]:
