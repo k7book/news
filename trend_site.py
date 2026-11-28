@@ -625,6 +625,42 @@ DAUM_MAG = os.path.join(HERE, "history", "daum_mag.json")
 DAUM_MAG_GROUPS = [("시사 매거진", "[뉴스홈] 시사매거진", "주·월간 시사전문지"), ("라이프 매거진", "[뉴스홈] 라이프매거진", "문화·생활 전문지")]
 
 
+# 다음 매거진 글의 언론사 원문 주소: 그 매체 RSS에서 같은 제목을 찾아 연결한다 (다음 v.daum.net은 robots.txt가 막아 드로어로 못 띄움)
+# 2026-11-28 확인한 공식 RSS (전체 매거진 글의 약 3/4)
+MAG_ORIG_RSS = {"시사저널": "https://www.sisajournal.com/rss/allArticle.xml",
+                "시사저널e": "https://www.sisajournal-e.com/rss/allArticle.xml",
+                "주간경향": "https://weekly.khan.co.kr/rss/rssdata/total_news.xml",
+                "하이닥": "https://news.hidoc.co.kr/rss/allArticle.xml"}
+_tnorm = lambda t: re.sub(r"[^0-9A-Za-z가-힣]", "", html.unescape(t or "")).lower()
+
+
+def mag_originals(rows):
+    """rows 중 원문을 아직 모르는 글에 x["orig"]를 채운다 → (찾은 수, 오류 목록)"""
+    need = {x["outlet"] for x in rows if not x.get("orig") and x.get("outlet") in MAG_ORIG_RSS}
+    found, errs = 0, []
+    for outlet in sorted(need):
+        u = MAG_ORIG_RSS[outlet]
+        try:
+            if not robots_allows(u):
+                errs.append(f"{outlet} robots"); continue
+            root = ET.fromstring(http_get(u))
+            idx = {}
+            for it in root.iter("item"):
+                t, l = _tnorm(it.findtext("title")), (it.findtext("link") or "").strip()
+                if t and l.startswith("http"):
+                    idx[t] = l.replace("http://", "https://", 1)
+            for x in rows:
+                if x.get("outlet") != outlet or x.get("orig"):
+                    continue
+                t = _tnorm(x["title"])
+                hit = idx.get(t) or next((l for k, l in idx.items() if len(t) >= 15 and (k.startswith(t[:25]) or t.startswith(k[:25]))), None)
+                if hit:
+                    x["orig"] = hit; found += 1
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"{outlet} {type(e).__name__}")
+    return found, errs
+
+
 def fetch_daum_magazines(now, days=7):
     body, err = daum_home()
     try:
@@ -643,12 +679,18 @@ def fetch_daum_magazines(now, days=7):
         status.append({"name": f"깊이 읽기 {grp}(다음뉴스)", "ok": bool(rows), "count": len(rows), "error": err or ("" if rows else "목록을 찾지 못함")})
     lo = (now - timedelta(days=days)).isoformat()
     seen, out = set(), []
+    origs = {x["url"]: x["orig"] for x in old if x.get("orig")}
     for x in new + old:
         if x["url"] in seen or x["date"] < lo:
             continue
         seen.add(x["url"])
+        if origs.get(x["url"]):
+            x["orig"] = origs[x["url"]]
         out.append(x)
     out.sort(key=lambda x: x["date"], reverse=True)
+    n_o, o_err = mag_originals(out)
+    status.append({"name": "깊이 읽기 매거진 원문 주소(매체 RSS)", "ok": True, "count": sum(1 for x in out if x.get("orig")),
+                   "error": f"이번에 {n_o}건 연결" + (" · " + ", ".join(o_err) if o_err else "")})
     try:
         os.makedirs(os.path.dirname(DAUM_MAG), exist_ok=True)
         json.dump(out, open(DAUM_MAG, "w", encoding="utf-8"), ensure_ascii=False)
@@ -1582,11 +1624,11 @@ def render_deep(rows, now):
              + "".join(f'<button data-k="{esc(g)}"><span class="cdot oc{deep_color(g)}"></span>{esc(g)}<i>{cnt[g]}</i></button>' for g, _, _ in DAUM_MAG_GROUPS if cnt.get(g)))
 
     def row(x):
-        th = (f'<a class="dth" href="{esc(x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
+        th = (f'<a class="dth" href="{esc(x.get("orig") or x["url"])}" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">'
               f'<img src="{esc(x["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>') if x.get("img") else ""
         d = datetime.fromisoformat(x["date"])
         return (f'<li data-k="{esc(x.get("grp") or x["outlet"])}">{th}<div><div class="pm top"><b class="ot oc{deep_color(x.get("grp") or x["outlet"])}">{esc(x["outlet"])}</b>'
-                f'{d.month}.{d.day} ({WEEK[d.weekday()]})</div><div class="bt">{link(x["url"], x["title"])}</div>'
+                f'{d.month}.{d.day} ({WEEK[d.weekday()]})</div><div class="bt">{link(x.get("orig") or x["url"], x["title"])}</div>'
                 + (f'<p class="bd">{esc(x["desc"])}</p>' if x.get("desc") else "") + "</div></li>")
     return (f'<div class="pg" data-c="{DEEP_TAB}" role="tabpanel"><section class="photos books" style="margin-top:0">'
             f'<div class="shead" style="padding-top:12px"><h2>깊이 읽기</h2><span class="en">IN DEPTH · 최근 1주 {len(rows)}건</span></div>'
@@ -3913,7 +3955,7 @@ def _walk_urls(o, out):
     """dict/list 안의 url·link 값을 모두 모은다 (깊이 읽기처럼 묶음 구조가 아닌 목록용)"""
     if isinstance(o, dict):
         for k, v in o.items():
-            if k in ("url", "link", "real") and isinstance(v, str) and v.startswith("https://"):
+            if k in ("url", "link", "real", "orig") and isinstance(v, str) and v.startswith("https://"):
                 out.append(v)
             elif isinstance(v, (dict, list)):
                 _walk_urls(v, out)
