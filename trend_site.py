@@ -2016,9 +2016,11 @@ def render_visual_side():
 BCAST_TAB = "TV"
 BCAST_CACHE = os.path.join(HERE, "history", "broadcast.json")
 BCAST_VER = 3  # 가져오는 방식을 고치면 올린다 → 저장된 것도 다시 받음
+BCAST_KVER = {"mbn": 4, "tvchosun": 4}  # 방송사별로만 다시 받을 때 (2026-11-28 주말 뉴스: MBN 뉴스센터·TV조선 뉴스7)
+BCAST_BACKFILL = {"mbn"}  # 날짜를 골라 받을 수 있는 곳: 최근 7일 중 빈 날도 다시 받는다
 BCAST_HOUR = 22  # 이 시각(한국 시간)부터 그날 방송을 받는다. 그 전에는 전날 방송
 _NOT_NAME = {"경제", "사회", "정치", "국제", "문화", "연예", "스포츠", "취재", "영상", "사진", "기자", "전문", "담당", "소속", "현장", "앵커", "이메일", "제보"}
-_BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스$|^헤드라인")
+_BTAG = re.compile(r"클로징|'?뉴스\s?\w*'?\s*예고$|\d+월 \d+일 .*예고|오프닝|다시보기|^\[날씨\]|앵커칼럼|앵커 칼럼|주요뉴스\s*(\([^)]*\))?$|^헤드라인")
 
 
 def http_post(url, form, timeout=30):
@@ -2067,8 +2069,18 @@ def _bc_sbs(day):
 
 
 def _bc_mbn(day):
+    """평일 'MBN 뉴스7'(552), 주말은 'MBN 뉴스센터'(906)가 메인뉴스"""
+    out = _bc_mbn_prog(day, "552")
+    if not out:
+        out = _bc_mbn_prog(day, "906")
+        for x in out:
+            x["_prog"] = "뉴스센터"
+    return out
+
+
+def _bc_mbn_prog(day, prog):
     url = "https://www.mbn.co.kr/lib/module/getProgramReviewList_A.v3.php"
-    body = http_post(url, {"progCode": "552", "menuCode": "2636", "currentDate": day, "page": "1"}).decode("utf-8", "ignore")
+    body = http_post(url, {"progCode": prog, "menuCode": "2636", "currentDate": day, "page": "1"}).decode("utf-8", "ignore")
     out = []
     for li in re.findall(r"<li>(.*?)</li>", body, re.S):
         m = re.search(r'href="(/vod/programView/(\d+))"[^>]*class="tlt"[^>]*>(.*?)</a>', li, re.S)
@@ -2115,22 +2127,29 @@ def _bc_tvchosun(day):
         img = (it.find("enclosure").get("url") if it.find("enclosure") is not None else None)
         d = parse_date(it.findtext("pubDate"))
         rows[int(m.group(1))] = {"t": html.unescape((it.findtext("title") or "").strip()), "u": u, "rep": _rep(it.findtext("author")),
-                                 "_late": d is None or d.strftime("%H%M") >= "2030",
+                                 "_d": d.strftime("%H%M") if d else None,
                                  "img": img or f"https://img.tvchosun.com/sitedata/image/{day[:6]}/{day[6:]}/{m.group(1)}_thumb.jpg"}
     md = f"{int(day[4:6])}월 {int(day[6:])}일"
-    close = [k for k, v in rows.items() if "클로징" in v["t"] and "뉴스 9" in v["t"].replace("뉴스9", "뉴스 9") and md in v["t"]]
-    pre = [k for k, v in rows.items() if "예고" in v["t"] and "뉴스 9" in v["t"].replace("뉴스9", "뉴스 9") and md in v["t"]]
-    if not close:
-        return []
-    c = max(close)
-    lo = max(pre) if pre else None
-    ids, k = [], c
-    while k in rows and (lo is None or k > lo) and rows[k]["_late"]:  # 클로징부터 2씩 거슬러 올라가며 뉴스9 번호 묶음(방송 전 20:30 이전 기사는 제외)
-        ids.append(k)
-        k -= 2
-    if lo is None and len(ids) < 8:
-        return []
-    return [{kk: vv for kk, vv in rows[k].items() if kk != "_late"} for k in sorted(ids)]
+    nt = lambda t: re.sub(r"뉴스\s?([79])", r"뉴스 \1", t)
+    for pname, start in (("뉴스 9", "2030"), ("뉴스 7", "1830")):  # 평일 뉴스9(21시), 주말 뉴스7(19시)
+        close = [k for k, v in rows.items() if "클로징" in v["t"] and pname in nt(v["t"]) and md in v["t"]]
+        pre = [k for k, v in rows.items() if "예고" in v["t"] and pname in nt(v["t"]) and md in v["t"]]
+        if not close:
+            continue
+        c = max(close)
+        lo = max(pre) if pre else None
+        ids, k = [], c
+        while k in rows and (lo is None or k > lo) and (rows[k]["_d"] or "9999") >= start:  # 클로징부터 2씩 거슬러 올라가며 한 방송 번호 묶음(방송 전 기사는 제외)
+            ids.append(k)
+            k -= 2
+        if lo is None and len(ids) < 8:
+            continue
+        out = [{kk: vv for kk, vv in rows[k].items() if kk != "_d"} for k in sorted(ids)]
+        if pname == "뉴스 7":
+            for x in out:
+                x["_prog"] = "뉴스7"
+        return out
+    return []
 
 
 def _bc_channela(day):
@@ -2206,14 +2225,15 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
     days = [(now - timedelta(days=1)).strftime("%Y%m%d")]
     if now.hour >= BCAST_HOUR:
         days.append(now.strftime("%Y%m%d"))
+    back = [(now - timedelta(days=i)).strftime("%Y%m%d") for i in range(7, 1, -1)]
     status = []
-    for day in days:
+    for day in back + days:
         slot = cache.setdefault(day, {})
         for key, name, prog, _, fn in BROADCASTERS:
-            if not callable(fn):
+            if not callable(fn) or (day in back and key not in BCAST_BACKFILL):
                 continue
             cur = slot.get(key) or {}
-            if cur.get("v") != BCAST_VER:
+            if cur.get("v") != BCAST_KVER.get(key, BCAST_VER):
                 cur = {}
             if len(cur.get("items") or []) >= 4 or cur.get("tries", 0) >= max_tries:
                 continue
@@ -2222,15 +2242,19 @@ def fetch_broadcast(now, keep_days=14, max_tries=12):
                 if key not in _BC_ROBOTS_EXEMPT and not robots_allows(_BC_URL[key]):
                     raise RuntimeError("robots.txt 차단")
                 rows = [r for r in fn(day) if r.get("t") and not _BTAG.search(r["t"])]
+                pg = None
                 for r in rows:
                     r.pop("_k", None)
+                    pg = r.pop("_prog", None) or pg
                 if rows:
                     cur["items"] = rows[:4]
                     cur["at"] = now.isoformat()
+                    if pg:
+                        cur["prog"] = pg
             except Exception as e:
                 err = f"{type(e).__name__}: {str(e)[:60]}"
             cur["tries"] = cur.get("tries", 0) + 1
-            cur["v"] = BCAST_VER
+            cur["v"] = BCAST_KVER.get(key, BCAST_VER)
             slot[key] = cur
             if day == days[-1]:
                 status.append({"name": f"TV 메인뉴스 {name} {prog}", "ok": bool(cur.get("items")), "count": len(cur.get("items") or []),
@@ -2262,8 +2286,10 @@ def render_broadcast(cache):
                           "각 방송사 메인 뉴스의 첫 번째 ~ 네 번째 기사 제목과 기자를 정리했습니다.",
                           "각 방송사 뉴스가 무엇을 중요하게 생각하는지,", "어떤 시각으로 바라보는지 비교해볼 수 있습니다.", ""]
         n_ok = 0
-        for key, name, prog, purl, fn in BROADCASTERS:
-            items = ((cache[day].get(key) or {}).get("items")) or []
+        for key, name, prog0, purl, fn in BROADCASTERS:
+            ent = cache[day].get(key) or {}
+            items = [x for x in (ent.get("items") or []) if not _BTAG.search(x.get("t") or "")]
+            prog = ent.get("prog") or prog0
             head = (f'<header class="bch"><b class="bcn">{esc(name)}</b><span class="bcp">{esc(prog)}</span>'
                     f'<a class="bcgo" href="{esc(purl)}" target="_blank" rel="noopener noreferrer">방송 보기</a></header>')
             if items:
@@ -2277,7 +2303,8 @@ def render_broadcast(cache):
                     for j, x in enumerate(items, 1))
                 cards.append(f'<section class="bcard2">{head}<ol class="bcl">{lis}</ol></section>')
             else:
-                why = fn if isinstance(fn, str) else "이날 방송 목록을 아직 받지 못했습니다"
+                why = fn if isinstance(fn, str) else ("여러 번 시도했지만 이날 방송 목록을 받지 못했습니다(수집 실패)" if ent.get("tries", 0) >= 12
+                                                      else "아직 방송 전이거나 방송사 사이트에 목록이 올라오지 않았습니다. 매시간 다시 확인합니다")
                 cards.append(f'<section class="bcard2 bcoff">{head}<p class="bcno">{esc(why)}.</p></section>')
         txt[6:6] = [f"{n_ok}개 방송사를 정리했으며, 순서는 회사명 가나다 순입니다. (지상파 먼저)", ""]
         secs.append(f'<div class="bcday" data-d="{day}"{"" if i == 0 else " hidden"}><div class="bcgrid">{"".join(cards)}</div>'
@@ -3169,7 +3196,7 @@ const lkIcon=u=>canFrame(u)?'<span class="lk dr" title="드로어에서 열림">
 const skipHost=u=>{try{const h=new URL(u).host;return /(^|[.])(yes24|aladin|kyobobook|google)[.]|^lib[.]/.test(h)&&!/^news[.]google[.]/.test(h)}catch(e){return true}};
 const elig=l=>!l.closest('header, footer, .dateline, .ticker, .note, .bbtn, .bbtns, #ndrawer, #gzoom, .lead h2, .story h3')&&!l.matches('a.ph, a.th, a.dth, a.bth')&&!skipHost(l.href);
 function deco(root){(root||document).querySelectorAll('a[href^="http"]:not([data-lk])').forEach(l=>{l.dataset.lk=1;if(!elig(l))return;
-if(!l.textContent.trim())return;const v=l.classList.contains('vcard')?l.querySelector('.pm'):null;(v||l).insertAdjacentHTML('beforeend',l.closest('#dl')&&!canFrame(l.href)?'<span class="lk dr" title="드로어에서 요약을 보고 원문으로 이동">'+IC_D+'</span>':lkIcon(l.href))})}
+if(!l.textContent.trim())return;const v=l.classList.contains('vcard')?l.querySelector('.pm'):null;(v||l).insertAdjacentHTML('beforeend',l.closest('#dl, .bcl')&&!canFrame(l.href)?'<span class="lk dr" title="드로어에서 요약을 보고 원문으로 이동">'+IC_D+'</span>':lkIcon(l.href))})}
 deco();let dq=0;new MutationObserver(()=>{if(!dq)dq=requestAnimationFrame(()=>{dq=0;deco()})}).observe(document.body,{childList:true,subtree:true});
 let cur=null;  // 지금 드로어에 연 사건(article)
 const open=()=>{if(!d.open){if(d.showModal)d.showModal();else d.setAttribute('open','');requestAnimationFrame(()=>d.classList.add('in'))}};
@@ -3190,17 +3217,21 @@ const head='<div class="ndah">'+back+'<div class="ndat"><b class="ndo">'+esc(out
 body.innerHTML=head+(canFrame(url)?'<iframe class="ndframe" src="'+esc(url)+'" referrerpolicy="no-referrer" loading="eager" title="'+esc(outlet)+' 기사"></iframe>'
 :'<div class="ndno"><p>'+esc(outlet||'이 언론사')+'는 다른 사이트 안에서 기사를 띄우지 못하게 막아 두었습니다.</p><a class="ndgo" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">원문을 새 창으로 보기 →</a></div>');body.scrollTop=0}
 // ③ 깊이 읽기 중 드로어에 띄울 수 없는 글(다음 매거진·뉴스타파 등): 요약을 보여 주고 원문으로 직접 가도록 안내
-function showInfo(li,url){d.classList.remove('wide');cur=null;kick.textContent='깊이 읽기';
-const t=li.querySelector('.bt a')?.textContent.replace(/\\s+/g,' ').trim()||'',o=li.querySelector('.ot')?.textContent||'',m=li.querySelector('.pm')?.textContent.replace(o,'').trim()||'';
-const im=li.querySelector('.dth img'),ds=li.querySelector('.bd')?.textContent||'';
-body.innerHTML='<div class="ndrec"><b>여기서는 말고 원문으로 직접 이동하는 걸 추천합니다.</b>'+esc(o||'이 매체')+' 글은 다른 사이트 안에서 띄울 수 없어 요약만 보여 드려요.</div>'
+function showInfo(li,url){d.classList.remove('wide');cur=null;
+const tv=li.closest('.bcl');let t,o,m,im,ds;
+if(tv){const sec=li.closest('.bcard2');t=li.querySelector('.bct')?.textContent||'';o=(sec?.querySelector('.bcn')?.textContent||'')+' '+(sec?.querySelector('.bcp')?.textContent||'');
+m=li.querySelector('.bcr')?.textContent||'';im=li.querySelector('.bci img');ds='';kick.textContent='TV';}
+else{t=li.querySelector('.bt a')?.textContent.replace(/\\s+/g,' ').trim()||'';o=li.querySelector('.ot')?.textContent||'';m=li.querySelector('.pm')?.textContent.replace(o,'').trim()||'';
+im=li.querySelector('.dth img');ds=li.querySelector('.bd')?.textContent||'';kick.textContent='깊이 읽기';}
+o=o.trim();
+body.innerHTML='<div class="ndrec"><b>여기서는 말고 원문으로 직접 이동하는 걸 추천합니다.</b>'+esc(o||'이 매체')+(tv?' 기사는 다른 사이트 안에서 띄울 수 없어 요약만 보여 드려요. 방송 영상도 원문에서 볼 수 있습니다.':' 글은 다른 사이트 안에서 띄울 수 없어 요약만 보여 드려요.')+'</div>'
 +(im&&im.naturalWidth?'<div class="ndimg"><img src="'+esc(im.currentSrc||im.src)+'" alt="" referrerpolicy="no-referrer"></div>':'')
 +'<h2 class="ndt">'+esc(t)+'</h2><div class="ndm">'+esc(o)+(m?' · '+esc(m):'')+'</div>'+(ds?'<p class="nddesc">'+esc(ds)+(ds.length>=150?'…':'')+'</p>':'')
 +'<div class="ndbtns"><a class="ndgo" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">원문으로 이동 →</a></div>';body.scrollTop=0}
 document.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.button===1)return;  // 새 탭 열기는 그대로
 const chip=e.target.closest('.lead .outlets a, .story .outlets a');
 if(chip){if(!canFrame(chip.href))return;e.preventDefault();cur=chip.closest('article');kick.textContent=chip.closest('.pg[role=tabpanel]')?.dataset.c||'';showArticle(chip.href,chip.textContent,chip.title||'');open();return}
-const a=e.target.closest('.lead h2 a, .story h3 a, .lead a.ph, .story a.th');const art=a&&a.closest('article');if(art){e.preventDefault();showList(art);open();return}const l=e.target.closest('a[href^="http"]');if(!l||e.defaultPrevented)return;if(l.closest('header, footer, .dateline, .ticker, .note, .bbtn, .bbtns, #ndrawer, #gzoom')||e.target.closest('.vph img, .gph img, .pcnt'))return;if(!canFrame(l.href)){const li=l.closest('#dl li');if(li&&!skipHost(l.href)){e.preventDefault();showInfo(li,l.href);open()}return}if(skipHost(l.href))return;e.preventDefault();cur=null;const box=l.closest('li, .card, .vcard, article, .dli, div');const on=(box&&box.querySelector('.o, .ot, .src'))?.textContent.trim()||l.dataset.o||new URL(l.href).host.replace(/^www[.]/,'');const tt=(l.querySelector('h3, h4, .vt, .t')||l).textContent.replace(/[ ]+/g,' ').trim();kick.textContent=l.closest('.pg[role=tabpanel]')?.dataset.c||(l.closest('#smodal')?'검색':'');showArticle(l.href,on,on===tt?'':tt.slice(0,160));open()});
+const a=e.target.closest('.lead h2 a, .story h3 a, .lead a.ph, .story a.th');const art=a&&a.closest('article');if(art){e.preventDefault();showList(art);open();return}const l=e.target.closest('a[href^="http"]');if(!l||e.defaultPrevented)return;if(l.closest('header, footer, .dateline, .ticker, .note, .bbtn, .bbtns, #ndrawer, #gzoom')||e.target.closest('.vph img, .gph img, .pcnt'))return;if(!canFrame(l.href)){const li=l.closest('#dl li, .bcl li');if(li&&!skipHost(l.href)){e.preventDefault();showInfo(li,l.href);open()}return}if(skipHost(l.href))return;e.preventDefault();cur=null;const box=l.closest('li, .card, .vcard, article, .dli, div');const on=(box&&box.querySelector('.o, .ot, .src'))?.textContent.trim()||l.dataset.o||new URL(l.href).host.replace(/^www[.]/,'');const tt=(l.querySelector('h3, h4, .vt, .t')||l).textContent.replace(/[ ]+/g,' ').trim();kick.textContent=l.closest('.pg[role=tabpanel]')?.dataset.c||(l.closest('#smodal')?'검색':'');showArticle(l.href,on,on===tt?'':tt.slice(0,160));open()});
 const close=()=>{d.classList.remove('in');setTimeout(()=>{d.close();body.innerHTML=''},180)};
 document.getElementById('ndx').onclick=close;d.addEventListener('click',e=>{if(e.target===d)close()});
 d.addEventListener('cancel',e=>{e.preventDefault();close()});
