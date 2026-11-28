@@ -648,7 +648,7 @@ def mag_originals(rows):
             for it in root.iter("item"):
                 t, l = _tnorm(it.findtext("title")), (it.findtext("link") or "").strip()
                 if t and l.startswith("http"):
-                    idx[t] = l.replace("http://", "https://", 1)
+                    idx[t] = re.sub(r"\?utm_[^#]*$", "", l.replace("http://", "https://", 1))  # 추적용 꼬리표 제거
             for x in rows:
                 if x.get("outlet") != outlet or x.get("orig"):
                     continue
@@ -685,7 +685,7 @@ def fetch_daum_magazines(now, days=7):
             continue
         seen.add(x["url"])
         if origs.get(x["url"]):
-            x["orig"] = origs[x["url"]]
+            x["orig"] = re.sub(r"\?utm_[^#]*$", "", origs[x["url"]])
         out.append(x)
     out.sort(key=lambda x: x["date"], reverse=True)
     n_o, o_err = mag_originals(out)
